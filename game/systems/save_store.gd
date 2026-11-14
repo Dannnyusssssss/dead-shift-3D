@@ -6,6 +6,8 @@ extends Node
 const SETTINGS_PATH: String = "user://settings.json"
 const GAME_PATH: String = "user://save_1.json"
 const BEST_PATH: String = "user://best.json"
+## Versión del formato de la mejor marca.
+const BEST_VERSION: int = 1
 
 ## Evita repetir el aviso de almacenamiento no disponible.
 var _storage_warned: bool = false
@@ -23,7 +25,7 @@ func load_settings() -> Dictionary:
 
 ## Guarda los ajustes. Devuelve falso si el navegador no permite guardar.
 func save_settings(values: Dictionary) -> bool:
-	return _write_text(SETTINGS_PATH, SaveCodec.encode(values))
+	return _write_text(SETTINGS_PATH, SaveCodec.encode(values, SettingsSchema.VERSION))
 
 
 ## Verdadero si hay una partida guardada.
@@ -31,10 +33,10 @@ func has_game() -> bool:
 	return FileAccess.file_exists(GAME_PATH)
 
 
-## Lee y valida la partida. known_items son los identificadores de objetos válidos.
-func load_game(known_items: PackedStringArray) -> DataResult:
+## Lee y valida la partida con el contexto del catálogo (GameCatalog.save_context()).
+func load_game(context: Dictionary) -> DataResult:
 	var text := _read_text(GAME_PATH)
-	var result := Validation.parse_save(text, known_items)
+	var result := SaveValidation.parse(text, context)
 	if not result.ok and not text.is_empty():
 		ErrorLog.report("save_rejected", result.error)
 	return result
@@ -43,6 +45,33 @@ func load_game(known_items: PackedStringArray) -> DataResult:
 ## Guarda la partida. Devuelve falso si el navegador no permite guardar.
 func save_game(data: Dictionary) -> bool:
 	return _write_text(GAME_PATH, SaveCodec.encode(data))
+
+
+## Borra solo la partida guardada (al empezar una nueva no se borra hasta guardar).
+func delete_game() -> void:
+	if FileAccess.file_exists(GAME_PATH):
+		DirAccess.remove_absolute(GAME_PATH)
+
+
+## Mejor nota guardada en este dispositivo ("" si no hay o si está dañada).
+func load_best() -> String:
+	var decoded := SaveCodec.decode(_read_text(BEST_PATH), BEST_VERSION)
+	if not decoded.ok:
+		return ""
+	var grade: Variant = decoded.data.get("grade")
+	if grade is String and RunStats.GRADES.has(grade):
+		return grade
+	return ""
+
+
+## Guarda la nota si mejora la anterior. Devuelve verdadero si fue récord.
+func save_best(grade: String) -> bool:
+	if not RunStats.GRADES.has(grade):
+		return false
+	var previous := load_best()
+	if not previous.is_empty() and RunStats.grade_rank(previous) <= RunStats.grade_rank(grade):
+		return false
+	return _write_text(BEST_PATH, SaveCodec.encode({"grade": grade}, BEST_VERSION))
 
 
 ## Borra todos los datos guardados en este navegador (ajustes, partida y mejor marca).

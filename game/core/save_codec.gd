@@ -1,25 +1,28 @@
 class_name SaveCodec
 extends RefCounted
-## Códec del guardado: JSON con campo "version" y migración por versión.
+## Códec del guardado: JSON con campo "version" y migración por versión. La partida usa
+## CURRENT_VERSION y migra desde versiones anteriores; los ajustes y la mejor marca tienen su
+## propia versión (sin migración: lo que no se reconoce vuelve a los valores por defecto).
 ## Nunca usa recursos del motor (.tres, .res, escenas): solo tipos JSON, que no ejecutan código.
 ## Solo decodifica y migra; el esquema campo por campo lo comprueba boundary/validation.gd.
 
-const CURRENT_VERSION: int = 1
+const CURRENT_VERSION: int = 2
 ## Tamaño máximo aceptado del texto guardado (bytes UTF-8).
 const MAX_BYTES: int = 262144
 ## Profundidad máxima de anidación aceptada.
 const MAX_DEPTH: int = 8
 
 
-## Convierte un diccionario en texto JSON con la versión actual.
-static func encode(data: Dictionary) -> String:
+## Convierte un diccionario en texto JSON con la versión dada (por defecto, la de la partida).
+static func encode(data: Dictionary, version: int = CURRENT_VERSION) -> String:
 	var copy: Dictionary = data.duplicate(true)
-	copy["version"] = CURRENT_VERSION
+	copy["version"] = version
 	return JSON.stringify(copy)
 
 
-## Decodifica texto JSON, comprueba tamaño, profundidad y versión, y migra a la actual.
-static func decode(text: String) -> DataResult:
+## Decodifica texto JSON y comprueba tamaño, profundidad y versión. Con la versión de la
+## partida migra los guardados antiguos; con otra versión solo acepta exactamente esa o menor.
+static func decode(text: String, expected_version: int = CURRENT_VERSION) -> DataResult:
 	if text.is_empty():
 		return DataResult.failure("empty")
 	if text.to_utf8_buffer().size() > MAX_BYTES:
@@ -42,20 +45,65 @@ static func decode(text: String) -> DataResult:
 	var version := int(version_number)
 	if version < 1:
 		return DataResult.failure("bad_version")
-	if version > CURRENT_VERSION:
+	if version > expected_version:
 		return DataResult.failure("future_version")
+	if expected_version != CURRENT_VERSION:
+		return DataResult.success(dict)
 	return DataResult.success(_migrate(dict, version))
 
 
-## Aplica las migraciones en cadena desde la versión dada hasta la actual.
-## Hoy solo existe la versión 1; cada versión nueva añade aquí su paso.
+## Aplica las migraciones en cadena desde la versión dada hasta la actual. Cada paso solo
+## cambia la forma de los datos; los valores los valida después el borde de validación.
 static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	var current: Dictionary = data
 	var version := from_version
 	while version < CURRENT_VERSION:
+		if version == 1:
+			current = _migrate_1_to_2(current)
 		version += 1
 	current["version"] = CURRENT_VERSION
 	return current
+
+
+## Versión 1 (corte de la planta baja) a 2: piso por identificador, punto de reaparición,
+## infección con su estado, objetos clave, reloj del rescate y estado del mundo.
+static func _migrate_1_to_2(old: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	var floor_raw: Variant = old.get("floor")
+	var floor_id := SaveSchema.V1_FLOORS[0]
+	if floor_raw is float or floor_raw is int:
+		var floor_number: float = floor_raw
+		var index := int(floor_number)
+		if index >= 0 and index < SaveSchema.V1_FLOORS.size():
+			floor_id = SaveSchema.V1_FLOORS[index]
+	result["floor"] = floor_id
+	var safe_zone: Variant = old.get("safe_zone")
+	if safe_zone is String and not (safe_zone as String).is_empty():
+		result["spawn_kind"] = "safe"
+		result["spawn_id"] = safe_zone
+	else:
+		result["spawn_kind"] = "start"
+	for key: String in ["health", "inventory", "vest", "equipped", "seed"]:
+		if old.has(key):
+			result[key] = old[key]
+	var left: Variant = old.get("infection_left")
+	var seconds: float = left if (left is float or left is int) else 0.0
+	result["infection"] = {"infected": seconds > 0.0, "time_left": seconds, "slowed_left": 0.0}
+	result["keys"] = old.get("phone_pieces", [])
+	var called: Variant = old.get("phone_called")
+	var clock: Variant = old.get("rescue_clock", 0.0)
+	result["rescue"] = {"state": 1 if called is bool and called else 0, "time_left": clock}
+	result["world"] = {"flags": old.get("shortcuts", []), "floors": {}}
+	var stats: Variant = old.get("stats")
+	if stats is Dictionary:
+		var old_stats: Dictionary = stats
+		result["stats"] = {
+			"time": old_stats.get("time", 0.0),
+			"damage_taken": old_stats.get("damage_taken", 0.0),
+			"weapons_broken": old_stats.get("weapons_broken", 0),
+			"crafted": old_stats.get("crafted", 0),
+		}
+	return result
 
 
 ## Calcula la profundidad de anidación de diccionarios y listas.

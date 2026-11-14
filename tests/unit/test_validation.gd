@@ -1,9 +1,8 @@
 extends GutTest
 @warning_ignore_start("unsafe_call_argument")
-## Borde de validación con entradas hostiles: ajustes corruptos, guardado manipulado y semilla
-## inválida en la URL. Nada debe romper el juego: lo dañado vuelve a su valor por defecto.
-
-const KNOWN: PackedStringArray = ["pistol", "pipe", "nails", "vest"]
+## Borde de validación con entradas hostiles: ajustes corruptos y semilla inválida en la
+## URL (el guardado de partida se prueba en test_save_validation.gd). Nada debe romper el
+## juego: lo dañado vuelve a su valor por defecto.
 
 
 func _settings(json: String) -> Dictionary:
@@ -77,82 +76,3 @@ func test_id_validation() -> void:
 	assert_false(Validation.is_valid_id(""))
 	assert_false(Validation.is_valid_id("a".repeat(33)))
 	assert_false(Validation.is_valid_id(42))
-
-
-func test_save_rejects_unreadable_text() -> void:
-	assert_false(Validation.parse_save("", KNOWN).ok)
-	assert_false(Validation.parse_save("no es json", KNOWN).ok)
-	assert_false(Validation.parse_save('{"version": 2}', KNOWN).ok, "versión futura")
-
-
-func test_save_valid_round_trip() -> void:
-	var data := {
-		"floor": 1,
-		"safe_zone": "security_room",
-		"health": 75.0,
-		"inventory": [{"slot": 0, "id": "pipe", "count": 1, "durability": 0.5, "ammo": 0}],
-		"vest": {"id": "vest", "durability": 0.8},
-		"seed": 42,
-		"stats": {"time": 120.0, "crafted": 2},
-	}
-	var result := Validation.parse_save(SaveCodec.encode(data), KNOWN)
-	assert_true(result.ok)
-	assert_eq(result.data["floor"], 1)
-	assert_eq(result.data["safe_zone"], "security_room")
-	assert_eq(result.data["seed"], 42)
-	var inventory: Array = result.data["inventory"]
-	assert_eq(inventory.size(), 1)
-	var vest: Dictionary = result.data["vest"]
-	assert_eq(vest["durability"], 0.8)
-
-
-func test_save_hostile_fields_are_sanitized() -> void:
-	var data := {
-		"floor": 99,
-		"safe_zone": "<img onerror=x>",
-		"health": 1e30,
-		"infection_left": -10,
-		"inventory":
-		[
-			{"slot": 0, "id": "rocket_launcher", "count": 1},
-			{"slot": 1, "id": "pipe", "count": 1, "durability": 7},
-			{"slot": 1, "id": "nails", "count": 5},
-			{"slot": -4, "id": "nails", "count": 5},
-			"no soy un objeto",
-			{"slot": 2, "id": "nails", "count": 1e9},
-		],
-		"vest": "fuerte",
-		"equipped": 500,
-		"phone_pieces": ["piece_a", "piece_a", 5, "../x"],
-		"seed": -1,
-		"stats": {"time": "mucho", "weapons_broken": 3.5},
-	}
-	var result := Validation.parse_save(SaveCodec.encode(data), KNOWN)
-	assert_true(result.ok, "un guardado manipulado se limpia, no rompe el juego")
-	var clean := result.data
-	assert_eq(clean["floor"], SaveSchema.MAX_FLOOR)
-	assert_eq(clean["safe_zone"], "")
-	assert_eq(clean["health"], Rules.PLAYER_MAX_HEALTH)
-	assert_eq(clean["infection_left"], 0.0)
-	var inventory: Array = clean["inventory"]
-	assert_eq(inventory.size(), 2, "descarta desconocidos, repetidos, fuera de rango y basura")
-	var pipe: Dictionary = inventory[0]
-	assert_eq(pipe["durability"], 1.0)
-	var nails: Dictionary = inventory[1]
-	assert_eq(nails["count"], SaveSchema.MAX_STACK_COUNT)
-	assert_eq(clean["vest"], {})
-	assert_eq(clean["equipped"], SaveSchema.MAX_SLOT_INDEX)
-	assert_eq(clean["phone_pieces"], ["piece_a"])
-	assert_eq(clean["seed"], 0)
-	var stats: Dictionary = clean["stats"]
-	assert_eq(stats["time"], 0.0)
-	assert_eq(stats["weapons_broken"], 0)
-
-
-func test_save_huge_lists_are_capped() -> void:
-	var killed: Array = []
-	for index: int in 1000:
-		killed.append("enemy_%d" % index)
-	var result := Validation.parse_save(SaveCodec.encode({"killed": killed}), KNOWN)
-	var clean_killed: Array = result.data["killed"]
-	assert_eq(clean_killed.size(), SaveSchema.MAX_KILLED)

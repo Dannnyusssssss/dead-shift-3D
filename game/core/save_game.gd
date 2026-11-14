@@ -1,0 +1,106 @@
+class_name SaveGame
+extends RefCounted
+## Traduce la partida en curso a un diccionario de guardado (solo tipos JSON) y lo contrario,
+## a partir de datos ya validados por boundary/save_validation.gd. Lógica pura.
+
+
+## Reúne todo lo que se guarda. spawn_kind/spawn_id dicen dónde reaparecer al continuar.
+static func capture(
+	state: PlayerState,
+	world: WorldState,
+	rescue: RescueClock,
+	floor_id: String,
+	spawn_kind: String,
+	spawn_id: String,
+	seed_value: int,
+	elapsed: float
+) -> Dictionary:
+	var vest: Dictionary = {}
+	if state.vest != null:
+		vest = {"id": state.vest.id(), "durability": state.vest.durability.fraction()}
+	var keys: Array[String] = []
+	for item_id: String in state.keys.items:
+		keys.append(item_id)
+	return {
+		"floor": floor_id,
+		"spawn_kind": spawn_kind,
+		"spawn_id": spawn_id,
+		"health": state.health,
+		"infection":
+		{
+			"infected": state.infection.infected,
+			"time_left": state.infection.time_left,
+			"slowed_left": state.infection.slowed_left,
+		},
+		"inventory": state.inventory.to_data(),
+		"vest": vest,
+		"equipped": state.equipped_slot,
+		"keys": keys,
+		"phone_assembled": state.keys.phone_assembled,
+		"rescue": rescue.to_data(),
+		"world": world.to_data(),
+		"seed": seed_value,
+		"stats":
+		{
+			"time": elapsed,
+			"damage_taken": state.damage_taken,
+			"weapons_broken": state.weapons_broken,
+			"crafted": state.items_crafted,
+			"kills": state.kills,
+		},
+	}
+
+
+## Reconstruye el jugador desde datos validados.
+static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
+	var state := PlayerState.new(items)
+	state.health = data.get("health", Rules.PLAYER_MAX_HEALTH)
+	var infection: Dictionary = data.get("infection", {})
+	state.infection.infected = infection.get("infected", false)
+	state.infection.time_left = infection.get("time_left", 0.0)
+	state.infection.slowed_left = infection.get("slowed_left", 0.0)
+	var entries: Array[Dictionary] = []
+	var raw_inventory: Array = data.get("inventory", [])
+	for entry: Variant in raw_inventory:
+		if entry is Dictionary:
+			entries.append(entry)
+	state.inventory.load_data(entries, items)
+	var vest: Dictionary = data.get("vest", {})
+	var vest_id: String = vest.get("id", "")
+	var vest_fraction: float = vest.get("durability", 1.0)
+	var vest_item := items.get_item(vest_id)
+	if vest_item != null and vest_item.vest != null:
+		state.vest = ItemStack.new(vest_item, 1, vest_fraction)
+	state.equipped_slot = data.get("equipped", -1)
+	if state.equipped() == null:
+		state.equipped_slot = -1
+		state.cycle_weapon(1)
+	var keys: Array = data.get("keys", [])
+	for item_id: Variant in keys:
+		if item_id is String:
+			var key_id: String = item_id
+			state.keys.add(key_id)
+	state.keys.phone_assembled = data.get("phone_assembled", false)
+	var stats: Dictionary = data.get("stats", {})
+	state.damage_taken = stats.get("damage_taken", 0.0)
+	state.weapons_broken = stats.get("weapons_broken", 0)
+	state.items_crafted = stats.get("crafted", 0)
+	state.kills = stats.get("kills", 0)
+	return state
+
+
+static func restore_world(data: Dictionary) -> WorldState:
+	var world := WorldState.new()
+	var world_data: Dictionary = data.get("world", {})
+	world.load_data(world_data)
+	world.current_floor = data.get("floor", "")
+	return world
+
+
+static func restore_rescue(data: Dictionary) -> RescueClock:
+	var clock := RescueClock.new()
+	var rescue: Dictionary = data.get("rescue", {})
+	var state_value: int = rescue.get("state", RescueClock.STATE_IDLE)
+	var seconds: float = rescue.get("time_left", 0.0)
+	clock.load_data(state_value, seconds)
+	return clock

@@ -54,6 +54,39 @@ func test_rejects_missing_or_bad_version() -> void:
 
 func test_resource_paths_are_plain_text() -> void:
 	# Un guardado manipulado con rutas a recursos del motor se trata como texto: nunca se carga.
-	var result := SaveCodec.decode('{"version": 1, "x": "res://evil.tres"}')
+	var result := SaveCodec.decode('{"version": 2, "x": "res://evil.tres"}')
 	assert_true(result.ok)
 	assert_eq(result.data.get("x"), "res://evil.tres")
+
+
+func test_settings_version_is_independent_and_never_migrated() -> void:
+	var text := SaveCodec.encode({"fov": 90.0}, 1)
+	var result := SaveCodec.decode(text, 1)
+	assert_true(result.ok)
+	assert_eq(result.data.get("fov"), 90.0, "sin migrar como si fuera una partida")
+	assert_false(SaveCodec.decode('{"version": 2}', 1).ok, "versión futura de ajustes")
+
+
+func test_version_one_save_is_migrated() -> void:
+	var old := '{"version": 1, "floor": 1, "safe_zone": "security_room", "health": 60,'
+	old += ' "infection_left": 30, "phone_pieces": ["phone_antenna"], "phone_called": true,'
+	old += ' "rescue_clock": 40, "shortcuts": ["shortcut_l1"], "stats": {"time": 99}}'
+	var result := SaveCodec.decode(old)
+	assert_true(result.ok)
+	var data := result.data
+	assert_eq(data["version"], SaveCodec.CURRENT_VERSION)
+	assert_eq(data["floor"], "level_1")
+	assert_eq(data["spawn_kind"], "safe")
+	assert_eq(data["infection"]["infected"], true)
+	assert_eq(data["keys"], ["phone_antenna"])
+	assert_eq(data["rescue"]["state"], 1)
+	assert_eq(data["world"]["flags"], ["shortcut_l1"])
+
+
+func test_version_one_garbage_migrates_without_crashing() -> void:
+	var result := SaveCodec.decode(
+		'{"version": 1, "floor": "x", "infection_left": "y", "stats": 5}'
+	)
+	assert_true(result.ok)
+	assert_eq(result.data["floor"], "ground_floor")
+	assert_eq(result.data["infection"]["infected"], false)
