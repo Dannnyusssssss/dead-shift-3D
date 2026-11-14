@@ -6,15 +6,18 @@ Juego de supervivencia en primera persona para navegador, en PC y en celular. Un
 
 ## Estado
 
-En desarrollo. Hoy existe un corte jugable de la **planta baja** con arte provisional (formas simples en gris):
+En desarrollo. El juego completo se puede jugar de principio a fin con arte provisional (formas simples en gris):
 
-- Movimiento, mirada e interacción en primera persona, con teclado y ratón o con controles táctiles.
-- Pistola con munición limitada y armas cuerpo a cuerpo que se desgastan y se rompen.
-- Caminantes y un policía zombi que suelta balas y su chaleco.
-- Objetos para recoger, cajones y casilleros con munición escondida, mochila limitada y combinación de objetos (por ejemplo, bate y clavos).
-- Calidad gráfica Baja, Media y Alta.
+- Cuatro pisos (planta baja, Nivel 1, Nivel 2 y azotea) que conservan su estado al ir y volver, con atajos que se abren desde arriba.
+- Pistola, escopeta escondida tras una reja con llave y armas cuerpo a cuerpo que se desgastan y se rompen; mochila limitada y combinación de objetos.
+- Enemigos con comportamientos distintos: caminantes, oyentes que acuden al ruido, policías zombis con chaleco, acechadores que rodean al jugador y el jefe, El Técnico.
+- Sigilo: agacharse, lanzar objetos para distraer, indicador de ruido y subtítulos con dirección (se puede jugar sin sonido).
+- Infección por mordidas con cuenta atrás, vendas, antibióticos y Neutrax.
+- Teléfono por piezas, plano con zonas probables, cámaras de seguridad y rescate en helicóptero con tres desenlaces: rescate, rescate perdido y muerte, con estadísticas y nota.
+- Guardado automático en zonas seguras y al cambiar de piso, y «Continuar».
+- Opciones de imagen, sonido, teclas reasignables, controles táctiles y accesibilidad (reducir movimiento, destellos y sangre; subtítulos).
 
-Todavía no hay sonido, guardado de partida ni los pisos superiores.
+Todavía no hay sonidos (los volúmenes ya se pueden ajustar) ni arte definitivo.
 
 ## Controles
 
@@ -26,16 +29,18 @@ Todavía no hay sonido, guardado de partida ni los pisos superiores.
 | Apuntar | Clic derecho | Botón «Apuntar» |
 | Recargar | R | Botón «Recargar» |
 | Usar o recoger | E | Botón «Usar» |
-| Mochila y combinar | Tab o I | Botón «Mochila» |
+| Lanzar un objeto | G | Botón «Lanzar» |
+| Mochila, combinar, curarse y teléfono | Tab o I | Botón «Mochila» |
+| Mapa (con el plano) | M | Botón «Mapa» |
 | Cambiar de arma | Q o rueda del ratón, 1 a 3 | Botón «Arma» |
 | Agacharse | Ctrl o C | Botón «Agachar» |
 | Correr | Mayús | Empujar la palanca hasta el borde |
-| Pausa y opciones | P o Esc | Botón «Pausa» |
+| Pausa, guardar y opciones | P o Esc | Botón «Pausa» |
 | Mostrar rendimiento | F3 | Desde la pausa |
 
 ## Datos y privacidad
 
-El juego no recolecta datos, no tiene cuentas, analítica ni publicidad, y no se conecta a ningún servidor. Solo guarda los ajustes en el almacenamiento del navegador, en el propio dispositivo. Detalle en [docs/PRIVACY-INVENTORY.md](docs/PRIVACY-INVENTORY.md).
+El juego no recolecta datos, no tiene cuentas, analítica ni publicidad, y no se conecta a ningún servidor. Solo guarda los ajustes, una partida y la mejor nota en el almacenamiento del navegador, en el propio dispositivo; el menú principal tiene «Borrar datos guardados». Detalle en [docs/PRIVACY-INVENTORY.md](docs/PRIVACY-INVENTORY.md).
 
 ## Desarrollo
 
@@ -58,8 +63,9 @@ tools/.venv/Scripts/python -m playwright install chromium
 # Lint, formato, importación limpia y tests
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify.ps1 quick
 
-# Lo anterior más el bot de recorrido, el export web, los pesos, la búsqueda de
-# secretos y la prueba de humo en Chromium (directa, en iframe y táctil)
+# Lo anterior más el bot de recorrido (la partida completa con varias semillas, el jefe
+# con y sin escopeta, el rescate perdido y la muerte), el export web, los pesos, la
+# búsqueda de secretos y la prueba de humo en Chromium (directa, en iframe y táctil)
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify.ps1 full
 
 # Licencias de terceros y auditoría de las herramientas de Python

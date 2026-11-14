@@ -2,14 +2,24 @@ class_name TapButton
 extends Button
 ## Botón que también responde a toques. El proyecto no convierte toques en clics de ratón
 ## (evita disparos accidentales), así que los botones de menú escuchan el toque directamente.
-## Mínimo de 44 px CSS de alto, igual que los controles táctiles.
+## Mínimo de 44 px CSS de alto y de ancho, igual que los controles táctiles, recalculado si
+## cambia el tamaño de la pantalla (por ejemplo, al girar el celular).
 
 var _touch_inside: bool = false
+## Tamaño mínimo pedido por quien creó el botón (antes de aplicar el mínimo táctil).
+var _base_minimum: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	custom_minimum_size.y = maxf(custom_minimum_size.y, _min_height())
+	_base_minimum = custom_minimum_size
 	focus_mode = Control.FOCUS_ALL
+	_apply_minimum()
+	get_viewport().size_changed.connect(_apply_minimum)
+
+
+func _apply_minimum() -> void:
+	var minimum := _min_height()
+	custom_minimum_size = Vector2(maxf(_base_minimum.x, minimum), maxf(_base_minimum.y, minimum))
 
 
 func _gui_input(event: InputEvent) -> void:

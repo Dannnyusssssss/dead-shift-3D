@@ -135,12 +135,22 @@ function Step-Bot {
         return
     }
     # --fixed-fps hace la simulacion determinista y mas rapida que el tiempo real.
-    $r = Invoke-Tool $script:Godot @('--headless', '--fixed-fps', '60', '--path', $Root, '-s', 'res://tests/bot/run_bot.gd')
-    Show-Lines @($r.Lines | Where-Object { $_ -match '^\[bot\]' }) 20
-    $engine = @(Get-EngineProblems $r.Lines)
-    if ($r.Code -ne 0 -or $engine.Count -gt 0) {
-        Show-Lines $engine
-        Add-Failure 'el bot no completo el recorrido limpio'
+    # Escenarios: la partida completa hasta el rescate, el jefe con y sin escopeta, el rescate
+    # perdido y la muerte.
+    # La partida completa se juega con varias semillas fijas.
+    $runs = @('full:20261114', 'full:7', 'full:31337', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
+    foreach ($run in $runs) {
+        $parts = $run.Split(':')
+        $scenario = $parts[0]
+        $seed = $parts[1]
+        Write-Host "  escenario: $scenario (semilla $seed)"
+        $r = Invoke-Tool $script:Godot @('--headless', '--fixed-fps', '60', '--path', $Root, '-s', 'res://tests/bot/run_bot.gd', '--', "--scenario=$scenario", "--seed=$seed")
+        Show-Lines @($r.Lines | Where-Object { $_ -match '^\[bot\] (COMPLETADO|FALLO|inicio)' }) 20
+        $engine = @(Get-EngineProblems $r.Lines)
+        if ($r.Code -ne 0 -or $engine.Count -gt 0) {
+            Show-Lines $engine
+            Add-Failure "el bot no completo el escenario $scenario limpio"
+        }
     }
 }
 

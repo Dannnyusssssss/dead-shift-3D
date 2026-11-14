@@ -13,12 +13,20 @@ const DAMAGE_FADE: float = 0.8
 var _player: Player = null
 var _health: Label = null
 var _vest: Label = null
+var _infection: Label = null
+var _infection_seconds: int = -1
 var _weapon: Label = null
 var _prompt: Label = null
 var _message: Label = null
 var _craft_bar: ProgressBar = null
 var _damage_edge: ColorRect = null
 var _message_timer: float = 0.0
+var _noise: NoiseIndicator = null
+var _subtitles: Subtitles = null
+var _boss: BossBar = null
+var _rescue: Label = null
+var _camera: Label = null
+var _rescue_seconds: int = -2
 
 
 func _ready() -> void:
@@ -33,6 +41,10 @@ func _ready() -> void:
 	EventBus.user_message.connect(_on_message)
 	EventBus.player_damaged.connect(_on_damaged)
 	EventBus.weapon_broken.connect(_on_weapon_broken)
+	EventBus.infection_changed.connect(_refresh_infection)
+	EventBus.camera_report.connect(_on_camera_report)
+	EventBus.game_saved.connect(_on_game_saved)
+	EventBus.camera_alert.connect(_on_camera_alert)
 	_refresh()
 
 
@@ -48,9 +60,74 @@ func _process(delta: float) -> void:
 	if _damage_edge.color.a > 0.0:
 		_damage_edge.color.a = maxf(_damage_edge.color.a - delta / DAMAGE_FADE * 0.35, 0.0)
 	var crafting := _player != null and _player.crafting.active
-	_craft_bar.visible = crafting
+	var healing := _player != null and _player.healing.active
+	_craft_bar.visible = crafting or healing
 	if crafting:
 		_craft_bar.value = _player.crafting.progress() * 100.0
+	elif healing:
+		_craft_bar.value = _player.healing.progress() * 100.0
+	_refresh_infection()
+	_refresh_rescue()
+
+
+## Línea del helicóptero: cuánto falta para que llegue o para que se vaya.
+func _refresh_rescue() -> void:
+	var clock := GameState.rescue
+	if clock == null:
+		return
+	var seconds := ceili(clock.time_left)
+	var key := ""
+	match clock.state:
+		RescueClock.STATE_INBOUND:
+			key = "hud_helicopter_inbound"
+		RescueClock.STATE_WAITING:
+			key = "hud_helicopter_waiting"
+		RescueClock.STATE_DEPARTED:
+			key = "hud_helicopter_gone"
+			seconds = -1
+		_:
+			seconds = -2
+	if seconds == _rescue_seconds:
+		return
+	_rescue_seconds = seconds
+	if key.is_empty():
+		_rescue.text = ""
+	elif seconds < 0:
+		_rescue.text = tr(key)
+	else:
+		_rescue.text = "%s %d:%02d" % [tr(key), seconds / 60, seconds % 60]
+
+
+func _on_game_saved(manual: bool) -> void:
+	if not manual:
+		_on_message("msg_autosaved")
+
+
+func _on_camera_report(text: String) -> void:
+	_message.text = text
+	_message_timer = MESSAGE_TIME * 2.0
+
+
+func _on_camera_alert(active: bool) -> void:
+	_camera.text = tr("hud_camera_alert") if active else ""
+
+
+## Línea de infección: icono, texto y cuenta atrás (no depende del color).
+func _refresh_infection() -> void:
+	var state := GameState.player
+	if state == null or not state.infection.infected:
+		if _infection_seconds != -1:
+			_infection_seconds = -1
+			_infection.text = ""
+		return
+	var seconds := ceili(state.infection.time_left)
+	if seconds == _infection_seconds:
+		return
+	_infection_seconds = seconds
+	var text := "(!) %s %d:%02d" % [tr("hud_infected"), seconds / 60, seconds % 60]
+	if state.infection.is_slowed():
+		text += "  " + tr("hud_infection_slowed")
+	_infection.text = text
 
 
 func _refresh() -> void:
@@ -98,7 +175,7 @@ func _on_message(text_key: String) -> void:
 
 
 func _on_damaged(_amount: float) -> void:
-	_damage_edge.color.a = 0.35
+	_damage_edge.color.a = 0.18 if Settings.get_bool("reduce_flashes") else 0.35
 
 
 func _on_weapon_broken(_item_id: String) -> void:
@@ -121,6 +198,10 @@ func _build() -> void:
 	add_child(status)
 	_health = _label(status, 28)
 	_vest = _label(status, 22)
+	_infection = _label(status, 24)
+	_infection.add_theme_color_override("font_color", Color(0.75, 1.0, 0.6))
+	_rescue = _label(status, 24)
+	_camera = _label(status, 22)
 	_weapon = _label(self, 26)
 	_place(_weapon, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -72.0, 640.0, 44.0))
 	_prompt = _label(self, 26)
@@ -130,6 +211,16 @@ func _build() -> void:
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_place(_message, Control.PRESET_CENTER_TOP, Rect2(-360.0, 90.0, 720.0, 70.0))
+	_noise = NoiseIndicator.new()
+	add_child(_noise)
+	_place(_noise, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -112.0, 520.0, 36.0))
+	_subtitles = Subtitles.new()
+	add_child(_subtitles)
+	_boss = BossBar.new()
+	add_child(_boss)
+	_place(_boss, Control.PRESET_CENTER_TOP, Rect2(-220.0, 16.0, 440.0, 70.0))
+	# Arriba y al centro: lejos de los botones táctiles y de la palanca.
+	_place(_subtitles, Control.PRESET_CENTER_TOP, Rect2(-300.0, 170.0, 600.0, 0.0))
 	_craft_bar = ProgressBar.new()
 	_craft_bar.visible = false
 	add_child(_craft_bar)

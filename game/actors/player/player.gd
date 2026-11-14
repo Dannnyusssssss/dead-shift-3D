@@ -10,6 +10,7 @@ const HEAD_BOB_HEIGHT: float = 0.035
 const CROUCH_LERP: float = 10.0
 ## Cada cuánto suena un paso (emite ruido) al moverse.
 const STEP_INTERVAL: float = 0.45
+const THROWN_SCRIPT: GDScript = preload("res://game/world/thrown_item.gd")
 
 ## Falso mientras algo bloquea los controles (combinar, inventario abierto, muerte):
 ## el jugador no se mueve ni ataca. Asignarlo pone o quita el bloqueo «manual».
@@ -26,6 +27,7 @@ var _bob_time: float = 0.0
 var _eye_height: float = Rules.PLAYER_EYE_HEIGHT
 var _prompt_key: String = ""
 var _step_timer: float = 0.0
+var _throw_cooldown: float = 0.0
 ## Motivos activos que bloquean los controles.
 var _blocks: Dictionary = {}
 
@@ -36,6 +38,7 @@ var _blocks: Dictionary = {}
 @onready var aim_ray: RayCast3D = $Head/Camera/AimRay
 @onready var combat: PlayerCombat = $Combat
 @onready var crafting: PlayerCrafting = $Crafting
+@onready var healing: PlayerHealing = $Healing
 
 
 func _ready() -> void:
@@ -53,6 +56,8 @@ func _physics_process(delta: float) -> void:
 	_update_head(delta)
 	_update_steps(delta)
 	_update_interaction()
+	_update_throw(delta)
+	_update_infection(delta)
 
 
 ## Pone o quita un motivo de bloqueo de los controles.
@@ -69,22 +74,63 @@ func drop_stack(stack: ItemStack) -> void:
 	EventBus.item_dropped.emit(spot, stack)
 
 
+## Lanza una unidad de la casilla dada hacia donde mira. Devuelve falso si no se pudo.
+func throw_from_slot(index: int) -> bool:
+	if _throw_cooldown > 0.0 or is_dead() or GameState.player == null:
+		return false
+	var stack := GameState.player.take_one(index)
+	if stack == null:
+		return false
+	_throw_cooldown = Rules.THROW_COOLDOWN
+	var thrown: ThrownItem = THROWN_SCRIPT.new()
+	var start_velocity := aim_direction() * Rules.THROW_SPEED + Vector3.UP * Rules.THROW_LIFT
+	var exclude: Array[RID] = [get_rid()]
+	thrown.setup(stack, start_velocity, exclude)
+	get_parent().add_child(thrown)
+	thrown.global_position = aim_origin() + aim_direction() * 0.4
+	arms.play_attack(Rules.THROW_COOLDOWN)
+	EventBus.inventory_changed.emit()
+	EventBus.weapon_changed.emit()
+	return true
+
+
 func is_dead() -> bool:
 	return GameState.player != null and GameState.player.is_dead()
 
 
-## Recibe un golpe: pasa por el chaleco (lógica de core) y avisa a la interfaz.
-func receive_damage(amount: float) -> void:
+## Recibe un golpe: pasa por el chaleco (lógica de core) y avisa a la interfaz. Si viene de
+## un enemigo que contagia, infect_chance es la probabilidad de infectar (azar de la partida).
+func receive_damage(amount: float, infect_chance: float = 0.0) -> void:
 	var state := GameState.player
 	if state == null or state.is_dead():
 		return
-	var lost := state.take_damage(amount)
+	var was_infected := state.infection.infected
+	var lost := state.take_bite(amount, infect_chance, GameState.rng)
 	EventBus.player_damaged.emit(lost)
 	EventBus.player_health_changed.emit(state.health)
 	EventBus.vest_changed.emit()
+	if state.infection.infected and not was_infected:
+		EventBus.infection_changed.emit()
+		EventBus.user_message.emit("msg_infected")
 	if state.is_dead():
-		set_blocked("dead", true)
-		EventBus.player_died.emit()
+		_die()
+
+
+## Daño del gas tóxico: no pasa por el chaleco ni contagia.
+func receive_toxic_damage(amount: float) -> void:
+	var state := GameState.player
+	if state == null or state.is_dead():
+		return
+	var lost := state.take_raw_damage(amount)
+	EventBus.player_damaged.emit(lost)
+	EventBus.player_health_changed.emit(state.health)
+	if state.is_dead():
+		_die()
+
+
+func _die() -> void:
+	set_blocked("dead", true)
+	EventBus.player_died.emit()
 
 
 ## Nivel de ruido que hace ahora al moverse (Rules.NOISE_*), o -1 si está quieto.
@@ -162,7 +208,7 @@ func _update_steps(delta: float) -> void:
 	_step_timer -= delta * (1.4 if sprinting else 1.0)
 	if _step_timer <= 0.0:
 		_step_timer = STEP_INTERVAL
-		NoiseSystem.emit_noise(global_position, level)
+		NoiseSystem.emit_noise(global_position, level, true)
 
 
 func _update_interaction() -> void:
@@ -174,6 +220,24 @@ func _update_interaction() -> void:
 	if target != null and not key.is_empty() and controls_enabled:
 		if InputRouter.just_pressed("interact"):
 			target.interact(self)
+
+
+func _update_throw(delta: float) -> void:
+	_throw_cooldown = maxf(_throw_cooldown - delta, 0.0)
+	if not controls_enabled or not InputRouter.just_pressed("throw") or combat.is_busy():
+		return
+	var slot := GameState.player.quick_throw_slot()
+	if slot < 0:
+		EventBus.user_message.emit("msg_nothing_to_throw")
+		return
+	throw_from_slot(slot)
+
+
+func _update_infection(delta: float) -> void:
+	var state := GameState.player
+	if state != null and state.tick_infection(delta):
+		EventBus.player_health_changed.emit(state.health)
+		_die()
 
 
 func _interaction_target() -> Interactable:

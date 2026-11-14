@@ -1,15 +1,25 @@
 class_name FloorLevel
 extends Node3D
 ## Construye un piso a partir de su FloorData: salas con el kit modular, botín, luces,
-## navegación horneada al cargar, enemigos, jugador y meta (salida a la escalera).
+## navegación horneada al cargar, rejas, enemigos, jugador y salidas a otros pisos.
+## Respeta el estado del mundo: lo muerto sigue muerto, lo recogido no vuelve y lo registrado
+## sigue vacío; los objetos que quedaron en el suelo reaparecen donde estaban.
 
 const PLAYER_SCENE: PackedScene = preload("res://game/actors/player/player.tscn")
 const ENEMY_SCENE: PackedScene = preload("res://game/actors/enemies/enemy.tscn")
+const BOSS_SCENE: PackedScene = preload("res://game/actors/enemies/boss.tscn")
 
 @export var floor_data: FloorData = null
+## Salida por la que llega el jugador ("" = punto de inicio de una partida nueva).
+@export var arrival_exit: String = ""
+## Zona segura donde reaparece al continuar una partida guardada ("" = no).
+@export var arrival_safe_room: String = ""
 
 var player: Player = null
 var navigation: NavigationRegion3D = null
+
+var _spawner: LootSpawner = null
+var _environment: Environment = null
 
 
 func _ready() -> void:
@@ -19,19 +29,84 @@ func _ready() -> void:
 	add_child(navigation)
 	for room: RoomData in floor_data.rooms:
 		_build_room(room)
+	for index: int in floor_data.props.size():
+		_build_prop(floor_data.props[index], "prop_%d" % index)
 	_bake_navigation()
-	var spawner := LootSpawner.new()
-	spawner.name = "LootSpawner"
-	add_child(spawner)
+	GameState.world.current_floor = floor_data.id
+	_spawner = LootSpawner.new()
+	_spawner.name = "LootSpawner"
+	add_child(_spawner)
 	for room: RoomData in floor_data.rooms:
 		_place_loot(room)
-	for spawn: EnemySpawn in floor_data.enemies:
-		_spawn_enemy(spawn)
-	_build_goal()
+	_restore_drops()
+	for gate_spec: GateSpec in floor_data.gates:
+		var gate := Gate.new()
+		gate.spec = gate_spec
+		gate.position = gate_spec.position
+		gate.rotation.y = deg_to_rad(gate_spec.rotation_deg)
+		add_child(gate)
+	for index: int in floor_data.enemies.size():
+		_spawn_enemy(floor_data.enemies[index], "enemy_%d" % index)
+	if floor_data.has_helipad:
+		var helicopter := Helicopter.new()
+		helicopter.position = floor_data.helipad_position
+		add_child(helicopter)
+	for floor_exit: FloorExit in floor_data.exits:
+		var zone := FloorExitZone.new()
+		zone.spec = floor_exit
+		zone.position = floor_exit.position
+		add_child(zone)
 	player = PLAYER_SCENE.instantiate()
-	player.position = floor_data.player_spawn
-	player.rotation.y = deg_to_rad(floor_data.player_yaw_deg)
+	var arrival := floor_data.find_exit(arrival_exit) if not arrival_exit.is_empty() else null
+	var safe_room := _find_room(arrival_safe_room)
+	if arrival != null:
+		player.position = arrival.arrival
+		player.rotation.y = deg_to_rad(arrival.arrival_yaw_deg)
+	elif safe_room != null and safe_room.safe_zone:
+		var center := safe_room.rect.get_center()
+		player.position = Vector3(center.x, 0.0, center.y)
+	else:
+		player.position = floor_data.player_spawn
+		player.rotation.y = deg_to_rad(floor_data.player_yaw_deg)
 	add_child(player)
+
+
+## Guarda en el estado del mundo los objetos que quedan en el suelo (antes de dejar el piso).
+func store_world_state() -> void:
+	var entries: Array[Dictionary] = []
+	for child: Node in _spawner.get_children():
+		var pickup := child as Pickup
+		if pickup == null or pickup.stack == null or not pickup.enabled:
+			continue
+		if pickup.spot_key.is_empty():
+			entries.append(pickup.to_drop_entry())
+	GameState.world.set_drops(floor_data.id, entries)
+
+
+func _find_room(room_id: String) -> RoomData:
+	if room_id.is_empty():
+		return null
+	for room: RoomData in floor_data.rooms:
+		if room.id == room_id:
+			return room
+	return null
+
+
+## Sala que es zona segura y contiene el punto, o null.
+func safe_room_at(point: Vector3) -> RoomData:
+	for room: RoomData in floor_data.rooms:
+		if room.safe_zone and room.rect.has_point(Vector2(point.x, point.z)):
+			return room
+	return null
+
+
+## Verdadero si el punto está en el helipuerto del piso.
+func on_helipad(point: Vector3) -> bool:
+	if not floor_data.has_helipad:
+		return false
+	var flat := Vector2(point.x, point.z)
+	var pad := Vector2(floor_data.helipad_position.x, floor_data.helipad_position.z)
+	return flat.distance_to(pad) <= floor_data.helipad_radius
 
 
 ## Salas que son zona segura.
@@ -56,11 +131,13 @@ func _build_environment() -> void:
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
-	EventBus.settings_changed.connect(
-		func(key: String) -> void:
-			if key == "quality":
-				environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
-	)
+	_environment = environment
+	EventBus.settings_changed.connect(_on_settings_changed)
+
+
+func _on_settings_changed(key: String) -> void:
+	if key == "quality":
+		_environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
 
 
 func _build_room(room: RoomData) -> void:
@@ -71,12 +148,13 @@ func _build_room(room: RoomData) -> void:
 	var ceiling_mat := Kit.material(room.wall_color.darkened(0.5))
 	var center := Vector3(rect.get_center().x, 0.0, rect.get_center().y)
 	builder.add_box(center + Vector3.DOWN * 0.1, Vector3(rect.size.x, 0.2, rect.size.y), floor_mat)
-	builder.add_box(
-		center + Vector3.UP * (room.height + 0.1),
-		Vector3(rect.size.x, 0.2, rect.size.y),
-		ceiling_mat,
-		false
-	)
+	if not room.outdoor:
+		builder.add_box(
+			center + Vector3.UP * (room.height + 0.1),
+			Vector3(rect.size.x, 0.2, rect.size.y),
+			ceiling_mat,
+			false
+		)
 	var half := Kit.WALL_THICKNESS * 0.5
 	var x0 := rect.position.x
 	var x1 := rect.end.x
@@ -186,58 +264,99 @@ func _bake_navigation() -> void:
 
 
 func _place_loot(room: RoomData) -> void:
+	var world := GameState.world
+	var floor_id := floor_data.id
 	var origin := Vector3(room.rect.position.x, 0.0, room.rect.position.y)
-	for spot: LootSpot in room.loot:
+	for index: int in room.loot.size():
+		var spot: LootSpot = room.loot[index]
+		var key := "%s_%d" % [room.id, index]
 		var node: Interactable = null
 		if spot.kind == LootSpot.KIND_PICKUP:
+			if world.is_taken(floor_id, key):
+				continue
 			var pickup := Pickup.new()
 			pickup.item_id = spot.item_id
 			pickup.count = spot.count
 			pickup.durability_fraction = spot.durability
+			pickup.spot_key = key
+			pickup.used.connect(func(_by: Player) -> void: world.mark_taken(floor_id, key))
 			node = pickup
 		else:
 			var container := LootContainer.new()
 			container.kind = spot.kind
 			container.contents = spot.contents
+			if world.has_container(floor_id, key):
+				container.contents = world.container_contents(floor_id, key)
+			container.used.connect(
+				func(_by: Player) -> void:
+					world.set_container(floor_id, key, container.remaining_entries())
+			)
 			node = container
 		node.position = origin + spot.position
 		node.rotation.y = deg_to_rad(spot.rotation_deg)
 		add_child(node)
 
 
-func _spawn_enemy(spawn: EnemySpawn) -> void:
-	var enemy: Enemy = ENEMY_SCENE.instantiate()
+func _spawn_enemy(spawn: EnemySpawn, key: String) -> void:
+	var world := GameState.world
+	var floor_id := floor_data.id
+	if world.is_killed(floor_id, key):
+		return
+	var scene := BOSS_SCENE if spawn.enemy.boss != null else ENEMY_SCENE
+	var enemy: Enemy = scene.instantiate()
 	enemy.data = spawn.enemy
 	enemy.vest_override = spawn.vest_override
 	enemy.rng_seed = spawn.rng_seed
 	enemy.position = spawn.position
+	enemy.died.connect(func() -> void: world.mark_killed(floor_id, key))
 	add_child(enemy)
 
 
-func _build_goal() -> void:
-	var goal := Area3D.new()
-	goal.name = "Goal"
-	goal.collision_layer = 0
-	goal.collision_mask = Rules.LAYER_PLAYER
-	goal.position = floor_data.goal
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = floor_data.goal_size
-	shape.shape = box
-	shape.position.y = floor_data.goal_size.y * 0.5
-	goal.add_child(shape)
-	var sign := Label3D.new()
-	sign.text = tr("goal_stairs")
-	sign.font_size = 96
-	sign.modulate = Color(0.55, 1.0, 0.6)
-	sign.outline_size = 16
-	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sign.position = Vector3(0.0, floor_data.goal_size.y + 0.4, 0.0)
-	goal.add_child(sign)
-	goal.body_entered.connect(_on_goal_body_entered)
-	add_child(goal)
+## Estantería o tablero eléctrico. Se horneará en la navegación (es sólido); si ya se rompió o
+## se apagó en una visita anterior, aparece así.
+func _build_prop(spec: PropSpec, key: String) -> void:
+	var world := GameState.world
+	var floor_id := floor_data.id
+	var used := world.is_taken(floor_id, key)
+	if spec.kind == PropSpec.KIND_MONITOR:
+		var monitor := SecurityMonitor.new()
+		monitor.position = spec.position
+		monitor.rotation.y = deg_to_rad(spec.rotation_deg)
+		add_child(monitor)
+		return
+	if spec.kind == PropSpec.KIND_PANEL:
+		var panel := ElectricPanel.new()
+		panel.size = spec.size
+		panel.position = spec.position
+		panel.rotation.y = deg_to_rad(spec.rotation_deg)
+		navigation.add_child(panel)
+		if used:
+			panel.set_dead()
+		panel.shorted.connect(func() -> void: world.mark_taken(floor_id, key))
+		return
+	var shelf := BreakableShelf.new()
+	shelf.size = spec.size
+	shelf.position = spec.position
+	shelf.rotation.y = deg_to_rad(spec.rotation_deg)
+	navigation.add_child(shelf)
+	if used:
+		shelf.set_broken_silently()
+	shelf.broken.connect(func() -> void: world.mark_taken(floor_id, key))
 
 
-func _on_goal_body_entered(body: Node3D) -> void:
-	if body is Player and not (body as Player).is_dead():
-		EventBus.goal_reached.emit()
+## Vuelve a poner los objetos que quedaron en el suelo en una visita anterior.
+func _restore_drops() -> void:
+	for entry: Dictionary in GameState.world.drops(floor_data.id):
+		var item_id: String = entry.get("id", "")
+		var data := GameState.items.get_item(item_id)
+		if data == null:
+			continue
+		var count: int = entry.get("count", 1)
+		var fraction_left: float = entry.get("durability", 1.0)
+		var stack := ItemStack.new(data, count, fraction_left)
+		if data.weapon != null:
+			var ammo: int = entry.get("ammo", 0)
+			stack.ammo_loaded = clampi(ammo, 0, data.weapon.magazine_size)
+		var x: float = entry.get("x", 0.0)
+		var z: float = entry.get("z", 0.0)
+		_spawner.spawn(Vector3(x, 0.0, z), stack)

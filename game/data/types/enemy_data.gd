@@ -11,6 +11,18 @@ extends Resource
 @export var attack_range: float = 1.6
 ## Distancia a la que ve al jugador.
 @export var sight_range: float = 14.0
+## Probabilidad (0 a 1) de que un golpe suyo infecte.
+@export var infect_chance: float = 0.0
+## Implacable (oleadas): sabe siempre dónde está el jugador y nunca deja de perseguirlo.
+@export var relentless: bool = false
+## Sensibilidad al ruido (multiplica el radio de los ruidos). 0 = no reacciona al ruido.
+@export var hearing: float = 0.0
+## Color provisional del cuerpo (silueta distinguible por tipo hasta el arte del Hito 3).
+@export var body_color: Color = Color(0.35, 0.42, 0.33)
+## Escala provisional de la silueta.
+@export var body_scale: float = 1.0
+## Solo el jefe: sus parámetros propios (si hay, se crea la escena del jefe).
+@export var boss: BossData = null
 ## Clave del comportamiento registrado en la tabla de comportamientos.
 @export var behavior: String = "walker"
 ## Botín de munición (0 y 0 = no suelta).

@@ -20,9 +20,31 @@
 [ext_resource type="Resource" path="res://game/data/recipes/pipe_grip.tres" id="18_4e5a7"]
 [ext_resource type="Resource" path="res://game/data/recipes/tape_repair.tres" id="19_cnqtj"]
 [ext_resource type="Script" path="res://game/data/types/game_catalog.gd" id="20_u11ii"]
+[ext_resource type="Resource" path="res://game/data/items/bottle.tres" id="21_bottle"]
+[ext_resource type="Resource" path="res://game/data/enemies/listener.tres" id="22_listener"]
+[ext_resource type="Resource" path="res://game/data/items/bandage.tres" id="23_bandage"]
+[ext_resource type="Resource" path="res://game/data/items/antibiotics.tres" id="24_antibiotics"]
+[ext_resource type="Resource" path="res://game/data/items/neutrax.tres" id="25_neutrax"]
+[ext_resource type="Resource" path="res://game/data/items/shotgun.tres" id="26_shotgun"]
+[ext_resource type="Resource" path="res://game/data/items/shotgun_shells.tres" id="27_shotgun_shells"]
+[ext_resource type="Resource" path="res://game/data/items/security_key.tres" id="28_security_key"]
+[ext_resource type="Resource" path="res://game/data/items/phone_antenna.tres" id="29_phone_antenna"]
+[ext_resource type="Resource" path="res://game/data/items/phone_battery.tres" id="30_phone_battery"]
+[ext_resource type="Resource" path="res://game/data/items/phone_board.tres" id="31_phone_board"]
+[ext_resource type="Script" path="res://game/data/types/floor_data.gd" id="39_floortype"]
+[ext_resource type="Resource" path="res://game/data/floors/ground_floor.tres" id="40_ground"]
+[ext_resource type="Resource" path="res://game/data/floors/level_1.tres" id="41_level1"]
+[ext_resource type="Resource" path="res://game/data/floors/level_2.tres" id="42_level2"]
+[ext_resource type="Resource" path="res://game/data/enemies/stalker.tres" id="43_stalker"]
+[ext_resource type="Resource" path="res://game/data/enemies/technician.tres" id="44_tech"]
+[ext_resource type="Resource" path="res://game/data/items/roof_key.tres" id="45_roofkey"]
+[ext_resource type="Resource" path="res://game/data/items/extinguisher.tres" id="46_ext"]
+[ext_resource type="Resource" path="res://game/data/items/mall_map.tres" id="47_map"]
+[ext_resource type="Resource" path="res://game/data/floors/rooftop.tres" id="48_roof"]
 
 [resource]
 script = ExtResource("20_u11ii")
-items = Array[ExtResource("4_l3ywh")]([ExtResource("5_bkrud"), ExtResource("6_rhyd5"), ExtResource("7_eb5ne"), ExtResource("8_ayso4"), ExtResource("9_vhlhy"), ExtResource("10_goheo"), ExtResource("11_uhpda"), ExtResource("12_dbc7a"), ExtResource("13_gx4w4"), ExtResource("14_ojgfw"), ExtResource("15_vyqb5")])
+items = Array[ExtResource("4_l3ywh")]([ExtResource("5_bkrud"), ExtResource("6_rhyd5"), ExtResource("7_eb5ne"), ExtResource("8_ayso4"), ExtResource("9_vhlhy"), ExtResource("10_goheo"), ExtResource("11_uhpda"), ExtResource("12_dbc7a"), ExtResource("13_gx4w4"), ExtResource("14_ojgfw"), ExtResource("15_vyqb5"), ExtResource("21_bottle"), ExtResource("23_bandage"), ExtResource("24_antibiotics"), ExtResource("25_neutrax"), ExtResource("26_shotgun"), ExtResource("27_shotgun_shells"), ExtResource("28_security_key"), ExtResource("29_phone_antenna"), ExtResource("30_phone_battery"), ExtResource("31_phone_board"), ExtResource("45_roofkey"), ExtResource("46_ext"), ExtResource("47_map")])
 recipes = Array[ExtResource("16_tqm5c")]([ExtResource("17_vmiuv"), ExtResource("18_4e5a7"), ExtResource("19_cnqtj")])
-enemies = Array[ExtResource("1_3x42p")]([ExtResource("2_4gdo0"), ExtResource("3_amknx")])
+enemies = Array[ExtResource("1_3x42p")]([ExtResource("2_4gdo0"), ExtResource("3_amknx"), ExtResource("22_listener"), ExtResource("43_stalker"), ExtResource("44_tech")])
+floors = Array[ExtResource("39_floortype")]([ExtResource("40_ground"), ExtResource("41_level1"), ExtResource("42_level2"), ExtResource("48_roof")])

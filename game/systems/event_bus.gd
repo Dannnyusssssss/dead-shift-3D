@@ -23,6 +23,13 @@ signal interaction_prompt(text_key: String)
 ## Se hizo un ruido en un punto (nivel Rules.NOISE_*).
 @warning_ignore("unused_signal")
 signal noise_emitted(origin: Vector3, level: int)
+## El jugador hizo un ruido (para el indicador de ruido de la interfaz).
+@warning_ignore("unused_signal")
+signal player_noise(level: int)
+## Sonó algo importante en un punto (clave de texto del subtítulo). Lo usan los subtítulos con
+## dirección y, desde el Hito 3, el audio.
+@warning_ignore("unused_signal")
+signal sound_cue(cue_key: String, origin: Vector3)
 ## Cambió el arma equipada o su estado (desgaste, munición).
 @warning_ignore("unused_signal")
 signal weapon_changed
@@ -41,6 +48,9 @@ signal player_died
 ## Un enemigo murió y deja este botín en ese punto.
 @warning_ignore("unused_signal")
 signal enemy_died(origin: Vector3, drops: Array[ItemStack])
+## Cambió el estado de la infección (contagio, frenada o curada).
+@warning_ignore("unused_signal")
+signal infection_changed
 ## Cambió el chaleco equipado o su desgaste.
 @warning_ignore("unused_signal")
 signal vest_changed
@@ -50,6 +60,45 @@ signal inventory_changed
 ## Empezó o terminó una combinación.
 @warning_ignore("unused_signal")
 signal crafting_changed(active: bool)
+## El jugador entró en una salida: pide cargar otro piso y aparecer en esa salida.
+@warning_ignore("unused_signal")
+signal floor_change_requested(floor_id: String, exit_id: String)
+## Terminó de cargarse un piso (después de cambiar de piso o al empezar).
+@warning_ignore("unused_signal")
+signal floor_changed(floor_id: String)
+## Cambiaron los objetos clave del jugador (llaves, piezas del teléfono).
+@warning_ignore("unused_signal")
+signal key_items_changed
+## Cambió el estado del jefe (vida, fase, combate empezado o terminado).
+@warning_ignore("unused_signal")
+signal boss_changed
+## Cercanía del jefe para el indicador de radiación (0 = lejos, 3 = muy cerca).
+@warning_ignore("unused_signal")
+signal boss_proximity(level: int)
+## Cambió el estado del rescate (llamada, llegada, partida).
+@warning_ignore("unused_signal")
+signal rescue_changed
+## El helicóptero se fue sin el jugador.
+@warning_ignore("unused_signal")
+signal rescue_lost
+## Informe de las cámaras de seguridad (texto ya traducido).
+@warning_ignore("unused_signal")
+signal camera_report(text: String)
+## Las cámaras ven movimiento cerca de la zona segura donde está el jugador.
+@warning_ignore("unused_signal")
+signal camera_alert(active: bool)
+## Terminó la partida con un desenlace (RunStats.OUTCOME_*).
+@warning_ignore("unused_signal")
+signal run_finished(outcome: int)
+## El jugador se rinde tras perder el rescate (desde la pausa).
+@warning_ignore("unused_signal")
+signal surrender_requested
+## El jugador pide guardar a mano (desde la pausa).
+@warning_ignore("unused_signal")
+signal save_requested
+## Se guardó la partida (manual indica si lo pidió el jugador).
+@warning_ignore("unused_signal")
+signal game_saved(manual: bool)
 ## El jugador llegó a la meta del nivel.
 @warning_ignore("unused_signal")
 signal goal_reached

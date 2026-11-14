@@ -17,6 +17,12 @@ var _equip_button: TapButton = null
 var _combine_button: TapButton = null
 var _wear_button: TapButton = null
 var _drop_button: TapButton = null
+var _throw_button: TapButton = null
+var _use_button: TapButton = null
+var _key_label: Label = null
+var _assemble_button: TapButton = null
+var _call_button: TapButton = null
+var _call_armed: bool = false
 var _close_button: TapButton = null
 var _selected: int = -1
 var _combine_first: int = -1
@@ -27,6 +33,7 @@ func _ready() -> void:
 	visible = false
 	_build()
 	EventBus.inventory_changed.connect(_refresh)
+	EventBus.key_items_changed.connect(_refresh)
 	EventBus.vest_changed.connect(_refresh)
 	EventBus.weapon_changed.connect(_refresh)
 
@@ -40,11 +47,12 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	if _player == null or _player.crafting.active or _player.is_dead():
+	if _player == null or _player.crafting.active or _player.healing.active or _player.is_dead():
 		return
 	visible = true
 	_selected = -1
 	_combine_first = -1
+	_call_armed = false
 	_player.set_blocked("inventory", true)
 	# Con la mochila abierta el cursor queda visible: un clic en sus botones no lo captura.
 	InputRouter.menu_open = true
@@ -127,6 +135,69 @@ func _on_drop() -> void:
 	EventBus.weapon_changed.emit()
 
 
+## Objetos clave y botones del teléfono.
+func _refresh_key_items() -> void:
+	var state := GameState.player
+	var names: Array[String] = []
+	for item_id: String in state.keys.items:
+		var item := GameState.items.get_item(item_id)
+		names.append(tr(item.name_key) if item != null else item_id)
+	var listed := ", ".join(names) if not names.is_empty() else tr("hud_none")
+	var text := "%s: %s" % [tr("inventory_key_items"), listed]
+	var parts := state.keys.phone_parts_count()
+	text += "\n%s: %d / %d" % [tr("inventory_phone_parts"), parts, Rules.PHONE_PARTS.size()]
+	_key_label.text = text
+	_assemble_button.visible = not state.keys.phone_assembled
+	_assemble_button.disabled = not state.keys.can_assemble_phone()
+	_call_button.visible = state.keys.phone_assembled
+	_call_button.disabled = GameState.rescue.is_called()
+	_call_button.text = tr("inventory_call_confirm") if _call_armed else tr("inventory_call")
+
+
+func _on_assemble() -> void:
+	if GameState.player.keys.assemble_phone():
+		_info.text = tr("msg_phone_assembled")
+		EventBus.key_items_changed.emit()
+	_refresh()
+
+
+## Llamar es irreversible: el primer toque pide confirmación y el segundo llama.
+func _on_call() -> void:
+	if not _call_armed:
+		_call_armed = true
+		_refresh()
+		return
+	_call_armed = false
+	if GameState.rescue.call_helicopter():
+		EventBus.user_message.emit("msg_helicopter_called")
+		EventBus.rescue_changed.emit()
+	close()
+
+
+## Cierra la mochila y empieza a usar la cura elegida (o explica por qué no se puede).
+func _on_use() -> void:
+	var index := _selected
+	var problem := _player.healing.start(index) if _player != null else PlayerState.USE_NOT_USABLE
+	if problem == PlayerState.USE_OK:
+		close()
+		return
+	var keys := {
+		PlayerState.USE_FULL_HEALTH: "msg_full_health",
+		PlayerState.USE_NOT_INFECTED: "msg_not_infected",
+	}
+	var key: String = keys.get(problem, "msg_cannot_use")
+	_info.text = tr(key)
+
+
+## Cierra la mochila y lanza una unidad de la casilla elegida hacia donde se mira.
+func _on_throw() -> void:
+	var index := _selected
+	if GameState.player.inventory.get_slot(index) == null:
+		return
+	close()
+	_player.throw_from_slot(index)
+
+
 func _refresh() -> void:
 	if not visible or GameState.player == null:
 		return
@@ -141,7 +212,12 @@ func _refresh() -> void:
 	_combine_button.disabled = selected == null
 	_wear_button.disabled = selected == null or not selected.is_vest()
 	_drop_button.disabled = selected == null
+	_throw_button.disabled = selected == null
+	_use_button.disabled = (
+		selected == null or selected.item.category != ItemData.CATEGORY_CONSUMABLE
+	)
 	_vest_label.text = tr("inventory_vest") + ": " + _describe(state.vest, false)
+	_refresh_key_items()
 	if _combine_first < 0:
 		_info.text = tr("inventory_hint")
 
@@ -196,14 +272,27 @@ func _build() -> void:
 		_slot_buttons.append(button)
 	_info = Label.new()
 	_info.add_theme_font_size_override("font_size", 20)
+	_info.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_info.custom_minimum_size = Vector2(900.0, 0.0)
 	box.add_child(_info)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 10)
+	_key_label = Label.new()
+	_key_label.add_theme_font_size_override("font_size", 18)
+	_key_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_key_label.custom_minimum_size = Vector2(900.0, 0.0)
+	box.add_child(_key_label)
+	# Los botones bajan a una segunda fila si no caben (pantallas estrechas).
+	var actions := HFlowContainer.new()
+	actions.add_theme_constant_override("h_separation", 10)
+	actions.add_theme_constant_override("v_separation", 10)
 	box.add_child(actions)
 	_equip_button = _action_button(actions, "inventory_equip", _on_equip)
 	_combine_button = _action_button(actions, "inventory_combine", _on_combine)
 	_wear_button = _action_button(actions, "inventory_wear", _on_wear)
+	_use_button = _action_button(actions, "inventory_use", _on_use)
 	_drop_button = _action_button(actions, "inventory_drop", _on_drop)
+	_throw_button = _action_button(actions, "inventory_throw", _on_throw)
+	_assemble_button = _action_button(actions, "inventory_assemble_phone", _on_assemble)
+	_call_button = _action_button(actions, "inventory_call", _on_call)
 	_close_button = _action_button(actions, "inventory_close", close)
 
 

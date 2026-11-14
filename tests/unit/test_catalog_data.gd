@@ -90,3 +90,104 @@ func test_knife_is_silent_and_pistol_very_loud() -> void:
 	var items := _catalog.item_catalog()
 	assert_eq(items.get_item("knife").weapon.noise_level, Rules.NOISE_SILENT)
 	assert_eq(items.get_item("pistol").weapon.noise_level, Rules.NOISE_VERY_HIGH)
+
+
+## Todos los identificadores de objeto que aparecen en un piso (sueltos y en contenedores).
+func _floor_items(floor_data: FloorData) -> Dictionary:
+	var counts: Dictionary = {}
+	for room: RoomData in floor_data.rooms:
+		for spot: LootSpot in room.loot:
+			if spot.kind == LootSpot.KIND_PICKUP:
+				counts[spot.item_id] = int(counts.get(spot.item_id, 0)) + spot.count
+			for entry: String in spot.contents:
+				var parts := entry.split(":")
+				var amount := parts[1].to_int() if parts.size() > 1 else 1
+				counts[parts[0]] = int(counts.get(parts[0], 0)) + amount
+	return counts
+
+
+func test_floors_are_registered_and_start_floor_exists() -> void:
+	assert_gt(_catalog.floors.size(), 1)
+	assert_not_null(_catalog.find_floor(_catalog.start_floor))
+
+
+func test_floor_loot_points_to_existing_items() -> void:
+	var items := _catalog.item_catalog()
+	for floor_data: FloorData in _catalog.floors:
+		for item_id: String in _floor_items(floor_data):
+			assert_true(items.has(item_id), "%s: %s" % [floor_data.id, item_id])
+
+
+func test_exits_link_both_ways_and_arrival_is_outside_the_zone() -> void:
+	for floor_data: FloorData in _catalog.floors:
+		for floor_exit: FloorExit in floor_data.exits:
+			var where := "%s/%s" % [floor_data.id, floor_exit.id]
+			var zone := AABB(
+				floor_exit.position - Vector3(floor_exit.size.x, 0.0, floor_exit.size.z) * 0.5,
+				floor_exit.size
+			)
+			assert_false(zone.grow(0.4).has_point(floor_exit.arrival + Vector3.UP), where)
+			var target := _catalog.find_floor(floor_exit.target_floor)
+			assert_not_null(target, where + ": destino")
+			if target == null:
+				continue
+			var back := target.find_exit(floor_exit.target_exit)
+			assert_not_null(back, where + ": salida enlazada")
+			if back != null:
+				assert_eq(back.target_floor, floor_data.id, where + ": vuelve")
+				assert_eq(back.target_exit, floor_exit.id, where + ": misma salida")
+
+
+func test_neutrax_has_exactly_two_doses_in_the_whole_game() -> void:
+	var total := 0
+	for floor_data: FloorData in _catalog.floors:
+		total += int(_floor_items(floor_data).get("neutrax", 0))
+	assert_eq(total, 2)
+
+
+func test_gates_needing_a_key_have_that_key_in_the_game() -> void:
+	var available: Dictionary = {}
+	for floor_data: FloorData in _catalog.floors:
+		available.merge(_floor_items(floor_data))
+		for spawn: EnemySpawn in floor_data.enemies:
+			if spawn.enemy.boss != null:
+				available[spawn.enemy.boss.drop_key_item] = 1
+	for floor_data: FloorData in _catalog.floors:
+		for gate: GateSpec in floor_data.gates:
+			assert_false(gate.flag.is_empty(), gate.id + ": marca")
+			if not gate.required_item.is_empty():
+				assert_true(available.has(gate.required_item), gate.id + ": llave en el juego")
+
+
+func test_key_items_are_single_and_phone_parts_exist() -> void:
+	var items := _catalog.item_catalog()
+	for item_id: String in ["security_key", "phone_antenna", "phone_battery", "phone_board"]:
+		var item := items.get_item(item_id)
+		assert_not_null(item, item_id)
+		if item != null:
+			assert_eq(item.category, ItemData.CATEGORY_KEY, item_id)
+
+
+func test_boss_exists_once_and_drops_an_existing_key() -> void:
+	var bosses := 0
+	for floor_data: FloorData in _catalog.floors:
+		for spawn: EnemySpawn in floor_data.enemies:
+			if spawn.enemy.boss != null:
+				bosses += 1
+				assert_true(_catalog.item_catalog().has(spawn.enemy.boss.drop_key_item))
+	assert_eq(bosses, 1)
+
+
+func test_shotgun_shells_are_nearly_exact_for_the_boss() -> void:
+	# Con todos los cartuchos del juego se puede vencer al jefe acertando al tanque, pero no
+	# disparándole siempre de frente: la escopeta es la mejor opción, no una victoria segura.
+	var shells := 0
+	for floor_data: FloorData in _catalog.floors:
+		shells += int(_floor_items(floor_data).get("shotgun_shells", 0))
+	var boss := _catalog.find_enemy("technician").boss
+	var shotgun := _catalog.item_catalog().get_item("shotgun").weapon
+	var total := boss.phase_one_health + boss.phase_two_health
+	assert_gte(shells * shotgun.damage * boss.tank_multiplier, total, "alcanza acertando al tanque")
+	var front := shells * shotgun.damage * boss.phase_one_front_multiplier
+	assert_lt(front, total, "de frente no alcanza")
+	assert_lte(shells, 10, "pocos cartuchos")

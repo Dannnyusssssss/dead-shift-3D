@@ -22,6 +22,30 @@ const NOISE_WALK: int = NOISE_LOW
 const NOISE_SPRINT: int = NOISE_MEDIUM
 const NOISE_CROUCH: int = NOISE_SILENT
 const NOISE_CRAFT: int = NOISE_MEDIUM
+## Ruido al caer un objeto lanzado (intacto) y al romperse uno frágil.
+const NOISE_THROW_LAND: int = NOISE_MEDIUM
+const NOISE_THROW_BREAK: int = NOISE_HIGH
+## Cada pared entre el ruido y quien escucha multiplica el radio por este factor.
+const NOISE_WALL_FACTOR: float = 0.5
+## Metros de intensidad que pierde por segundo el recuerdo de un ruido.
+const NOISE_FORGET_RATE: float = 1.5
+
+## Lanzar objetos: velocidad hacia donde se mira, impulso hacia arriba y espera entre lanzamientos.
+const THROW_SPEED: float = 11.0
+const THROW_LIFT: float = 2.5
+const THROW_COOLDOWN: float = 0.6
+
+## Infección: segundos hasta la conversión, cuánto duran los antibióticos y a qué ritmo
+## avanza la cuenta mientras actúan.
+const INFECTION_TIME: float = 240.0
+const ANTIBIOTIC_DURATION: float = 120.0
+const ANTIBIOTIC_RATE: float = 0.25
+
+## Teléfono y helicóptero: piezas necesarias, segundos de llegada tras la llamada y de espera en
+## la azotea.
+const PHONE_PARTS: Array[String] = ["phone_antenna", "phone_battery", "phone_board"]
+const HELICOPTER_ARRIVAL_TIME: float = 150.0
+const HELICOPTER_WAIT_TIME: float = 75.0
 
 ## Zonas de impacto en un enemigo.
 const ZONE_BODY: int = 0
@@ -53,6 +77,8 @@ const LAYER_WORLD: int = 1
 const LAYER_PLAYER: int = 2
 const LAYER_ENEMY: int = 4
 const LAYER_INTERACTABLE: int = 8
+## Rejas y puertas que se abren: bloquean al jugador y a los enemigos, pero no la navegación.
+const LAYER_DOOR: int = 16
 
 ## Niveles de calidad (índice = SettingsSchema.QUALITY_*): escala de resolución interna 3D,
 ## antialiasing (Viewport.MSAA_*) y niebla. La interfaz siempre se dibuja a resolución completa.

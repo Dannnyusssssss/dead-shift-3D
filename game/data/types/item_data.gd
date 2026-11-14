@@ -6,6 +6,15 @@ const CATEGORY_MATERIAL: int = 0
 const CATEGORY_AMMO: int = 1
 const CATEGORY_WEAPON: int = 2
 const CATEGORY_VEST: int = 3
+const CATEGORY_CONSUMABLE: int = 4
+## Objeto clave (llaves, piezas del teléfono): no ocupa casilla ni se suelta ni se lanza.
+const CATEGORY_KEY: int = 5
+
+## Efecto al usar un consumible.
+const EFFECT_NONE: int = 0
+const EFFECT_HEAL: int = 1
+const EFFECT_SLOW_INFECTION: int = 2
+const EFFECT_CURE_INFECTION: int = 3
 
 ## Identificador interno (minúsculas, dígitos y guion bajo).
 @export var id: String = ""
@@ -18,6 +27,12 @@ const CATEGORY_VEST: int = 3
 @export var weapon: WeaponData = null
 ## Datos de chaleco (solo categoría chaleco).
 @export var vest: VestData = null
+## Consumible: efecto, salud que recupera y segundos que tarda en usarse.
+@export var use_effect: int = EFFECT_NONE
+@export var heal_amount: float = 0.0
+@export var use_time: float = 0.0
+## Se rompe al caer cuando se lanza (más ruido y no se puede recoger).
+@export var fragile: bool = false
 
 
 ## Durabilidad máxima del objeto (0 si no se desgasta).
