@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_listener"]
+
+[resource]
+script = ExtResource("1_listener")
+id = "listener"
+name_key = "enemy_listener"
+max_health = 75.0
+move_speed = 2.3
+attack_damage = 12.0
+attack_interval = 1.6
+attack_range = 1.5
+infect_chance = 0.2
+sight_range = 5.0
+hearing = 1.3
+body_color = Color(0.58, 0.52, 0.46, 1)
+behavior = "listener"

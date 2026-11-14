@@ -70,7 +70,7 @@ func _physics_process(delta: float) -> void:
 	_noise_timer -= delta
 	if _noise_timer <= 0.0:
 		_noise_timer = NOISE_INTERVAL
-		NoiseSystem.emit_noise(_player.global_position, Rules.NOISE_CRAFT)
+		NoiseSystem.emit_noise(_player.global_position, Rules.NOISE_CRAFT, true)
 	_timer -= delta
 	if _timer <= 0.0:
 		_finish()
