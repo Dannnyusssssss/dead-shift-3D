@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_stalker"]
+
+[resource]
+script = ExtResource("1_stalker")
+id = "stalker"
+name_key = "enemy_stalker"
+max_health = 45.0
+move_speed = 3.6
+attack_damage = 14.0
+attack_interval = 1.1
+attack_range = 1.4
+sight_range = 16.0
+infect_chance = 0.25
+hearing = 0.6
+body_color = Color(0.2, 0.17, 0.15, 1)
+body_scale = 0.9
+behavior = "stalker"

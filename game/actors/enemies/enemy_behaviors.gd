@@ -4,6 +4,8 @@ extends RefCounted
 
 const TABLE: Dictionary = {
 	"walker": preload("res://game/actors/enemies/behaviors/walker_behavior.gd"),
+	"listener": preload("res://game/actors/enemies/behaviors/listener_behavior.gd"),
+	"stalker": preload("res://game/actors/enemies/behaviors/stalker_behavior.gd"),
 }
 
 
