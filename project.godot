@@ -1,0 +1,143 @@
+; Configuracion del proyecto Dead Shift 3D (Godot 4.7.2).
+
+config_version=5
+
+[application]
+
+config/name="Dead Shift 3D"
+run/main_scene="res://game/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+Config="*res://game/systems/config.gd"
+ErrorLog="*res://game/systems/error_log.gd"
+EventBus="*res://game/systems/event_bus.gd"
+SaveStore="*res://game/systems/save_store.gd"
+Settings="*res://game/systems/settings.gd"
+GameState="*res://game/systems/game_state.gd"
+NoiseSystem="*res://game/systems/noise_system.gd"
+InputRouter="*res://game/systems/input_router.gd"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=2
+gdscript/warnings/unsafe_method_access=2
+gdscript/warnings/unsafe_call_argument=2
+gdscript/warnings/unsafe_cast=1
+gdscript/warnings/return_value_discarded=0
+gdscript/warnings/exclude_addons=true
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[editor_plugins]
+
+enabled=PackedStringArray()
+
+[input]
+
+move_forward={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":87)]
+}
+move_back={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":83)]
+}
+move_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":65)]
+}
+move_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":68)]
+}
+sprint={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194325)]
+}
+crouch={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194326), Object(InputEventKey,"device":-1,"physical_keycode":67)]
+}
+attack={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"device":-1,"button_index":1)]
+}
+aim={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"device":-1,"button_index":2)]
+}
+reload={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":82)]
+}
+interact={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":69)]
+}
+throw={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":71)]
+}
+flashlight={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":70)]
+}
+inventory={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194306), Object(InputEventKey,"device":-1,"physical_keycode":73)]
+}
+map={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":77)]
+}
+pause={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":80), Object(InputEventKey,"device":-1,"physical_keycode":4194305)]
+}
+weapon_next={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":81), Object(InputEventMouseButton,"device":-1,"button_index":4)]
+}
+weapon_prev={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"device":-1,"button_index":5)]
+}
+weapon_slot_1={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":49)]
+}
+weapon_slot_2={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":50)]
+}
+weapon_slot_3={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":51)]
+}
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=false
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://game/data/texts/texts.es.translation")
+locale/fallback="es"
+locale/test="es"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=0

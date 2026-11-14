@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>$GODOT_PROJECT_NAME</title>
+<link rel="stylesheet" href="boot.css">
+$GODOT_HEAD_INCLUDE
+</head>
+<body data-godot-config='$GODOT_CONFIG'>
+<canvas id="canvas" tabindex="0">Tu navegador no admite el elemento canvas.</canvas>
+<noscript><p class="boot-message">Este juego necesita JavaScript activado.</p></noscript>
+<div id="boot-status" class="boot-status" role="status" aria-live="polite">
+<progress id="boot-progress" max="100" value="0" aria-label="Progreso de carga"></progress>
+<p id="boot-text" class="boot-message">Cargando…</p>
+</div>
+<script src="$GODOT_URL"></script>
+<script src="boot.js"></script>
+</body>
+</html>

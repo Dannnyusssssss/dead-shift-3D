@@ -1,0 +1,8 @@
+/* Estilos de la página contenedora del juego (sin estilos en línea, compatible con CSP estricta). */
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: #f2f2f2; }
+body { font-family: system-ui, sans-serif; touch-action: none; -webkit-user-select: none; user-select: none; }
+#canvas { display: block; width: 100%; height: 100%; outline: none; }
+.boot-status { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #000; padding: 16px; text-align: center; }
+.boot-status[hidden] { display: none; }
+.boot-message { font-size: 18px; line-height: 1.4; max-width: 32em; margin: 0; }
+progress { width: min(320px, 80vw); height: 12px; }

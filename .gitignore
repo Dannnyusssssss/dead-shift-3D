@@ -1,0 +1,27 @@
+# Godot: cache del editor e importaciones
+.godot/
+*.tmp
+
+# Salida del export y de las capturas
+build/
+
+# Entorno de Python de las herramientas
+tools/.venv/
+__pycache__/
+*.pyc
+
+# Variables de entorno y claves
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Traducciones generadas al importar los CSV de textos
+*.translation
