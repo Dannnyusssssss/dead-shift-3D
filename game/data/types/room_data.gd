@@ -19,3 +19,5 @@ extends Resource
 ## Luz del techo (energía; 0 = sin luz) y cuántas luces se reparten a lo largo de la sala.
 @export var light_energy: float = 1.0
 @export var light_count: int = 1
+## Exterior (azotea): sin techo; las paredes son un pretil bajo.
+@export var outdoor: bool = false

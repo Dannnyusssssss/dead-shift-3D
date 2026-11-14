@@ -10,7 +10,20 @@ var _items: ItemCatalog
 func before_each() -> void:
 	var pistol := Fixtures.pistol(8)
 	var ammo := Fixtures.material("ammo", 60)
-	_items = ItemCatalog.new([pistol, ammo, Fixtures.melee("pipe", 2.0, 1.0), Fixtures.vest()])
+	_items = (
+		ItemCatalog
+		. new(
+			[
+				pistol,
+				ammo,
+				Fixtures.melee("pipe", 2.0, 1.0),
+				Fixtures.vest(),
+				Fixtures.consumable("bandage", ItemData.EFFECT_HEAL, 30.0),
+				Fixtures.consumable("antibiotics", ItemData.EFFECT_SLOW_INFECTION),
+				Fixtures.consumable("neutrax", ItemData.EFFECT_CURE_INFECTION),
+			]
+		)
+	)
 
 
 func test_starting_kit_has_loaded_pistol_and_little_ammo() -> void:
@@ -67,3 +80,109 @@ func test_swap_vest_returns_old_one() -> void:
 	var pipe := ItemStack.new(_items.get_item("pipe"))
 	assert_eq(state.swap_vest(pipe), pipe, "solo acepta chalecos")
 	assert_eq(state.vest, second)
+
+
+func test_take_one_splits_a_stack() -> void:
+	var state := PlayerState.new(_items)
+	state.inventory.add_item(_items.get_item("ammo"), 3)
+	var slot := state.inventory.find_slot("ammo")
+	var one := state.take_one(slot)
+	assert_eq(one.count, 1)
+	assert_eq(state.inventory.count_of("ammo"), 2)
+	assert_null(state.take_one(7), "casilla vacía")
+
+
+func test_take_last_unit_empties_slot() -> void:
+	var state := PlayerState.new(_items)
+	state.inventory.add_item(_items.get_item("ammo"), 1)
+	var slot := state.inventory.find_slot("ammo")
+	assert_not_null(state.take_one(slot))
+	assert_null(state.inventory.get_slot(slot))
+
+
+func test_throwing_equipped_weapon_equips_another() -> void:
+	var state := PlayerState.new(_items)
+	state.give_starting_kit()
+	state.inventory.add_stack(ItemStack.new(_items.get_item("pipe")))
+	var pistol_slot := state.equipped_slot
+	var thrown := state.take_one(pistol_slot)
+	assert_eq(thrown.id(), "pistol")
+	assert_eq(state.equipped().id(), "pipe")
+
+
+func test_quick_throw_prefers_materials() -> void:
+	var state := PlayerState.new(_items)
+	state.inventory.add_stack(ItemStack.new(_items.get_item("pipe")))
+	assert_eq(state.quick_throw_slot(), -1, "las armas no se lanzan con la acción rápida")
+	state.inventory.add_item(_items.get_item("ammo"), 2)
+	assert_eq(state.quick_throw_slot(), state.inventory.find_slot("ammo"))
+
+
+func _with(item_id: String, amount: int = 1) -> PlayerState:
+	var state := PlayerState.new(_items)
+	state.inventory.add_item(_items.get_item(item_id), amount)
+	return state
+
+
+func test_bite_with_certain_chance_infects() -> void:
+	var state := PlayerState.new(_items)
+	state.take_bite(10.0, 1.0, Fixtures.rng())
+	assert_true(state.infection.infected)
+	var lucky := PlayerState.new(_items)
+	lucky.take_bite(10.0, 0.0, Fixtures.rng())
+	assert_false(lucky.infection.infected)
+
+
+func test_bandage_heals_up_to_max_and_is_consumed() -> void:
+	var state := _with("bandage", 2)
+	var slot := state.inventory.find_slot("bandage")
+	assert_eq(state.check_use(slot), PlayerState.USE_FULL_HEALTH)
+	state.take_damage(10.0)
+	assert_eq(state.use_item(slot), PlayerState.USE_OK)
+	assert_eq(state.health, Rules.PLAYER_MAX_HEALTH, "no pasa del máximo")
+	assert_eq(state.inventory.count_of("bandage"), 1)
+
+
+func test_antibiotics_and_neutrax_need_infection() -> void:
+	var state := _with("antibiotics")
+	state.inventory.add_item(_items.get_item("neutrax"), 1)
+	var antibiotics := state.inventory.find_slot("antibiotics")
+	var neutrax := state.inventory.find_slot("neutrax")
+	assert_eq(state.use_item(antibiotics), PlayerState.USE_NOT_INFECTED)
+	assert_eq(state.use_item(neutrax), PlayerState.USE_NOT_INFECTED)
+	assert_eq(state.inventory.count_of("neutrax"), 1, "no se gasta")
+	state.infection.try_infect(1.0, Fixtures.rng())
+	assert_eq(state.use_item(antibiotics), PlayerState.USE_OK)
+	assert_true(state.infection.is_slowed())
+	assert_eq(state.use_item(neutrax), PlayerState.USE_OK)
+	assert_false(state.infection.infected)
+
+
+func test_non_consumables_cannot_be_used() -> void:
+	var state := _with("ammo", 3)
+	assert_eq(state.check_use(state.inventory.find_slot("ammo")), PlayerState.USE_NOT_USABLE)
+	assert_eq(state.check_use(7), PlayerState.USE_NOT_USABLE)
+
+
+func test_infection_reaching_zero_kills_by_conversion() -> void:
+	var state := PlayerState.new(_items)
+	state.infection.try_infect(1.0, Fixtures.rng())
+	assert_false(state.tick_infection(Rules.INFECTION_TIME - 1.0))
+	assert_true(state.tick_infection(2.0))
+	assert_true(state.is_dead())
+	assert_eq(state.death_cause, PlayerState.CAUSE_INFECTION)
+
+
+func test_death_by_damage_records_cause() -> void:
+	var state := PlayerState.new(_items)
+	state.take_damage(1000.0)
+	assert_eq(state.death_cause, PlayerState.CAUSE_DAMAGE)
+
+
+func test_key_items_are_kept_once() -> void:
+	var state := PlayerState.new(_items)
+	assert_true(state.keys.add("phone_antenna"))
+	assert_false(state.keys.add("phone_antenna"), "sin repetir")
+	assert_false(state.keys.add(""))
+	assert_true(state.keys.has("phone_antenna"))
+	assert_eq(state.inventory.used_slots(), 0, "no ocupa casilla")

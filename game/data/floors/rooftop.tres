@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="FloorData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/loot_spot.gd" id="1_loot_spo"]
+[ext_resource type="Script" path="res://game/data/types/room_data.gd" id="2_room_dat"]
+[ext_resource type="Script" path="res://game/data/types/door_spec.gd" id="3_door_spe"]
+[ext_resource type="Script" path="res://game/data/types/floor_exit.gd" id="4_floor_ex"]
+[ext_resource type="Script" path="res://game/data/types/floor_data.gd" id="5_floor_da"]
+
+[sub_resource type="Resource" id="Resource_loot_1"]
+script = ExtResource("1_loot_spo")
+kind = 0
+position = Vector3(3, 0, 19)
+contents = PackedStringArray("pistol_ammo:6", "bandage:1")
+
+[sub_resource type="Resource" id="Resource_room_2"]
+script = ExtResource("2_room_dat")
+id = "roof"
+rect = Rect2(22, -4, 26, 22)
+height = 1.1
+floor_color = Color(0.3, 0.3, 0.32, 1)
+wall_color = Color(0.45, 0.45, 0.47, 1)
+loot = Array[ExtResource("1_loot_spo")]([SubResource("Resource_loot_1")])
+light_energy = 0.35
+light_count = 3
+outdoor = true
+
+[sub_resource type="Resource" id="Resource_door_3"]
+script = ExtResource("3_door_spe")
+side = 2
+offset = 3
+
+[sub_resource type="Resource" id="Resource_room_4"]
+script = ExtResource("2_room_dat")
+id = "stair_hut"
+name_key = "room_roof_stairs"
+rect = Rect2(34, 6, 6, 6)
+height = 3
+floor_color = Color(0.3, 0.3, 0.32, 1)
+wall_color = Color(0.46, 0.46, 0.5, 1)
+doors = Array[ExtResource("3_door_spe")]([SubResource("Resource_door_3")])
+light_energy = 0.7
+
+[sub_resource type="Resource" id="Resource_exit_5"]
+script = ExtResource("4_floor_ex")
+id = "stairs_down"
+position = Vector3(37.5, 0, 9)
+size = Vector3(1.6, 2.5, 2)
+target_floor = "level_2"
+target_exit = "roof_door"
+arrival = Vector3(32.5, 0, 9)
+arrival_yaw_deg = 90
+label_key = "exit_down_level_2"
+
+[resource]
+script = ExtResource("5_floor_da")
+id = "rooftop"
+name_key = "floor_rooftop"
+rooms = Array[ExtResource("2_room_dat")]([SubResource("Resource_room_2"), SubResource("Resource_room_4")])
+player_spawn = Vector3(32.5, 0, 9)
+player_yaw_deg = 90
+exits = Array[ExtResource("4_floor_ex")]([SubResource("Resource_exit_5")])
+has_helipad = true
+helipad_position = Vector3(28, 0, 4)
+helipad_radius = 3.5
+wave_spawn_points = PackedVector3Array(23.5, 0, -3, 46.5, 0, -3, 23.5, 0, 17, 46.5, 0, 17, 46.5, 0, 7)
+ambient_color = Color(0.3, 0.33, 0.42, 1)
+ambient_energy = 0.55

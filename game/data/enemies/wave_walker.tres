@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_wave"]
+
+[resource]
+script = ExtResource("1_wave")
+id = "wave_walker"
+name_key = "enemy_walker"
+max_health = 90.0
+move_speed = 2.3
+attack_damage = 14.0
+attack_interval = 1.5
+attack_range = 1.5
+sight_range = 60.0
+body_color = Color(0.3, 0.33, 0.3, 1)
+relentless = true
+behavior = "walker"
