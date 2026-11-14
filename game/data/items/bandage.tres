@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_bandage"]
+
+[resource]
+script = ExtResource("1_bandage")
+id = "bandage"
+name_key = "item_bandage"
+category = 4
+max_stack = 3
+use_effect = 1
+heal_amount = 35.0
+use_time = 2.5

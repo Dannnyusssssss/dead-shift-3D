@@ -46,6 +46,17 @@ static func vest(reduction: float = 0.5, wear_per_damage: float = 1.0) -> ItemDa
 	return data
 
 
+static func consumable(item_id: String, effect: int, heal: float = 0.0) -> ItemData:
+	var data := ItemData.new()
+	data.id = item_id
+	data.category = ItemData.CATEGORY_CONSUMABLE
+	data.max_stack = 3
+	data.use_effect = effect
+	data.heal_amount = heal
+	data.use_time = 1.0
+	return data
+
+
 static func recipe(a: String, b: String, result: String, repair: float = 0.0) -> RecipeData:
 	var data := RecipeData.new()
 	data.id = a + "_" + b

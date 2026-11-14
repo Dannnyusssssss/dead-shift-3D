@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_antibiotics"]
+
+[resource]
+script = ExtResource("1_antibiotics")
+id = "antibiotics"
+name_key = "item_antibiotics"
+category = 4
+max_stack = 2
+use_effect = 2
+heal_amount = 0.0
+use_time = 2.0

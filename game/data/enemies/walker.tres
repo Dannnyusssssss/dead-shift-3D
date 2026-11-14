@@ -11,3 +11,4 @@ move_speed = 1.9
 attack_damage = 18.0
 attack_interval = 1.6
 attack_range = 1.5
+infect_chance = 0.15

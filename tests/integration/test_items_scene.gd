@@ -146,3 +146,32 @@ func test_enemy_loot_spawns_pickups() -> void:
 	await wait_physics_frames(1)
 	var pickups := get_tree().get_nodes_in_group("pickup")
 	assert_eq(pickups.size(), 1)
+
+
+func test_healing_takes_time_and_leaves_player_exposed() -> void:
+	GameState.player.take_damage(40.0)
+	GameState.player.inventory.add_item(GameState.items.get_item("bandage"), 1)
+	var slot := GameState.player.inventory.find_slot("bandage")
+	var before := GameState.player.health
+	assert_eq(_player.healing.start(slot), PlayerState.USE_OK)
+	assert_false(_player.controls_enabled, "curarse deja indefenso")
+	await wait_physics_frames(30)
+	assert_eq(GameState.player.health, before, "todavía no termina")
+	for _step: int in 20:
+		await wait_physics_frames(10)
+		if not _player.healing.active:
+			break
+	assert_false(_player.healing.active)
+	assert_gt(GameState.player.health, before)
+	assert_true(_player.controls_enabled)
+	assert_eq(GameState.player.inventory.count_of("bandage"), 0)
+
+
+func test_infection_countdown_ends_the_run() -> void:
+	watch_signals(EventBus)
+	GameState.player.infection.try_infect(1.0, GameState.rng)
+	GameState.player.infection.time_left = 0.2
+	await wait_physics_frames(30)
+	assert_signal_emitted(EventBus, "player_died")
+	assert_eq(GameState.player.death_cause, PlayerState.CAUSE_INFECTION)
+	assert_false(_player.controls_enabled)

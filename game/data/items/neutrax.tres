@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_neutrax"]
+
+[resource]
+script = ExtResource("1_neutrax")
+id = "neutrax"
+name_key = "item_neutrax"
+category = 4
+max_stack = 2
+use_effect = 3
+heal_amount = 0.0
+use_time = 3.0
