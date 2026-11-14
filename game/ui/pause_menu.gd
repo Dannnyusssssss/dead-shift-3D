@@ -9,6 +9,9 @@ var _continue: TapButton = null
 var _quality: TapButton = null
 var _performance: TapButton = null
 var _hint: Label = null
+var _surrender: TapButton = null
+var _save: TapButton = null
+var _options: OptionsMenu = null
 
 
 func _ready() -> void:
@@ -44,7 +47,17 @@ func _ready() -> void:
 	box.add_child(_continue)
 	_quality = _option_button(box, _on_quality)
 	_performance = _option_button(box, _on_performance)
+	var options_button := _option_button(box, _on_options)
+	options_button.text = tr("options_title")
+	_save = _option_button(box, _on_save)
+	_save.text = tr("pause_save")
+	_surrender = _option_button(box, _on_surrender)
+	_surrender.text = tr("pause_surrender")
+	_surrender.visible = false
 	visible = false
+	_options = OptionsMenu.new()
+	add_child(_options)
+	_options.closed.connect(func() -> void: _continue.grab_focus())
 	EventBus.paused_changed.connect(_on_paused_changed)
 
 
@@ -56,6 +69,10 @@ func _process(_delta: float) -> void:
 
 func _on_paused_changed(paused: bool) -> void:
 	visible = paused
+	# Rendirse solo existe tras perder el rescate (final de «rescate perdido»).
+	_surrender.visible = (
+		paused and GameState.rescue != null and GameState.rescue.state == RescueClock.STATE_DEPARTED
+	)
 	if paused:
 		var key := "pause_hint_touch" if InputRouter.touch_mode else "pause_hint_mouse"
 		_hint.text = tr(key)
@@ -96,3 +113,15 @@ func _on_continue() -> void:
 	GameState.set_paused(false)
 	# El clic o toque en «Continuar» es un gesto del usuario: el navegador permite capturar.
 	InputRouter.request_capture()
+
+
+func _on_surrender() -> void:
+	EventBus.surrender_requested.emit()
+
+
+func _on_save() -> void:
+	EventBus.save_requested.emit()
+
+
+func _on_options() -> void:
+	_options.open()

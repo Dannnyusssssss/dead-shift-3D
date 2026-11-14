@@ -12,11 +12,52 @@ var menu_open: bool = false
 
 var _look_delta: Vector2 = Vector2.ZERO
 var _had_capture: bool = false
+## Eventos de fábrica de cada acción reasignable (para volver a ellos).
+var _default_events: Dictionary = {}
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	touch_mode = Config.is_touch
+	for action: String in SettingsSchema.REBINDABLE:
+		_default_events[action] = InputMap.action_get_events(action)
+	apply_bindings()
+	EventBus.settings_changed.connect(_on_settings_changed)
+
+
+## Aplica las teclas reasignadas (ya validadas en los ajustes): cada acción reasignada cambia
+## sus teclas por la nueva y conserva los eventos que no son de teclado (ratón).
+func apply_bindings() -> void:
+	var bindings := Settings.get_bindings()
+	for action: String in SettingsSchema.REBINDABLE:
+		InputMap.action_erase_events(action)
+		var defaults: Array = _default_events.get(action, [])
+		for event: Variant in defaults:
+			var input_event := event as InputEvent
+			if input_event == null:
+				continue
+			if bindings.has(action) and input_event is InputEventKey:
+				continue
+			InputMap.action_add_event(action, input_event)
+		if bindings.has(action):
+			var key := InputEventKey.new()
+			var keycode: int = bindings[action]
+			key.physical_keycode = keycode as Key
+			InputMap.action_add_event(action, key)
+
+
+## Nombre visible de la tecla principal de una acción.
+func key_label(action: String) -> String:
+	for event: InputEvent in InputMap.action_get_events(action):
+		if event is InputEventKey:
+			var key: InputEventKey = event
+			return OS.get_keycode_string(key.physical_keycode)
+	return "-"
+
+
+func _on_settings_changed(key: String) -> void:
+	if key == "bindings":
+		apply_bindings()
 
 
 ## Dirección de movimiento: x = lateral, y = adelante (fuerzas entre -1 y 1).

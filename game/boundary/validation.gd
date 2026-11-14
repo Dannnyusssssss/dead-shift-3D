@@ -17,7 +17,7 @@ static var _id_regex: RegEx = null
 ## Analiza el texto guardado de los ajustes. Nunca falla: lo inválido vuelve al valor por defecto.
 static func parse_settings(text: String) -> Dictionary:
 	var result: Dictionary = SettingsSchema.defaults()
-	var decoded: DataResult = SaveCodec.decode(text)
+	var decoded: DataResult = SaveCodec.decode(text, SettingsSchema.VERSION)
 	if not decoded.ok:
 		return result
 	var source: Dictionary = decoded.data
@@ -36,39 +36,42 @@ static func parse_settings(text: String) -> Dictionary:
 	for key: String in SettingsSchema.BOOLS:
 		var fallback: bool = SettingsSchema.BOOLS[key]
 		result[key] = read_bool(source, key, fallback)
+	result["bindings"] = parse_bindings(read_dict(source, "bindings"))
 	return result
 
 
-## Analiza el texto de una partida guardada. Falla solo si el texto no es un guardado
-## reconocible (vacío, gigante, JSON inválido, sin versión o de una versión futura);
-## cada campo dañado vuelve a su valor por defecto. known_items son los objetos válidos.
-static func parse_save(text: String, known_items: PackedStringArray) -> DataResult:
-	var decoded: DataResult = SaveCodec.decode(text)
-	if not decoded.ok:
-		return decoded
-	var source: Dictionary = decoded.data
-	var result: Dictionary = {"version": SaveCodec.CURRENT_VERSION}
-	result["floor"] = read_int(source, "floor", 0, SaveSchema.MAX_FLOOR, 0)
-	result["safe_zone"] = read_id(source, "safe_zone")
-	result["health"] = read_float(
-		source, "health", 0.0, Rules.PLAYER_MAX_HEALTH, Rules.PLAYER_MAX_HEALTH
-	)
-	result["infection_left"] = read_float(
-		source, "infection_left", 0.0, SaveSchema.MAX_INFECTION_SECONDS, 0.0
-	)
-	result["inventory"] = _read_inventory(source, known_items)
-	result["vest"] = _read_vest(source, known_items)
-	result["equipped"] = read_int(source, "equipped", -1, SaveSchema.MAX_SLOT_INDEX, -1)
-	result["phone_pieces"] = read_id_list(source, "phone_pieces", SaveSchema.MAX_PHONE_PIECES)
-	result["phone_called"] = read_bool(source, "phone_called", false)
-	result["rescue_clock"] = read_float(
-		source, "rescue_clock", 0.0, SaveSchema.MAX_RESCUE_SECONDS, 0.0
-	)
-	result["shortcuts"] = read_id_list(source, "shortcuts", SaveSchema.MAX_SHORTCUTS)
-	result["killed"] = read_id_list(source, "killed", SaveSchema.MAX_KILLED)
-	result["seed"] = read_int(source, "seed", 0, SEED_MAX, 0)
-	result["stats"] = _read_stats(source)
-	return DataResult.success(result)
+## Teclas reasignadas: solo acciones reasignables y teclas permitidas, y ninguna tecla usada
+## por dos acciones (contando las de fábrica de las acciones no reasignadas). Ante un conflicto
+## gana la acción que va antes en SettingsSchema.REBINDABLE; la otra vuelve a su tecla de fábrica.
+static func parse_bindings(source: Dictionary) -> Dictionary:
+	var wanted: Dictionary = {}
+	for action: String in SettingsSchema.REBINDABLE:
+		var raw: Variant = source.get(action)
+		if not (raw is float or raw is int):
+			continue
+		var number: float = raw
+		if is_nan(number) or is_inf(number) or number != floorf(number):
+			continue
+		var keycode := int(number)
+		if SettingsSchema.is_allowed_key(keycode):
+			wanted[action] = keycode
+	var used: Array[int] = []
+	for action: String in SettingsSchema.REBINDABLE:
+		if not wanted.has(action):
+			var defaults: Array = SettingsSchema.DEFAULT_BINDINGS[action]
+			for keycode: Variant in defaults:
+				var key_value: int = keycode
+				used.append(key_value)
+	var result: Dictionary = {}
+	for action: String in SettingsSchema.REBINDABLE:
+		if not wanted.has(action):
+			continue
+		var keycode: int = wanted[action]
+		if used.has(keycode):
+			continue
+		used.append(keycode)
+		result[action] = keycode
+	return result
 
 
 ## Extrae el parámetro "seed" de una cadena de consulta de URL ("?seed=123").
@@ -173,62 +176,3 @@ static func read_id_list(source: Dictionary, key: String, max_items: int) -> Arr
 			if not result.has(text):
 				result.append(text)
 	return result
-
-
-## Casillas del inventario: solo objetos conocidos, casillas sin repetir y un máximo de entradas.
-static func _read_inventory(
-	source: Dictionary, known_items: PackedStringArray
-) -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	var raw: Variant = source.get("inventory")
-	if not raw is Array:
-		return result
-	var list: Array = raw
-	var used_slots: Array[int] = []
-	for entry: Variant in list:
-		if result.size() >= SaveSchema.MAX_INVENTORY_ENTRIES:
-			break
-		if not entry is Dictionary:
-			continue
-		var item: Dictionary = entry
-		var item_id := read_id(item, "id")
-		var slot := read_int(item, "slot", -1, SaveSchema.MAX_SLOT_INDEX, -1)
-		if item_id.is_empty() or not known_items.has(item_id) or slot < 0:
-			continue
-		if used_slots.has(slot):
-			continue
-		used_slots.append(slot)
-		(
-			result
-			. append(
-				{
-					"slot": slot,
-					"id": item_id,
-					"count": read_int(item, "count", 1, SaveSchema.MAX_STACK_COUNT, 1),
-					"durability": read_float(item, "durability", 0.0, 1.0, 1.0),
-					"ammo": read_int(item, "ammo", 0, SaveSchema.MAX_LOADED_AMMO, 0),
-				}
-			)
-		)
-	return result
-
-
-## Chaleco equipado: objeto conocido y fracción de durabilidad, o vacío.
-static func _read_vest(source: Dictionary, known_items: PackedStringArray) -> Dictionary:
-	var vest := read_dict(source, "vest")
-	var item_id := read_id(vest, "id")
-	if item_id.is_empty() or not known_items.has(item_id):
-		return {}
-	return {"id": item_id, "durability": read_float(vest, "durability", 0.0, 1.0, 1.0)}
-
-
-## Estadísticas de la partida, cada una en su rango.
-static func _read_stats(source: Dictionary) -> Dictionary:
-	var stats := read_dict(source, "stats")
-	return {
-		"time": read_float(stats, "time", 0.0, SaveSchema.MAX_STAT_TIME, 0.0),
-		"damage_taken": read_float(stats, "damage_taken", 0.0, SaveSchema.MAX_STAT_DAMAGE, 0.0),
-		"weapons_broken": read_int(stats, "weapons_broken", 0, SaveSchema.MAX_STAT_COUNT, 0),
-		"crafted": read_int(stats, "crafted", 0, SaveSchema.MAX_STAT_COUNT, 0),
-		"ammo_left": read_int(stats, "ammo_left", 0, SaveSchema.MAX_STAT_COUNT, 0),
-	}
