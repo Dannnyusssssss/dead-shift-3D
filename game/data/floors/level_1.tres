@@ -1,0 +1,357 @@
+[gd_resource type="Resource" script_class="FloorData" format=3]
+
+[ext_resource type="Resource" path="res://game/data/enemies/listener.tres" id="1_listener"]
+[ext_resource type="Script" path="res://game/data/types/enemy_spawn.gd" id="2_enemy_sp"]
+[ext_resource type="Resource" path="res://game/data/enemies/police_zombie.tres" id="3_police_z"]
+[ext_resource type="Resource" path="res://game/data/enemies/walker.tres" id="4_walker"]
+[ext_resource type="Script" path="res://game/data/types/door_spec.gd" id="5_door_spe"]
+[ext_resource type="Script" path="res://game/data/types/room_data.gd" id="6_room_dat"]
+[ext_resource type="Script" path="res://game/data/types/loot_spot.gd" id="7_loot_spo"]
+[ext_resource type="Script" path="res://game/data/types/floor_exit.gd" id="8_floor_ex"]
+[ext_resource type="Script" path="res://game/data/types/gate_spec.gd" id="9_gate_spe"]
+[ext_resource type="Script" path="res://game/data/types/floor_data.gd" id="10_floor_da"]
+
+[sub_resource type="Resource" id="Resource_spawn_1"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("1_listener")
+position = Vector3(16, 0, 1)
+rng_seed = 31
+
+[sub_resource type="Resource" id="Resource_spawn_2"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("1_listener")
+position = Vector3(26, 0, -8)
+rng_seed = 32
+
+[sub_resource type="Resource" id="Resource_spawn_3"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("1_listener")
+position = Vector3(19, 0, 8)
+rng_seed = 33
+
+[sub_resource type="Resource" id="Resource_spawn_4"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("3_police_z")
+position = Vector3(12, 0, -8.5)
+vest_override = 1
+rng_seed = 41
+
+[sub_resource type="Resource" id="Resource_spawn_5"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("3_police_z")
+position = Vector3(21, 0, -1.5)
+rng_seed = 42
+
+[sub_resource type="Resource" id="Resource_spawn_6"]
+script = ExtResource("2_enemy_sp")
+enemy = ExtResource("4_walker")
+position = Vector3(3, 0, -1)
+rng_seed = 52
+
+[sub_resource type="Resource" id="Resource_door_7"]
+script = ExtResource("5_door_spe")
+side = 3
+offset = 4
+
+[sub_resource type="Resource" id="Resource_room_8"]
+script = ExtResource("6_room_dat")
+id = "stairwell"
+name_key = "room_stairwell"
+rect = Rect2(-8, -4, 8, 8)
+floor_color = Color(0.34, 0.34, 0.36, 1)
+wall_color = Color(0.5, 0.5, 0.52, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_7")])
+light_energy = 0.8
+
+[sub_resource type="Resource" id="Resource_door_9"]
+script = ExtResource("5_door_spe")
+side = 2
+offset = 3
+
+[sub_resource type="Resource" id="Resource_door_10"]
+script = ExtResource("5_door_spe")
+side = 0
+offset = 11
+
+[sub_resource type="Resource" id="Resource_door_11"]
+script = ExtResource("5_door_spe")
+side = 0
+offset = 27
+
+[sub_resource type="Resource" id="Resource_door_12"]
+script = ExtResource("5_door_spe")
+side = 1
+offset = 5
+
+[sub_resource type="Resource" id="Resource_door_13"]
+script = ExtResource("5_door_spe")
+side = 1
+offset = 19
+
+[sub_resource type="Resource" id="Resource_door_14"]
+script = ExtResource("5_door_spe")
+side = 1
+offset = 32
+
+[sub_resource type="Resource" id="Resource_loot_15"]
+script = ExtResource("7_loot_spo")
+position = Vector3(14, 0, 5.2)
+item_id = "bottle"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_loot_16"]
+script = ExtResource("7_loot_spo")
+position = Vector3(35, 0, 0.8)
+item_id = "bottle"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_loot_17"]
+script = ExtResource("7_loot_spo")
+position = Vector3(24, 0, 0.6)
+item_id = "extinguisher"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_room_18"]
+script = ExtResource("6_room_dat")
+id = "corridor"
+rect = Rect2(0, -3, 42, 6)
+floor_color = Color(0.42, 0.4, 0.38, 1)
+wall_color = Color(0.6, 0.58, 0.55, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_9"), SubResource("Resource_door_10"), SubResource("Resource_door_11"), SubResource("Resource_door_12"), SubResource("Resource_door_13"), SubResource("Resource_door_14")])
+loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_15"), SubResource("Resource_loot_16"), SubResource("Resource_loot_17")])
+light_energy = 0.75
+light_count = 4
+
+[sub_resource type="Resource" id="Resource_door_19"]
+script = ExtResource("5_door_spe")
+side = 1
+offset = 5
+
+[sub_resource type="Resource" id="Resource_loot_20"]
+script = ExtResource("7_loot_spo")
+kind = 0
+position = Vector3(2, 0, 2)
+contents = PackedStringArray("rag:2")
+
+[sub_resource type="Resource" id="Resource_loot_21"]
+script = ExtResource("7_loot_spo")
+kind = 2
+position = Vector3(9.3, 0, 1.2)
+contents = PackedStringArray("security_key:1", "pistol_ammo:3")
+
+[sub_resource type="Resource" id="Resource_loot_22"]
+script = ExtResource("7_loot_spo")
+position = Vector3(3, 0, 5.5)
+item_id = "bottle"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_room_23"]
+script = ExtResource("6_room_dat")
+id = "clothing_store"
+name_key = "room_clothing"
+rect = Rect2(6, -11, 10, 8)
+floor_color = Color(0.4, 0.33, 0.36, 1)
+wall_color = Color(0.62, 0.52, 0.58, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_19")])
+storefront_side = 1
+loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_20"), SubResource("Resource_loot_21"), SubResource("Resource_loot_22")])
+light_energy = 0.9
+
+[sub_resource type="Resource" id="Resource_door_24"]
+script = ExtResource("5_door_spe")
+side = 1
+offset = 5
+
+[sub_resource type="Resource" id="Resource_loot_25"]
+script = ExtResource("7_loot_spo")
+kind = 1
+position = Vector3(5, 0, 5.5)
+contents = PackedStringArray("phone_battery:1")
+
+[sub_resource type="Resource" id="Resource_loot_26"]
+script = ExtResource("7_loot_spo")
+position = Vector3(8.2, 0, 1.6)
+item_id = "phone_antenna"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_loot_27"]
+script = ExtResource("7_loot_spo")
+kind = 0
+position = Vector3(1.2, 0, 1.2)
+contents = PackedStringArray("pistol_ammo:4", "tape:1")
+
+[sub_resource type="Resource" id="Resource_room_28"]
+script = ExtResource("6_room_dat")
+id = "electronics_store"
+name_key = "room_electronics"
+rect = Rect2(22, -11, 10, 8)
+floor_color = Color(0.33, 0.36, 0.42, 1)
+wall_color = Color(0.5, 0.56, 0.64, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_24")])
+storefront_side = 1
+loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_25"), SubResource("Resource_loot_26"), SubResource("Resource_loot_27")])
+light_energy = 0.9
+
+[sub_resource type="Resource" id="Resource_door_29"]
+script = ExtResource("5_door_spe")
+side = 0
+offset = 3
+
+[sub_resource type="Resource" id="Resource_room_30"]
+script = ExtResource("6_room_dat")
+id = "service_hall"
+name_key = "room_service"
+rect = Rect2(2, 3, 6, 8)
+floor_color = Color(0.3, 0.3, 0.3, 1)
+wall_color = Color(0.45, 0.45, 0.45, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_29")])
+light_energy = 0.6
+
+[sub_resource type="Resource" id="Resource_door_31"]
+script = ExtResource("5_door_spe")
+side = 0
+offset = 5
+
+[sub_resource type="Resource" id="Resource_loot_32"]
+script = ExtResource("7_loot_spo")
+kind = 0
+position = Vector3(1.2, 0, 6.6)
+contents = PackedStringArray("neutrax:1")
+
+[sub_resource type="Resource" id="Resource_loot_33"]
+script = ExtResource("7_loot_spo")
+kind = 2
+position = Vector3(9.2, 0, 6.6)
+contents = PackedStringArray("antibiotics:2")
+
+[sub_resource type="Resource" id="Resource_loot_34"]
+script = ExtResource("7_loot_spo")
+position = Vector3(5, 0, 4.5)
+item_id = "bandage"
+count = 2
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_room_35"]
+script = ExtResource("6_room_dat")
+id = "pharmacy"
+name_key = "room_pharmacy"
+rect = Rect2(14, 3, 10, 8)
+floor_color = Color(0.42, 0.45, 0.44, 1)
+wall_color = Color(0.68, 0.72, 0.7, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_31")])
+storefront_side = 0
+loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_32"), SubResource("Resource_loot_33"), SubResource("Resource_loot_34")])
+light_energy = 0.9
+
+[sub_resource type="Resource" id="Resource_door_36"]
+script = ExtResource("5_door_spe")
+side = 0
+offset = 4
+
+[sub_resource type="Resource" id="Resource_loot_37"]
+script = ExtResource("7_loot_spo")
+position = Vector3(4, 0, 5)
+item_id = "shotgun"
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_loot_38"]
+script = ExtResource("7_loot_spo")
+kind = 0
+position = Vector3(1.2, 0, 6.6)
+contents = PackedStringArray("shotgun_shells:4")
+
+[sub_resource type="Resource" id="Resource_loot_39"]
+script = ExtResource("7_loot_spo")
+kind = 2
+position = Vector3(7.2, 0, 6.6)
+contents = PackedStringArray("pistol_ammo:8")
+
+[sub_resource type="Resource" id="Resource_loot_40"]
+script = ExtResource("7_loot_spo")
+position = Vector3(2, 0, 3)
+item_id = "vest"
+durability = 0.8
+contents = PackedStringArray()
+
+[sub_resource type="Resource" id="Resource_room_41"]
+script = ExtResource("6_room_dat")
+id = "security_post"
+name_key = "room_security_post"
+rect = Rect2(28, 3, 8, 8)
+floor_color = Color(0.32, 0.34, 0.38, 1)
+wall_color = Color(0.48, 0.5, 0.56, 1)
+doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_36")])
+loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_37"), SubResource("Resource_loot_38"), SubResource("Resource_loot_39"), SubResource("Resource_loot_40")])
+light_energy = 1
+
+[sub_resource type="Resource" id="Resource_exit_42"]
+script = ExtResource("8_floor_ex")
+id = "stairs_down"
+position = Vector3(40.5, 0, 0)
+size = Vector3(2, 2.5, 4)
+target_floor = "ground_floor"
+target_exit = "stairs_up"
+arrival = Vector3(37, 0, 0)
+arrival_yaw_deg = 90
+label_key = "exit_down_ground"
+
+[sub_resource type="Resource" id="Resource_exit_43"]
+script = ExtResource("8_floor_ex")
+id = "stairs_up"
+position = Vector3(-5.5, 0, 0)
+size = Vector3(2, 2.5, 3)
+target_floor = "level_2"
+target_exit = "stairs_down"
+arrival = Vector3(-2, 0, 0)
+arrival_yaw_deg = -90
+label_key = "exit_up_level_2"
+
+[sub_resource type="Resource" id="Resource_exit_44"]
+script = ExtResource("8_floor_ex")
+id = "service_stairs"
+position = Vector3(6.5, 0, 9.6)
+size = Vector3(1.6, 2.5, 1.4)
+target_floor = "ground_floor"
+target_exit = "service_door"
+arrival = Vector3(6.5, 0, 6.5)
+arrival_yaw_deg = 0
+label_key = "exit_service"
+
+[sub_resource type="Resource" id="Resource_exit_45"]
+script = ExtResource("8_floor_ex")
+id = "service_up"
+position = Vector3(3.5, 0, 9.6)
+size = Vector3(1.6, 2.5, 1.4)
+target_floor = "level_2"
+target_exit = "service_stairs"
+arrival = Vector3(3.5, 0, 6.5)
+arrival_yaw_deg = 0
+label_key = "exit_service_up"
+requires_flag = "shortcut_l2"
+locked_message_key = "msg_locked_other_side"
+
+[sub_resource type="Resource" id="Resource_gate_46"]
+script = ExtResource("9_gate_spe")
+id = "shortcut_gate"
+position = Vector3(5, 0, 3.6)
+flag = "shortcut_l1"
+
+[sub_resource type="Resource" id="Resource_gate_47"]
+script = ExtResource("9_gate_spe")
+id = "security_post_gate"
+position = Vector3(32, 0, 3.6)
+required_item = "security_key"
+flag = "security_post_open"
+
+[resource]
+script = ExtResource("10_floor_da")
+id = "level_1"
+name_key = "floor_level_1"
+rooms = Array[ExtResource("6_room_dat")]([SubResource("Resource_room_8"), SubResource("Resource_room_18"), SubResource("Resource_room_23"), SubResource("Resource_room_28"), SubResource("Resource_room_30"), SubResource("Resource_room_35"), SubResource("Resource_room_41")])
+enemies = Array[ExtResource("2_enemy_sp")]([SubResource("Resource_spawn_1"), SubResource("Resource_spawn_2"), SubResource("Resource_spawn_3"), SubResource("Resource_spawn_4"), SubResource("Resource_spawn_5"), SubResource("Resource_spawn_6")])
+player_spawn = Vector3(37, 0, 0)
+player_yaw_deg = 90
+exits = Array[ExtResource("8_floor_ex")]([SubResource("Resource_exit_42"), SubResource("Resource_exit_43"), SubResource("Resource_exit_44"), SubResource("Resource_exit_45")])
+gates = Array[ExtResource("9_gate_spe")]([SubResource("Resource_gate_46"), SubResource("Resource_gate_47")])
+ambient_color = Color(0.22, 0.24, 0.3, 1)
+ambient_energy = 0.5

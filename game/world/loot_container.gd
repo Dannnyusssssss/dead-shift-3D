@@ -29,19 +29,35 @@ func _ready() -> void:
 		if stack != null:
 			_remaining.append(stack)
 	_build()
+	if _remaining.is_empty():
+		# Registrado en una visita anterior: aparece abierto y vacío.
+		enabled = false
+		_open_visual()
 
 
 func is_empty() -> bool:
 	return _remaining.is_empty()
 
 
+## Lo que le queda dentro, como "id:cantidad" (para recordarlo al cambiar de piso).
+func remaining_entries() -> PackedStringArray:
+	var result := PackedStringArray()
+	for stack: ItemStack in _remaining:
+		result.append("%s:%d" % [stack.id(), stack.count])
+	return result
+
+
 func interact(player: Player) -> void:
 	if not enabled:
 		return
-	var inventory := GameState.player.inventory
+	var state := GameState.player
 	var kept: Array[ItemStack] = []
 	for stack: ItemStack in _remaining:
-		if not inventory.add_stack(stack):
+		if stack.item.category == ItemData.CATEGORY_KEY:
+			state.keys.add(stack.id())
+			EventBus.key_items_changed.emit()
+			EventBus.user_message.emit("msg_key_item")
+		elif not state.inventory.add_stack(stack):
 			kept.append(stack)
 	_remaining = kept
 	if not _remaining.is_empty():

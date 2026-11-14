@@ -9,12 +9,14 @@ const SIZE_BY_CATEGORY: Dictionary = {
 	ItemData.CATEGORY_AMMO: Vector3(0.2, 0.12, 0.14),
 	ItemData.CATEGORY_WEAPON: Vector3(0.12, 0.08, 0.7),
 	ItemData.CATEGORY_VEST: Vector3(0.5, 0.12, 0.45),
+	ItemData.CATEGORY_CONSUMABLE: Vector3(0.18, 0.1, 0.12),
 }
 const COLOR_BY_CATEGORY: Dictionary = {
 	ItemData.CATEGORY_MATERIAL: Color(0.75, 0.7, 0.45),
 	ItemData.CATEGORY_AMMO: Color(0.85, 0.65, 0.2),
 	ItemData.CATEGORY_WEAPON: Color(0.6, 0.6, 0.65),
 	ItemData.CATEGORY_VEST: Color(0.2, 0.25, 0.2),
+	ItemData.CATEGORY_CONSUMABLE: Color(0.85, 0.85, 0.9),
 }
 
 @export var item_id: String = ""
@@ -23,6 +25,8 @@ const COLOR_BY_CATEGORY: Dictionary = {
 @export_range(0.0, 1.0) var durability_fraction: float = 1.0
 
 var stack: ItemStack = null
+## Clave del punto de botín del piso ("" si se creó en juego: botín u objeto soltado).
+var spot_key: String = ""
 
 
 func _ready() -> void:
@@ -54,10 +58,28 @@ func get_prompt_key() -> String:
 	return "prompt_pick_up"
 
 
+## Datos para guardar este objeto si queda en el suelo al cambiar de piso.
+func to_drop_entry() -> Dictionary:
+	return {
+		"id": stack.id(),
+		"count": stack.count,
+		"durability": stack.durability.fraction(),
+		"ammo": stack.ammo_loaded,
+		"x": global_position.x,
+		"z": global_position.z,
+	}
+
+
 func interact(player: Player) -> void:
 	if stack == null or not enabled:
 		return
 	var state := GameState.player
+	if stack.item.category == ItemData.CATEGORY_KEY:
+		state.keys.add(stack.id())
+		EventBus.key_items_changed.emit()
+		EventBus.user_message.emit("msg_key_item")
+		_consume(player)
+		return
 	if stack.is_vest():
 		var old := state.swap_vest(stack)
 		EventBus.vest_changed.emit()
