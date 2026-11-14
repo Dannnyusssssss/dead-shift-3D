@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_item"]
+[ext_resource type="Script" path="res://game/data/types/weapon_data.gd" id="2_weapon"]
+
+[sub_resource type="Resource" id="Resource_ext"]
+script = ExtResource("2_weapon")
+damage = 10.0
+attack_interval = 0.8
+attack_range = 1.8
+max_durability = 30.0
+wear_per_hit = 5.0
+noise_level = 2
+stuns = true
+
+[resource]
+script = ExtResource("1_item")
+id = "extinguisher"
+name_key = "item_extinguisher"
+category = 2
+weapon = SubResource("Resource_ext")

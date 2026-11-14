@@ -1,14 +1,20 @@
 class_name Enemy
 extends CharacterBody3D
-## Máquina de estados común a todos los enemigos: quieto, persiguiendo, atacando, aturdido
-## y muerto. Lo propio de cada tipo vive en su .tres (valores) y en su comportamiento
-## (a dónde ir), registrado en EnemyBehaviors. La salud y el chaleco usan la lógica de core.
+## Máquina de estados común a todos los enemigos: quieto, persiguiendo, atacando, aturdido,
+## muerto y, para los que oyen, investigando un ruido y volviendo a su sitio. Lo propio de
+## cada tipo vive en su .tres (valores) y en su comportamiento (a dónde ir), registrado en
+## EnemyBehaviors. La salud y el chaleco usan la lógica de core.
+
+## Murió (para recordarlo al cambiar de piso).
+signal died
 
 const STATE_IDLE: int = 0
 const STATE_CHASE: int = 1
 const STATE_ATTACK: int = 2
 const STATE_STUNNED: int = 3
 const STATE_DEAD: int = 4
+const STATE_INVESTIGATE: int = 5
+const STATE_RETURN: int = 6
 
 const GRAVITY: float = 9.8
 ## Cada cuánto se comprueba si ve al jugador y se recalcula la ruta (no en cada frame).
@@ -20,6 +26,12 @@ const ATTACK_WINDUP: float = 0.45
 const STUN_TIME: float = 1.2
 const HEAD_HEIGHT: float = 1.45
 const VEST_BOTTOM: float = 0.85
+## Segundos que mira alrededor al llegar al punto del ruido.
+const INVESTIGATE_LOOK_TIME: float = 3.0
+## Giro (radianes por segundo) mientras mira alrededor.
+const LOOK_AROUND_SPEED: float = 1.6
+## Distancia horizontal a la que se considera que llegó a un punto.
+const ARRIVE_DISTANCE: float = 1.2
 
 @export var data: EnemyData = null
 ## -1 = el azar decide si lleva chaleco; 0 = sin chaleco; 1 = con chaleco.
@@ -29,6 +41,9 @@ const VEST_BOTTOM: float = 0.85
 
 var state: int = STATE_IDLE
 var health: EnemyHealth = null
+var hearing: Hearing = null
+## Verdadero si en el último análisis veía al jugador.
+var sees_player: bool = false
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _behavior: EnemyBehavior = null
@@ -41,6 +56,11 @@ var _stun_timer: float = 0.0
 var _sight_query: PhysicsRayQueryParameters3D = null
 var _body_material: StandardMaterial3D = null
 var _vest_mesh: MeshInstance3D = null
+var _home: Vector3 = Vector3.ZERO
+var _look_timer: float = 0.0
+var _arrived: bool = false
+var _noise_query: PhysicsRayQueryParameters3D = null
+var _chase_target: Vector3 = Vector3.ZERO
 
 @onready var _agent: NavigationAgent3D = $Agent
 @onready var _visual: Node3D = $Visual
@@ -52,6 +72,11 @@ func _ready() -> void:
 	health = EnemyHealth.new(data, _rng, _vest_max(), vest_override)
 	_behavior = EnemyBehaviors.create(data.behavior)
 	_sight_query = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, Rules.LAYER_WORLD)
+	_noise_query = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, Rules.LAYER_WORLD)
+	hearing = Hearing.new(data.hearing)
+	_home = global_position
+	if not hearing.is_deaf():
+		EventBus.noise_emitted.connect(_on_noise)
 	_build_visual()
 	_think_timer = _rng.randf() * THINK_INTERVAL
 
@@ -60,6 +85,7 @@ func _physics_process(delta: float) -> void:
 	if state == STATE_DEAD:
 		return
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
+	hearing.tick(delta)
 	_think_timer -= delta
 	if _think_timer <= 0.0:
 		_think_timer = THINK_INTERVAL
@@ -75,6 +101,10 @@ func _physics_process(delta: float) -> void:
 			velocity.z = 0.0
 			if _stun_timer <= 0.0:
 				state = STATE_CHASE
+		STATE_INVESTIGATE:
+			_investigate(delta)
+		STATE_RETURN:
+			_return_home()
 		_:
 			velocity.x = 0.0
 			velocity.z = 0.0
@@ -99,8 +129,8 @@ func take_hit(damage: float, hit_point: Vector3, is_bullet: bool, stuns: bool = 
 		if stuns:
 			state = STATE_STUNNED
 			_stun_timer = STUN_TIME
-		elif state == STATE_IDLE:
-			state = STATE_CHASE
+		elif state != STATE_CHASE and state != STATE_ATTACK:
+			_start_chase()
 	return applied
 
 
@@ -111,26 +141,120 @@ func is_dead() -> bool:
 func _think() -> void:
 	_player = _find_player()
 	if _player == null or _player.is_dead():
-		state = STATE_IDLE if state != STATE_STUNNED else state
+		if state == STATE_CHASE or state == STATE_ATTACK:
+			state = STATE_IDLE
 		return
-	var sees := _can_see_player()
+	var sees := _can_see_player() or data.relentless
+	sees_player = sees
 	if sees:
 		_unseen_time = 0.0
-		if state == STATE_IDLE:
-			state = STATE_CHASE
+		if state == STATE_IDLE or state == STATE_INVESTIGATE or state == STATE_RETURN:
+			_start_chase()
 	elif state == STATE_CHASE:
 		_unseen_time += THINK_INTERVAL
 		if _unseen_time > LOSE_SIGHT_TIME:
-			state = STATE_IDLE
+			_lose_player()
 	if state == STATE_CHASE:
-		_agent.target_position = _behavior.target_position(self, _player)
+		_chase_target = _behavior.target_position(self, _player)
+		_agent.target_position = _chase_target
 
 
-func _chase(_delta: float) -> void:
+## Empieza a perseguir al jugador (y lo anuncia con un subtítulo).
+func _start_chase() -> void:
+	state = STATE_CHASE
+	_unseen_time = 0.0
+	hearing.clear()
+	EventBus.sound_cue.emit("cue_growl", global_position)
+
+
+## Perdió al jugador: si oye, va a investigar donde lo vio por última vez; si no, se queda.
+func _lose_player() -> void:
+	if hearing.is_deaf() or _player == null:
+		state = STATE_IDLE
+		return
+	hearing.clear()
+	hearing.hear(global_position, _player.global_position, Rules.NOISE_VERY_HIGH)
+	_begin_investigation()
+
+
+## Reacciona a un ruido del juego (solo los enemigos que oyen están suscritos).
+func _on_noise(origin: Vector3, level: int) -> void:
+	if state == STATE_DEAD or state == STATE_CHASE or state == STATE_ATTACK:
+		return
+	if state == STATE_STUNNED:
+		return
+	var ear := global_position + Vector3.UP * HEAD_HEIGHT
+	if not hearing.hear(ear, origin, level, _walls_between(ear, origin)):
+		return
+	if state != STATE_INVESTIGATE:
+		EventBus.sound_cue.emit("cue_listener_alert", global_position)
+	_begin_investigation()
+
+
+func _begin_investigation() -> void:
+	state = STATE_INVESTIGATE
+	_arrived = false
+	_agent.target_position = hearing.target
+
+
+## Va al punto del ruido, mira alrededor un rato y vuelve a su sitio.
+func _investigate(delta: float) -> void:
+	if not _arrived:
+		if _move_to(hearing.target, data.move_speed):
+			_arrived = true
+			_look_timer = INVESTIGATE_LOOK_TIME
+		return
+	velocity.x = 0.0
+	velocity.z = 0.0
+	rotate_y(LOOK_AROUND_SPEED * delta)
+	_look_timer -= delta
+	if _look_timer <= 0.0:
+		hearing.clear()
+		state = STATE_RETURN
+		_agent.target_position = _home
+
+
+func _return_home() -> void:
+	if _move_to(_home, data.move_speed * 0.7):
+		state = STATE_IDLE
+
+
+## Camina hacia un punto por la navegación. Devuelve verdadero al llegar.
+func _move_to(point: Vector3, speed: float) -> bool:
+	var flat := Vector2(point.x - global_position.x, point.z - global_position.z)
+	if flat.length() <= ARRIVE_DISTANCE:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		return true
+	if _agent.target_position.distance_to(point) > 0.5:
+		_agent.target_position = point
+	var next := _agent.get_next_path_position()
+	if _agent.is_navigation_finished() or next.distance_to(global_position) < 0.05:
+		next = point
+	_walk_toward(next, speed)
+	return false
+
+
+## Paredes entre dos puntos para atenuar un ruido: 0 si hay línea directa, 1 si no.
+func _walls_between(from: Vector3, to: Vector3) -> int:
+	_noise_query.from = from
+	_noise_query.to = to + Vector3.UP * 0.5
+	var hit := get_world_3d().direct_space_state.intersect_ray(_noise_query)
+	return 0 if hit.is_empty() else 1
+
+
+## Verdadero si la navegación encuentra ruta hasta su objetivo actual.
+func has_route() -> bool:
+	return _agent.is_target_reachable()
+
+
+func _chase(delta: float) -> void:
 	if _player == null:
 		state = STATE_IDLE
 		return
-	if global_position.distance_to(_player.global_position) <= data.attack_range:
+	_behavior.update(self, _player, delta)
+	var in_range := global_position.distance_to(_player.global_position) <= data.attack_range
+	if in_range and _behavior.can_attack(self, _player):
 		if _attack_cooldown <= 0.0:
 			state = STATE_ATTACK
 			_attack_timer = ATTACK_WINDUP
@@ -140,13 +264,17 @@ func _chase(_delta: float) -> void:
 		return
 	var next := _agent.get_next_path_position()
 	if _agent.is_navigation_finished() or next.distance_to(global_position) < 0.05:
-		# Sin ruta (o ya en ella): persigue en línea recta.
-		next = _player.global_position
-	var direction := next - global_position
+		# Sin ruta (o ya en ella): va en línea recta al punto que pide su comportamiento.
+		next = _chase_target
+	_walk_toward(next, data.move_speed)
+
+
+func _walk_toward(point: Vector3, speed: float) -> void:
+	var direction := point - global_position
 	direction.y = 0.0
 	direction = direction.normalized()
-	velocity.x = direction.x * data.move_speed
-	velocity.z = direction.z * data.move_speed
+	velocity.x = direction.x * speed
+	velocity.z = direction.z * speed
 	_face(global_position + direction)
 
 
@@ -160,7 +288,7 @@ func _attack(delta: float) -> void:
 		_player != null
 		and global_position.distance_to(_player.global_position) <= data.attack_range + 0.3
 	):
-		_player.receive_damage(data.attack_damage)
+		_player.receive_damage(data.attack_damage, data.infect_chance)
 	_attack_cooldown = data.attack_interval
 	state = STATE_CHASE
 
@@ -172,6 +300,7 @@ func _die() -> void:
 	velocity = Vector3.ZERO
 	var drops := LootRoller.roll(health, GameState.items, _rng)
 	EventBus.enemy_died.emit(global_position, drops)
+	died.emit()
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -PI * 0.5, 0.5)
 	tween.parallel().tween_property(_visual, "position:y", 0.25, 0.5)
@@ -217,9 +346,8 @@ func _vest_max() -> float:
 
 func _build_visual() -> void:
 	_body_material = StandardMaterial3D.new()
-	_body_material.albedo_color = (
-		Color(0.35, 0.42, 0.33) if data.vest_chance <= 0.0 else Color(0.18, 0.22, 0.35)
-	)
+	_body_material.albedo_color = data.body_color
+	_visual.scale = Vector3.ONE * data.body_scale
 	var body := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.radius = 0.32

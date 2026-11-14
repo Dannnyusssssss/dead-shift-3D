@@ -149,9 +149,10 @@ func _shoot(stack: ItemStack) -> void:
 	WeaponUse.fire(stack)
 	_cooldown = weapon.attack_interval
 	_player.arms.play_shoot()
-	_muzzle.light_energy = MUZZLE_ENERGY
-	_muzzle_timer = MUZZLE_TIME
-	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level)
+	if not Settings.get_bool("reduce_flashes"):
+		_muzzle.light_energy = MUZZLE_ENERGY
+		_muzzle_timer = MUZZLE_TIME
+	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level, true)
 	var origin := _player.aim_origin()
 	var direction := _assisted_direction(origin, _player.aim_direction(), weapon.attack_range)
 	var hit := _cast(origin, origin + direction * weapon.attack_range)
@@ -184,7 +185,7 @@ func _resolve_melee() -> void:
 		return
 	var point := target.global_position + Vector3.UP * CHEST_HEIGHT
 	target.take_hit(weapon.damage, point, false, weapon.stuns)
-	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level)
+	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level, true)
 	if WeaponUse.melee_hit(stack) == WeaponUse.HIT_BROKE:
 		EventBus.weapon_broken.emit(stack.id())
 		_state().handle_broken_weapons()

@@ -17,6 +17,8 @@ const WEAPON_SHAPES: Dictionary = {
 	"bat": [Vector3(0.07, 0.07, 0.85), Color(0.6, 0.42, 0.24), Vector3(0.0, 0.0, -0.38)],
 	"bat_nails": [Vector3(0.09, 0.09, 0.85), Color(0.5, 0.36, 0.22), Vector3(0.0, 0.0, -0.38)],
 	"knife": [Vector3(0.02, 0.04, 0.3), Color(0.8, 0.82, 0.85), Vector3(0.0, 0.0, -0.14)],
+	"extinguisher": [Vector3(0.14, 0.14, 0.42), Color(0.75, 0.12, 0.1), Vector3(0.0, -0.05, -0.18)],
+	"shotgun": [Vector3(0.06, 0.09, 0.7), Color(0.22, 0.18, 0.14), Vector3(0.0, 0.03, -0.3)],
 }
 
 var _right: Node3D = null
@@ -110,6 +112,26 @@ func stop_craft() -> void:
 	_tween.tween_property(_left, "position", Vector3(-0.24, -0.02, 0.05), 0.25)
 	_tween.parallel().tween_property(_right, "position", Vector3(0.22, 0.0, 0.0), 0.25)
 	_tween.parallel().tween_property(_left, "rotation", Vector3.ZERO, 0.25)
+
+
+## Animación genérica de curarse: la mano derecha baja al centro y la izquierda envuelve.
+func start_heal() -> void:
+	_crafting = true
+	_start_tween()
+	_tween.tween_property(_right, "position", Vector3(0.04, -0.12, -0.08), 0.3)
+	_tween.parallel().tween_property(_right, "rotation:x", -0.6, 0.3)
+	_tween.tween_property(_left, "position", Vector3(-0.02, -0.08, -0.12), 0.3)
+	_tween.tween_property(_left, "rotation:y", 0.8, 0.4)
+	_tween.tween_property(_left, "rotation:y", -0.4, 0.4)
+
+
+func stop_heal() -> void:
+	_crafting = false
+	_start_tween()
+	_tween.tween_property(_left, "position", Vector3(-0.24, -0.02, 0.05), 0.25)
+	_tween.parallel().tween_property(_right, "position", Vector3(0.22, 0.0, 0.0), 0.25)
+	_tween.parallel().tween_property(_left, "rotation", Vector3.ZERO, 0.25)
+	_tween.parallel().tween_property(_right, "rotation", Vector3.ZERO, 0.25)
 
 
 func _start_tween() -> void:

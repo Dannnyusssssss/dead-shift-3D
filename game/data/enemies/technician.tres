@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_tech"]
+[ext_resource type="Script" path="res://game/data/types/boss_data.gd" id="2_boss"]
+
+[sub_resource type="Resource" id="Resource_bossdata"]
+script = ExtResource("2_boss")
+
+[resource]
+script = ExtResource("1_tech")
+id = "technician"
+name_key = "enemy_technician"
+max_health = 750.0
+move_speed = 1.8
+attack_damage = 22.0
+attack_range = 2.2
+sight_range = 22.0
+body_color = Color(0.78, 0.48, 0.16, 1)
+body_scale = 1.25
+boss = SubResource("Resource_bossdata")
+behavior = "walker"

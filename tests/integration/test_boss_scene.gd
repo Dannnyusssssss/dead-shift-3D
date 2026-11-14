@@ -1,0 +1,123 @@
+extends GutTest
+@warning_ignore_start("unsafe_call_argument")
+## El jefe en escena mínima: la embestida contra un tablero con corriente lo aturde y apaga el
+## tablero, rompe estanterías, los golpes por la espalda llegan al tanque, la nube tóxica daña
+## sin pasar por el chaleco y al morir suelta la llave de la azotea.
+
+const PLAYER_SCENE: PackedScene = preload("res://game/actors/player/player.tscn")
+const BOSS_SCENE: PackedScene = preload("res://game/actors/enemies/boss.tscn")
+const TECHNICIAN: EnemyData = preload("res://game/data/enemies/technician.tres")
+
+var _world: Node3D
+var _player: Player
+
+
+func before_each() -> void:
+	GameState.start_new_run()
+	InputRouter.touch_mode = false
+	_world = Node3D.new()
+	add_child_autofree(_world)
+	_add_box(Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0))
+	_world.add_child(LootSpawner.new())
+	_player = PLAYER_SCENE.instantiate()
+	_world.add_child(_player)
+
+
+func _add_box(center: Vector3, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = Rules.LAYER_WORLD
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = center
+	_world.add_child(body)
+
+
+func _spawn_boss(at: Vector3) -> Boss:
+	var boss: Boss = BOSS_SCENE.instantiate()
+	boss.data = TECHNICIAN
+	boss.position = at
+	_world.add_child(boss)
+	return boss
+
+
+func _wait_until(condition: Callable, frames: int) -> void:
+	for _step: int in frames / 5:
+		await wait_physics_frames(5)
+		if condition.call():
+			return
+
+
+func test_charge_into_live_panel_stuns_and_shorts_it() -> void:
+	# El jugador está delante de un tablero; el jefe embiste y el jugador se aparta.
+	var panel := ElectricPanel.new()
+	panel.position = Vector3(0.0, 0.0, 2.0)
+	_world.add_child(panel)
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -9.0))
+	_player.position = Vector3(0.0, 0.0, 0.8)
+	await wait_physics_frames(2)
+	boss.model.start_charge()
+	boss.boss_state = Boss.B_CHARGE_WINDUP
+	await _wait_until(func() -> bool: return boss.boss_state == Boss.B_CHARGING, 200)
+	_player.global_position = Vector3(4.0, 0.0, 0.8)
+	await _wait_until(func() -> bool: return boss.model.is_stunned(), 200)
+	assert_true(boss.model.is_stunned(), "aturdido por el tablero")
+	assert_false(panel.live, "el tablero se apagó")
+	assert_gte(boss.model.stun_left, TECHNICIAN.boss.panel_stun - 0.5)
+
+
+func test_charge_breaks_shelves() -> void:
+	var shelf := BreakableShelf.new()
+	shelf.position = Vector3(0.0, 0.0, -2.0)
+	_world.add_child(shelf)
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -10.0))
+	_player.position = Vector3(0.0, 0.0, 1.0)
+	await wait_physics_frames(2)
+	boss.model.start_charge()
+	boss.boss_state = Boss.B_CHARGE_WINDUP
+	await _wait_until(func() -> bool: return shelf.is_broken, 240)
+	assert_true(shelf.is_broken)
+
+
+func test_hits_from_behind_reach_the_tank() -> void:
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -5.0))
+	await wait_physics_frames(2)
+	# Si el jefe mira hacia -Z, el jugador (en el origen, más hacia +Z) queda a su espalda.
+	boss.look_at(Vector3(0.0, 0.0, -20.0), Vector3.UP)
+	var behind := boss.take_hit(20.0, boss.global_position, true)
+	assert_eq(behind, 20.0 * TECHNICIAN.boss.tank_multiplier, "por la espalda: tanque")
+	boss.look_at(Vector3(0.0, 0.0, 20.0), Vector3.UP)
+	var front := boss.take_hit(20.0, boss.global_position, true)
+	assert_eq(front, 20.0 * TECHNICIAN.boss.phase_one_front_multiplier, "de frente: traje")
+
+
+func test_toxic_cloud_hurts_without_using_the_vest() -> void:
+	GameState.player.vest = ItemStack.new(GameState.items.get_item("vest"))
+	var vest_before := GameState.player.vest.durability.fraction()
+	var cloud := ToxicCloud.new()
+	cloud.warning = 0.1
+	cloud.duration = 1.0
+	cloud.dps = 10.0
+	_world.add_child(cloud)
+	cloud.global_position = _player.global_position
+	await wait_physics_frames(50)
+	assert_lt(GameState.player.health, Rules.PLAYER_MAX_HEALTH, "el gas daña")
+	assert_eq(GameState.player.vest.durability.fraction(), vest_before, "el chaleco no lo frena")
+	assert_false(GameState.player.infection.infected, "el gas no contagia")
+
+
+func test_death_drops_roof_key_and_sets_flag() -> void:
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
+	await wait_physics_frames(2)
+	watch_signals(EventBus)
+	while not boss.is_dead():
+		boss.model.stun(1.0)
+		boss.take_hit(200.0, boss.global_position, true)
+	assert_true(GameState.world.has_flag("boss_defeated"))
+	assert_signal_emitted(EventBus, "enemy_died")
+	var drops: Array = get_signal_parameters(EventBus, "enemy_died")[1]
+	assert_eq(drops.size(), 1)
+	var key: ItemStack = drops[0]
+	assert_eq(key.id(), "roof_key")
