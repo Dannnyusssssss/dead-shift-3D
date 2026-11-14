@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="GameCatalog" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_3x42p"]
+[ext_resource type="Resource" path="res://game/data/enemies/walker.tres" id="2_4gdo0"]
+[ext_resource type="Resource" path="res://game/data/enemies/police_zombie.tres" id="3_amknx"]
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="4_l3ywh"]
+[ext_resource type="Resource" path="res://game/data/items/pistol.tres" id="5_bkrud"]
+[ext_resource type="Resource" path="res://game/data/items/pistol_ammo.tres" id="6_rhyd5"]
+[ext_resource type="Resource" path="res://game/data/items/pipe.tres" id="7_eb5ne"]
+[ext_resource type="Resource" path="res://game/data/items/bat.tres" id="8_ayso4"]
+[ext_resource type="Resource" path="res://game/data/items/knife.tres" id="9_vhlhy"]
+[ext_resource type="Resource" path="res://game/data/items/bat_nails.tres" id="10_goheo"]
+[ext_resource type="Resource" path="res://game/data/items/pipe_grip.tres" id="11_uhpda"]
+[ext_resource type="Resource" path="res://game/data/items/nails.tres" id="12_dbc7a"]
+[ext_resource type="Resource" path="res://game/data/items/tape.tres" id="13_gx4w4"]
+[ext_resource type="Resource" path="res://game/data/items/rag.tres" id="14_ojgfw"]
+[ext_resource type="Resource" path="res://game/data/items/vest.tres" id="15_vyqb5"]
+[ext_resource type="Script" path="res://game/data/types/recipe_data.gd" id="16_tqm5c"]
+[ext_resource type="Resource" path="res://game/data/recipes/bat_nails.tres" id="17_vmiuv"]
+[ext_resource type="Resource" path="res://game/data/recipes/pipe_grip.tres" id="18_4e5a7"]
+[ext_resource type="Resource" path="res://game/data/recipes/tape_repair.tres" id="19_cnqtj"]
+[ext_resource type="Script" path="res://game/data/types/game_catalog.gd" id="20_u11ii"]
+
+[resource]
+script = ExtResource("20_u11ii")
+items = Array[ExtResource("4_l3ywh")]([ExtResource("5_bkrud"), ExtResource("6_rhyd5"), ExtResource("7_eb5ne"), ExtResource("8_ayso4"), ExtResource("9_vhlhy"), ExtResource("10_goheo"), ExtResource("11_uhpda"), ExtResource("12_dbc7a"), ExtResource("13_gx4w4"), ExtResource("14_ojgfw"), ExtResource("15_vyqb5")])
+recipes = Array[ExtResource("16_tqm5c")]([ExtResource("17_vmiuv"), ExtResource("18_4e5a7"), ExtResource("19_cnqtj")])
+enemies = Array[ExtResource("1_3x42p")]([ExtResource("2_4gdo0"), ExtResource("3_amknx")])

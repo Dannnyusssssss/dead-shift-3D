@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RecipeData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/recipe_data.gd" id="1_eih57"]
+
+[resource]
+script = ExtResource("1_eih57")
+id = "pipe_grip"
+input_a = "pipe"
+input_b = "rag"
+result_id = "pipe_grip"

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_g7fl6"]
+
+[resource]
+script = ExtResource("1_g7fl6")
+id = "rag"
+name_key = "item_rag"
+max_stack = 5

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_iemdj"]
+[ext_resource type="Script" path="res://game/data/types/weapon_data.gd" id="2_3qj3j"]
+
+[sub_resource type="Resource" id="Resource_vwckg"]
+script = ExtResource("2_3qj3j")
+damage = 25.0
+attack_interval = 0.5
+max_durability = 40.0
+wear_per_hit = 4.0
+
+[resource]
+script = ExtResource("1_iemdj")
+id = "pipe_grip"
+name_key = "item_pipe_grip"
+category = 2
+weapon = SubResource("Resource_vwckg")

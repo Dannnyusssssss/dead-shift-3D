@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/enemy_data.gd" id="1_2r70k"]
+
+[resource]
+script = ExtResource("1_2r70k")
+id = "walker"
+name_key = "enemy_walker"
+max_health = 110.0
+move_speed = 1.9
+attack_damage = 18.0
+attack_interval = 1.6
+attack_range = 1.5

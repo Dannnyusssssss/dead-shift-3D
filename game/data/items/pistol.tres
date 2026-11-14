@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_xqfdr"]
+[ext_resource type="Script" path="res://game/data/types/weapon_data.gd" id="2_fmqxs"]
+
+[sub_resource type="Resource" id="Resource_sbtif"]
+script = ExtResource("2_fmqxs")
+kind = 1
+damage = 34.0
+attack_interval = 0.4
+attack_range = 40.0
+noise_level = 4
+magazine_size = 8
+reload_time = 1.6
+ammo_item_id = "pistol_ammo"
+
+[resource]
+script = ExtResource("1_xqfdr")
+id = "pistol"
+name_key = "item_pistol"
+category = 2
+weapon = SubResource("Resource_sbtif")

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_efm2a"]
+
+[resource]
+script = ExtResource("1_efm2a")
+id = "pistol_ammo"
+name_key = "item_pistol_ammo"
+category = 1
+max_stack = 60
