@@ -19,8 +19,15 @@ var controls_enabled: bool:
 		return _blocks.is_empty()
 	set(value):
 		set_blocked("manual", not value)
+## Verdadero mientras combina o se cura: las manos están ocupadas (no ataca, no recoge, no
+## lanza ni cambia de arma), pero puede mirar y caminar despacio.
+var hands_busy: bool:
+	get:
+		return crafting.active or healing.active
 var crouching: bool = false
 var sprinting: bool = false
+## Lanzar con puntería (se crea al empezar; no está en la escena).
+var throw: PlayerThrow = null
 
 var _pitch: float = 0.0
 var _bob_time: float = 0.0
@@ -30,6 +37,9 @@ var _step_timer: float = 0.0
 var _throw_cooldown: float = 0.0
 ## Motivos activos que bloquean los controles.
 var _blocks: Dictionary = {}
+## Retroceso y sacudida de la cámara (se suman a la mirada y vuelven solos a cero).
+var _kick: float = 0.0
+var _shake: float = 0.0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera
@@ -43,6 +53,12 @@ var _blocks: Dictionary = {}
 
 func _ready() -> void:
 	add_to_group("player")
+	throw = PlayerThrow.new()
+	throw.name = "Throw"
+	add_child(throw)
+	# Escaleras: misma velocidad en pendiente y pegado al suelo al bajar.
+	floor_constant_speed = true
+	floor_snap_length = 0.4
 	if GameState.player == null:
 		GameState.start_new_run()
 	interact_ray.target_position = Vector3(0.0, 0.0, -Rules.PLAYER_INTERACT_RANGE)
@@ -51,6 +67,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_settle_camera(delta)
 	_apply_look()
 	_update_movement(delta)
 	_update_head(delta)
@@ -58,6 +75,19 @@ func _physics_process(delta: float) -> void:
 	_update_interaction()
 	_update_throw(delta)
 	_update_infection(delta)
+
+
+## Empujón de la cámara hacia arriba (retroceso). No hace nada con «Reducir movimiento».
+func kick_camera(amount: float) -> void:
+	if Settings.get_bool("reduce_motion"):
+		return
+	_kick = minf(_kick + amount, 0.12)
+
+
+## Recupera el retroceso y la sacudida poco a poco.
+func _settle_camera(delta: float) -> void:
+	_kick = move_toward(_kick, 0.0, delta * 0.35)
+	_shake = move_toward(_shake, 0.0, delta * 0.12)
 
 
 ## Pone o quita un motivo de bloqueo de los controles.
@@ -107,6 +137,8 @@ func receive_damage(amount: float, infect_chance: float = 0.0) -> void:
 	var was_infected := state.infection.infected
 	var lost := state.take_bite(amount, infect_chance, GameState.rng)
 	EventBus.player_damaged.emit(lost)
+	if lost > 0.0 and not Settings.get_bool("reduce_motion"):
+		_shake = minf(_shake + lost * 0.0012, 0.03)
 	EventBus.player_health_changed.emit(state.health)
 	EventBus.vest_changed.emit()
 	if state.infection.infected and not was_infected:
@@ -161,7 +193,8 @@ func _apply_look() -> void:
 	rotate_y(-look.x)
 	var limit := deg_to_rad(Rules.LOOK_PITCH_LIMIT_DEG)
 	_pitch = clampf(_pitch - look.y, -limit, limit)
-	head.rotation.x = _pitch
+	head.rotation.x = _pitch + _kick
+	head.rotation.z = sin(Time.get_ticks_msec() * 0.07) * _shake
 
 
 func _update_movement(delta: float) -> void:
@@ -172,9 +205,11 @@ func _update_movement(delta: float) -> void:
 	if InputRouter.touch_mode:
 		# En táctil, empujar la palanca hasta el borde equivale a correr.
 		wants_sprint = input.length() > 0.95
-	sprinting = wants_sprint and not crouching and input.y > 0.3
+	sprinting = wants_sprint and not crouching and input.y > 0.3 and not hands_busy
 	var speed := Rules.PLAYER_WALK_SPEED
-	if crouching:
+	if hands_busy:
+		speed = minf(Rules.PLAYER_BUSY_SPEED, Rules.PLAYER_CROUCH_SPEED if crouching else INF)
+	elif crouching:
 		speed = Rules.PLAYER_CROUCH_SPEED
 	elif sprinting:
 		speed = Rules.PLAYER_SPRINT_SPEED
@@ -216,21 +251,15 @@ func _update_interaction() -> void:
 	var key := target.get_prompt_key() if target != null else ""
 	if key != _prompt_key:
 		_prompt_key = key
-		EventBus.interaction_prompt.emit(key)
-	if target != null and not key.is_empty() and controls_enabled:
+		var detail := target.get_prompt_detail() if target != null and not key.is_empty() else ""
+		EventBus.interaction_prompt.emit(key, detail)
+	if target != null and not key.is_empty() and controls_enabled and not hands_busy:
 		if InputRouter.just_pressed("interact"):
 			target.interact(self)
 
 
 func _update_throw(delta: float) -> void:
 	_throw_cooldown = maxf(_throw_cooldown - delta, 0.0)
-	if not controls_enabled or not InputRouter.just_pressed("throw") or combat.is_busy():
-		return
-	var slot := GameState.player.quick_throw_slot()
-	if slot < 0:
-		EventBus.user_message.emit("msg_nothing_to_throw")
-		return
-	throw_from_slot(slot)
 
 
 func _update_infection(delta: float) -> void:

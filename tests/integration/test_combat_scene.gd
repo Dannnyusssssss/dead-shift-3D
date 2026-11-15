@@ -122,3 +122,23 @@ func test_melee_hit_can_break_weapon() -> void:
 	assert_eq(GameState.player.weapons_broken, 1)
 	assert_eq(GameState.player.inventory.count_of("pipe"), 0, "el arma rota desaparece")
 	assert_eq(GameState.player.equipped().id(), "pistol", "vuelve a otra arma")
+
+
+func test_a_hit_confirms_staggers_and_kicks_the_camera() -> void:
+	watch_signals(EventBus)
+	var walker := _spawn(WALKER, Vector3(0.0, 0.0, -5.0))
+	await wait_physics_frames(5)
+	var before := walker.global_position
+	await _press_attack()
+	await wait_physics_frames(4)
+	assert_signal_emitted_with_parameters(EventBus, "hit_confirmed", [false])
+	assert_lt(walker.global_position.z, before.z, "el golpe lo hace retroceder")
+	assert_gt(_player.head.rotation.x, 0.0, "el retroceso levanta la mira")
+
+
+func test_reduce_motion_disables_the_camera_kick() -> void:
+	Settings.set_value("reduce_motion", true)
+	_player.kick_camera(0.05)
+	await wait_physics_frames(2)
+	assert_almost_eq(_player.head.rotation.x, 0.0, 0.001)
+	Settings.set_value("reduce_motion", false)

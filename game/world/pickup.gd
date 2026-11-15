@@ -18,6 +18,8 @@ const COLOR_BY_CATEGORY: Dictionary = {
 	ItemData.CATEGORY_VEST: Color(0.2, 0.25, 0.2),
 	ItemData.CATEGORY_CONSUMABLE: Color(0.85, 0.85, 0.9),
 }
+## Vueltas por segundo (en radianes) del aro que señala el objeto.
+const RING_SPIN: float = 0.8
 
 @export var item_id: String = ""
 @export var count: int = 1
@@ -27,6 +29,8 @@ const COLOR_BY_CATEGORY: Dictionary = {
 var stack: ItemStack = null
 ## Clave del punto de botín del piso ("" si se creó en juego: botín u objeto soltado).
 var spot_key: String = ""
+
+var _ring: MeshInstance3D = null
 
 
 func _ready() -> void:
@@ -56,6 +60,13 @@ func get_prompt_key() -> String:
 	if stack.is_vest():
 		return "prompt_swap_vest" if GameState.player.vest != null else "prompt_wear_vest"
 	return "prompt_pick_up"
+
+
+func get_prompt_detail() -> String:
+	if not enabled or stack == null:
+		return ""
+	var name := tr(stack.item.name_key)
+	return name + (" x%d" % stack.count if stack.count > 1 else "")
 
 
 ## Datos para guardar este objeto si queda en el suelo al cambiar de piso.
@@ -117,9 +128,35 @@ func _build() -> void:
 	instance.mesh = mesh
 	instance.position.y = size.y * 0.5
 	add_child(instance)
+	_add_ring(color, size)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size + Vector3(0.3, 0.4, 0.3)
 	shape.shape = box
 	shape.position.y = box.size.y * 0.5
 	add_child(shape)
+
+
+## Aro tenue en el suelo que gira despacio: ayuda a ver los objetos sueltos (sin parpadear).
+func _add_ring(color: Color, size: Vector3) -> void:
+	var ring := TorusMesh.new()
+	var radius := maxf(size.x, size.z) * 0.5 + 0.18
+	ring.inner_radius = radius
+	ring.outer_radius = radius + 0.05
+	ring.rings = 16
+	ring.ring_segments = 6
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(color.lightened(0.4), 0.7)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring.material = material
+	_ring = MeshInstance3D.new()
+	_ring.mesh = ring
+	_ring.position.y = 0.03
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_ring)
+
+
+func _process(delta: float) -> void:
+	if _ring != null:
+		_ring.rotation.y += delta * RING_SPIN

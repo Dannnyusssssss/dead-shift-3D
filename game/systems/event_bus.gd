@@ -17,9 +17,12 @@ signal paused_changed(paused: bool)
 ## Cambió entre controles táctiles y teclado/ratón.
 @warning_ignore("unused_signal")
 signal input_mode_changed(touch: bool)
-## Texto de interacción del objeto apuntado ("" si no hay ninguno).
+## Texto de interacción del objeto apuntado ("" si no hay ninguno) y detalle (qué objeto es).
 @warning_ignore("unused_signal")
-signal interaction_prompt(text_key: String)
+signal interaction_prompt(text_key: String, detail: String)
+## Un golpe o disparo del jugador acertó a un enemigo (para el marcador de impacto).
+@warning_ignore("unused_signal")
+signal hit_confirmed(killed: bool)
 ## Se hizo un ruido en un punto (nivel Rules.NOISE_*).
 @warning_ignore("unused_signal")
 signal noise_emitted(origin: Vector3, level: int)
@@ -60,10 +63,7 @@ signal inventory_changed
 ## Empezó o terminó una combinación.
 @warning_ignore("unused_signal")
 signal crafting_changed(active: bool)
-## El jugador entró en una salida: pide cargar otro piso y aparecer en esa salida.
-@warning_ignore("unused_signal")
-signal floor_change_requested(floor_id: String, exit_id: String)
-## Terminó de cargarse un piso (después de cambiar de piso o al empezar).
+## El jugador pasó a otro piso del edificio (al subir o bajar una escalera, o al empezar).
 @warning_ignore("unused_signal")
 signal floor_changed(floor_id: String)
 ## Cambiaron los objetos clave del jugador (llaves, piezas del teléfono).

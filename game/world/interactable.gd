@@ -22,5 +22,10 @@ func get_prompt_key() -> String:
 	return prompt_key if enabled else ""
 
 
+## Detalle que acompaña al aviso (por ejemplo, el nombre del objeto). "" si no hace falta.
+func get_prompt_detail() -> String:
+	return ""
+
+
 func interact(player: Player) -> void:
 	used.emit(player)

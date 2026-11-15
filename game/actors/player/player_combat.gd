@@ -5,6 +5,9 @@ extends Node
 ## Va como hijo del nodo Player.
 
 ## Grados que se cierra el campo de visión al apuntar con un arma de fuego.
+## Empujón de cámara (radianes) al disparar y al acertar un golpe (sin «Reducir movimiento»).
+const RECOIL_KICK: float = 0.035
+const MELEE_KICK: float = 0.02
 const AIM_FOV_OFFSET: float = 15.0
 const AIM_LERP: float = 12.0
 ## Momento del golpe dentro de la animación (fracción del intervalo de ataque).
@@ -47,7 +50,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
 	_update_aim(delta)
-	if not _player.controls_enabled or _player.is_dead():
+	if not _player.controls_enabled or _player.is_dead() or _player.hands_busy:
+		return
+	if _player.throw != null and _player.throw.is_aiming():
 		return
 	_handle_switch()
 	_handle_reload_input()
@@ -162,6 +167,8 @@ func _shoot(stack: ItemStack) -> void:
 		if collider is Enemy:
 			var enemy: Enemy = collider
 			enemy.take_hit(weapon.damage, point, true)
+			EventBus.hit_confirmed.emit(enemy.is_dead())
+	_player.kick_camera(RECOIL_KICK)
 	EventBus.weapon_changed.emit()
 
 
@@ -185,6 +192,8 @@ func _resolve_melee() -> void:
 		return
 	var point := target.global_position + Vector3.UP * CHEST_HEIGHT
 	target.take_hit(weapon.damage, point, false, weapon.stuns)
+	EventBus.hit_confirmed.emit(target.is_dead())
+	_player.kick_camera(MELEE_KICK)
 	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level, true)
 	if WeaponUse.melee_hit(stack) == WeaponUse.HIT_BROKE:
 		EventBus.weapon_broken.emit(stack.id())

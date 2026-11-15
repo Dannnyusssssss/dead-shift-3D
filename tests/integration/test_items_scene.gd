@@ -100,7 +100,8 @@ func test_crafting_takes_time_blocks_and_makes_noise() -> void:
 	assert_eq(_player.crafting.start(bat_slot, nails_slot), Crafting.ERROR_NONE)
 	await wait_physics_frames(3)
 	assert_true(_player.crafting.active)
-	assert_false(_player.controls_enabled, "indefenso mientras combina")
+	assert_true(_player.hands_busy, "manos ocupadas mientras combina")
+	assert_true(_player.controls_enabled, "pero puede mirar y caminar")
 	assert_eq(NoiseSystem.last_level, Rules.NOISE_CRAFT, "combinar hace ruido")
 	assert_eq(inventory.count_of("bat_nails"), 0, "todavía no terminó")
 	for _step: int in 60:
@@ -140,6 +141,37 @@ func test_open_inventory_blocks_pointer_capture() -> void:
 	InputRouter.gameplay_active = false
 
 
+func test_combine_tab_lists_ready_recipes_and_starts_with_one_tap() -> void:
+	var inventory := GameState.player.inventory
+	inventory.add_stack(ItemStack.new(GameState.items.get_item("bat")))
+	inventory.add_item(GameState.items.get_item("nails"), 2)
+	inventory.add_item(GameState.items.get_item("rag"), 1)
+	var panel := InventoryPanel.new()
+	add_child_autofree(panel)
+	panel.bind_player(_player)
+	InputRouter.gameplay_active = true
+	panel.open(InventoryPanel.TAB_COMBINE)
+	await wait_frames(2)
+	var buttons: Array[TapButton] = []
+	var texts := ""
+	for node: Node in panel.find_children("*", "", true, false):
+		var label := node as Label
+		if label != null and label.is_visible_in_tree():
+			texts += label.text + "\n"
+		var button := node as TapButton
+		if button != null and button.is_visible_in_tree() and not button.disabled:
+			if button.text.begins_with(tr("inventory_combine")) and button.text.ends_with(" s)"):
+				buttons.append(button)
+	assert_string_contains(texts, tr("item_bat_nails"), "lo que se puede hacer ya")
+	assert_string_contains(texts, tr("combine_missing") % tr("item_pipe"), "y lo que falta")
+	assert_eq(buttons.size(), 1, "un botón por combinación posible")
+	buttons[0].pressed.emit()
+	assert_true(_player.crafting.active, "un toque empieza a combinar")
+	assert_false(panel.is_open(), "y la mochila se cierra")
+	_player.crafting.cancel()
+	InputRouter.gameplay_active = false
+
+
 func test_enemy_loot_spawns_pickups() -> void:
 	var drops: Array[ItemStack] = [ItemStack.new(GameState.items.get_item("pistol_ammo"), 5)]
 	EventBus.enemy_died.emit(Vector3(3.0, 0.0, 3.0), drops)
@@ -154,7 +186,8 @@ func test_healing_takes_time_and_leaves_player_exposed() -> void:
 	var slot := GameState.player.inventory.find_slot("bandage")
 	var before := GameState.player.health
 	assert_eq(_player.healing.start(slot), PlayerState.USE_OK)
-	assert_false(_player.controls_enabled, "curarse deja indefenso")
+	assert_true(_player.hands_busy, "curarse ocupa las manos")
+	assert_true(_player.controls_enabled, "pero puede mirar y caminar despacio")
 	await wait_physics_frames(30)
 	assert_eq(GameState.player.health, before, "todavía no termina")
 	for _step: int in 20:
@@ -175,3 +208,58 @@ func test_infection_countdown_ends_the_run() -> void:
 	assert_signal_emitted(EventBus, "player_died")
 	assert_eq(GameState.player.death_cause, PlayerState.CAUSE_INFECTION)
 	assert_false(_player.controls_enabled)
+
+
+func test_healing_allows_slow_walking_but_not_shooting() -> void:
+	GameState.player.take_damage(40.0)
+	GameState.player.inventory.add_item(GameState.items.get_item("bandage"), 1)
+	var slot := GameState.player.inventory.find_slot("bandage")
+	var loaded := GameState.player.equipped().ammo_loaded
+	assert_eq(_player.healing.start(slot), PlayerState.USE_OK)
+	await wait_physics_frames(3)
+	var start := _player.global_position
+	Input.action_press("move_forward")
+	Input.action_press("attack")
+	await wait_physics_frames(30)
+	Input.action_release("attack")
+	Input.action_release("move_forward")
+	var moved := _player.global_position.distance_to(start)
+	assert_gt(moved, 0.3, "puede caminar")
+	assert_lt(moved, Rules.PLAYER_BUSY_SPEED * 0.6, "pero despacio")
+	assert_eq(GameState.player.equipped().ammo_loaded, loaded, "no dispara mientras se cura")
+
+
+func _tap(action: String) -> void:
+	Input.action_press(action)
+	await wait_physics_frames(2)
+	Input.action_release(action)
+	await wait_physics_frames(2)
+
+
+func test_throw_readies_with_an_arc_then_throws_without_firing() -> void:
+	GameState.player.inventory.add_item(GameState.items.get_item("bottle"), 2)
+	var loaded := GameState.player.equipped().ammo_loaded
+	await _tap("throw")
+	assert_gt(_player.throw.ready_slot, -1, "la G deja el objeto listo")
+	assert_eq(GameState.player.inventory.count_of("bottle"), 2, "todavía no lo lanza")
+	await _tap("aim")
+	assert_eq(_player.throw.ready_slot, -1, "clic derecho cancela")
+	await _tap("throw")
+	await _tap("attack")
+	assert_eq(_player.throw.ready_slot, -1)
+	assert_eq(GameState.player.inventory.count_of("bottle"), 1, "el clic lo lanza")
+	assert_eq(GameState.player.equipped().ammo_loaded, loaded, "y no dispara la pistola")
+
+
+func test_heal_key_uses_a_bandage_without_opening_the_bag() -> void:
+	GameState.player.take_damage(40.0)
+	GameState.player.inventory.add_item(GameState.items.get_item("bandage"), 1)
+	await _tap("heal")
+	assert_true(_player.healing.active, "la H empieza a curar")
+	assert_eq(_player.healing.current_item().id, "bandage")
+
+
+func test_pickup_prompt_names_the_item() -> void:
+	var pickup := _pickup("bandage", 2)
+	await wait_physics_frames(1)
+	assert_eq(pickup.get_prompt_detail(), tr("item_bandage") + " x2")

@@ -24,6 +24,10 @@ const LOSE_SIGHT_TIME: float = 6.0
 ## Parte del ataque antes de que el golpe llegue (permite esquivarlo).
 const ATTACK_WINDUP: float = 0.45
 const STUN_TIME: float = 1.2
+## Tambaleo al recibir un golpe que no lo mata: retrocede un poco y no ataca un instante.
+const STAGGER_BULLET: float = 0.18
+const STAGGER_MELEE: float = 0.35
+const STAGGER_PUSH: float = 2.2
 const HEAD_HEIGHT: float = 1.45
 const VEST_BOTTOM: float = 0.85
 ## Segundos que mira alrededor al llegar al punto del ruido.
@@ -53,6 +57,8 @@ var _unseen_time: float = 0.0
 var _attack_timer: float = 0.0
 var _attack_cooldown: float = 0.0
 var _stun_timer: float = 0.0
+var _stagger_timer: float = 0.0
+var _stagger_push: Vector3 = Vector3.ZERO
 var _sight_query: PhysicsRayQueryParameters3D = null
 var _body_material: StandardMaterial3D = null
 var _vest_mesh: MeshInstance3D = null
@@ -68,6 +74,8 @@ var _chase_target: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	add_to_group("enemy")
+	floor_constant_speed = true
+	floor_snap_length = 0.4
 	_rng.seed = rng_seed
 	health = EnemyHealth.new(data, _rng, _vest_max(), vest_override)
 	_behavior = EnemyBehaviors.create(data.behavior)
@@ -86,6 +94,15 @@ func _physics_process(delta: float) -> void:
 		return
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
 	hearing.tick(delta)
+	if _stagger_timer > 0.0:
+		_stagger_timer -= delta
+		velocity.x = _stagger_push.x
+		velocity.z = _stagger_push.z
+		_stagger_push = _stagger_push.move_toward(Vector3.ZERO, STAGGER_PUSH * delta * 4.0)
+		if not is_on_floor():
+			velocity.y -= GRAVITY * delta
+		move_and_slide()
+		return
 	_think_timer -= delta
 	if _think_timer <= 0.0:
 		_think_timer = THINK_INTERVAL
@@ -131,7 +148,20 @@ func take_hit(damage: float, hit_point: Vector3, is_bullet: bool, stuns: bool = 
 			_stun_timer = STUN_TIME
 		elif state != STATE_CHASE and state != STATE_ATTACK:
 			_start_chase()
+		_stagger(hit_point, is_bullet)
 	return applied
+
+
+## Retrocede un poco desde el punto del golpe e inclina el cuerpo un instante.
+func _stagger(hit_point: Vector3, is_bullet: bool) -> void:
+	var away := global_position - hit_point
+	away.y = 0.0
+	away = away.normalized() if away.length() > 0.01 else -global_basis.z
+	_stagger_timer = STAGGER_BULLET if is_bullet else STAGGER_MELEE
+	_stagger_push = away * STAGGER_PUSH * (0.5 if is_bullet else 1.0)
+	var tween := create_tween()
+	tween.tween_property(_visual, "rotation:x", -0.22, 0.07)
+	tween.tween_property(_visual, "rotation:x", 0.0, 0.2)
 
 
 func is_dead() -> bool:
