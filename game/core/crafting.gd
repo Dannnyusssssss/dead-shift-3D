@@ -81,6 +81,39 @@ func craft(inventory: Inventory, slot_a: int, slot_b: int) -> String:
 	return ERROR_NONE
 
 
+## Combinaciones posibles ahora con lo que hay en el inventario: una entrada por par de casillas
+## que tiene receta, con "recipe", "slot_a", "slot_b" y "problem" (ERROR_NONE si se puede ya).
+func options(inventory: Inventory) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for a: int in inventory.capacity():
+		var first := inventory.get_slot(a)
+		if first == null:
+			continue
+		for b: int in range(a + 1, inventory.capacity()):
+			var second := inventory.get_slot(b)
+			var recipe := find_recipe(first, second)
+			if recipe == null:
+				continue
+			var problem := _check_result(inventory, recipe, first, second)
+			result.append({"recipe": recipe, "slot_a": a, "slot_b": b, "problem": problem})
+	return result
+
+
+## Recetas (no de reparación) de las que se lleva una parte: "recipe", "have" y "missing".
+func hints(inventory: Inventory) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for recipe: RecipeData in _recipes:
+		if recipe.is_repair():
+			continue
+		var has_a := inventory.count_of(recipe.input_a) > 0
+		var has_b := inventory.count_of(recipe.input_b) > 0
+		if has_a != has_b:
+			var have := recipe.input_a if has_a else recipe.input_b
+			var missing := recipe.input_b if has_a else recipe.input_a
+			result.append({"recipe": recipe, "have": have, "missing": missing})
+	return result
+
+
 func _check_result(
 	inventory: Inventory, recipe: RecipeData, first: ItemStack, second: ItemStack
 ) -> String:

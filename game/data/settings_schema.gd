@@ -55,6 +55,8 @@ const DEFAULT_BINDINGS: Dictionary = {
 	"throw": [KEY_G],
 	"inventory": [KEY_TAB, KEY_I],
 	"map": [KEY_M],
+	"notebook": [KEY_N],
+	"heal": [KEY_H],
 	"weapon_next": [KEY_Q],
 }
 ## Orden en que se muestran y se resuelven los conflictos.
@@ -70,6 +72,8 @@ const REBINDABLE: Array[String] = [
 	"throw",
 	"inventory",
 	"map",
+	"notebook",
+	"heal",
 	"weapon_next",
 ]
 ## Teclas reservadas que nunca se asignan: pausa (P y Esc, fijas), las de cambio rápido de

@@ -97,3 +97,38 @@ func test_unknown_result_is_rejected() -> void:
 	inventory.add_stack(ItemStack.new(_bat))
 	inventory.add_item(_nails, 1)
 	assert_eq(crafting.craft(inventory, 0, 1), Crafting.ERROR_UNKNOWN_RESULT)
+
+
+func test_options_list_every_pair_that_has_a_recipe() -> void:
+	var inventory := Inventory.new(4)
+	inventory.add_stack(ItemStack.new(_bat, 1, 0.5))
+	inventory.add_item(_nails, 3)
+	inventory.add_item(_tape, 1)
+	var options := _crafting.options(inventory)
+	assert_eq(options.size(), 2, "bate + clavos y cinta + bate gastado")
+	var results: Array[String] = []
+	for option: Dictionary in options:
+		var recipe: RecipeData = option["recipe"]
+		results.append(recipe.id)
+		assert_eq(option["problem"], Crafting.ERROR_NONE)
+	assert_true(results.has("bat_nails"))
+
+
+func test_options_report_no_space() -> void:
+	var inventory := Inventory.new(2)
+	inventory.add_stack(ItemStack.new(_bat))
+	inventory.add_item(_nails, 3)
+	var options := _crafting.options(inventory)
+	assert_eq(options.size(), 1)
+	assert_eq(options[0]["problem"], Crafting.ERROR_NONE, "el bate libera su casilla")
+
+
+func test_hints_name_the_missing_half() -> void:
+	var inventory := Inventory.new(4)
+	inventory.add_item(_nails, 2)
+	var hints := _crafting.hints(inventory)
+	assert_eq(hints.size(), 1)
+	assert_eq(hints[0]["have"], "nails")
+	assert_eq(hints[0]["missing"], "bat")
+	inventory.add_stack(ItemStack.new(_bat))
+	assert_eq(_crafting.hints(inventory).size(), 0, "con las dos partes ya no es una pista")
