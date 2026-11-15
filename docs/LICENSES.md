@@ -21,4 +21,10 @@ Las dependencias transitivas de las herramientas de Python están fijadas con ve
 
 ## Recursos gráficos y de sonido
 
-Ninguno por ahora: el arte del juego es provisional y se genera con primitivas del motor.
+Cada pack vive en `assets/third_party/<pack>/` con su archivo de licencia, una tabla de origen (`SOURCES.md`) y la huella SHA-256 de cada archivo (`MANIFEST.sha256`). Solo se guardan formatos que no ejecutan código al cargarse (imágenes, audio, modelos glTF y texto).
+
+| Pack (carpeta) | Licencia | Origen | Contenido y cambios |
+|---|---|---|---|
+| ambientCG (`ambientcg`) | CC0 1.0 Universal | https://ambientcg.com · licencia en https://docs.ambientcg.com/license/ | 11 materiales: Tiles078, Tiles074, WoodFloor051, Concrete031, Concrete034, PaintedPlaster017, OfficeCeiling001, CorrugatedSteel005, DiamondPlate008A, Metal064 y Asphalt031. Mapas de color, normales y rugosidad reducidos de 1024 a 512 px; página y huella del archivo original de cada uno en `SOURCES.md`. |
+
+El resto del arte (escenario, mobiliario, rótulos con marcas inventadas y armas) se genera con scripts propios de Blender y forma parte del juego.

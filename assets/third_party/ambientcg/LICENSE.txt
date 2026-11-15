@@ -1,0 +1,12 @@
+ambientCG - Creative Commons CC0 1.0 Universal
+
+Origin: https://ambientcg.com (operated by Lennart Demes)
+License page: https://docs.ambientcg.com/license/
+Stated on the license page (checked 2026-11-15):
+  "All ambientCG assets are provided under the Creative Commons CC0 1.0 Universal License."
+  "You can include the raw files in your project, for example a video game."
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+The files in this folder were reduced from 1024 px to 512 px (JPG, quality 90).
+Only the Color, NormalGL and Roughness maps are kept; the .blend, .tres, .usdc and
+.mtlx files of each download were discarded.

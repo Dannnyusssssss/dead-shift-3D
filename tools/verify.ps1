@@ -240,6 +240,40 @@ function Step-Smoke {
     Write-Host ('  capturas en ' + $ShotsDir)
 }
 
+# Tipos de archivo admitidos en assets/third_party: solo formatos que no ejecutan codigo al
+# cargarse (sin .blend, escenas, recursos del motor ni scripts).
+$AllowedThirdPartyExt = @('.png', '.jpg', '.ogg', '.wav', '.glb', '.gltf', '.bin', '.txt', '.md', '.sha256')
+
+# Comprueba un pack de terceros: tipos admitidos y MANIFEST.sha256 igual al contenido real
+# (cada archivo listado existe con esa huella y no hay archivos sin listar).
+function Test-PackFiles($pack) {
+    $base = $pack.FullName
+    $files = @(Get-ChildItem -LiteralPath $base -File -Recurse | Where-Object { $_.Name -ne '.gdignore' })
+    foreach ($f in $files) {
+        if ($AllowedThirdPartyExt -notcontains $f.Extension.ToLowerInvariant()) {
+            Add-Failure ('tipo de archivo no admitido en ' + $pack.Name + ': ' + $f.Name)
+        }
+    }
+    $manifest = Join-Path $base 'MANIFEST.sha256'
+    if (-not (Test-Path -LiteralPath $manifest)) { Add-Failure ('el pack ' + $pack.Name + ' no tiene MANIFEST.sha256'); return }
+    $listed = @{}
+    foreach ($line in Get-Content -LiteralPath $manifest) {
+        if ($line -match '^([0-9a-f]{64})  (\S.*)$') { $listed[$Matches[2]] = $Matches[1] }
+        elseif ($line.Trim() -ne '') { Add-Failure ('linea invalida en MANIFEST de ' + $pack.Name + ': ' + $line) }
+    }
+    $bad = 0
+    foreach ($f in $files) {
+        if ($f.Name -eq 'MANIFEST.sha256') { continue }
+        $rel = $f.FullName.Substring($base.Length + 1).Replace('\', '/')
+        if (-not $listed.ContainsKey($rel)) { Add-Failure ('archivo sin listar en ' + $pack.Name + ': ' + $rel); $bad++; continue }
+        $hash = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($hash -ne $listed[$rel]) { Add-Failure ('huella distinta en ' + $pack.Name + ': ' + $rel); $bad++ }
+        $listed.Remove($rel)
+    }
+    foreach ($missing in $listed.Keys) { Add-Failure ('falta en ' + $pack.Name + ': ' + $missing); $bad++ }
+    if ($bad -eq 0) { Write-Host ('  ' + $pack.Name + ': ' + ($files.Count - 1) + ' archivos coinciden con el manifiesto') }
+}
+
 function Step-Licenses {
     Write-Section 'Inventario de terceros contra docs/LICENSES.md'
     $licensesPath = Join-Path $Root 'docs\LICENSES.md'
@@ -256,6 +290,7 @@ function Step-Licenses {
             if (-not (Get-ChildItem -LiteralPath $pack.FullName -File -Filter 'LICENSE*')) {
                 Add-Failure ('el pack ' + $pack.Name + ' no tiene archivo de licencia')
             }
+            Test-PackFiles $pack
         }
     }
     foreach ($dir in $dirs) {
