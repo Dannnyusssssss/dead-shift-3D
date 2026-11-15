@@ -9,14 +9,18 @@ Juego de supervivencia en primera persona para navegador, en PC y en celular. Un
 En desarrollo. El juego completo se puede jugar de principio a fin con arte provisional (formas simples en gris):
 
 - Un solo edificio de cuatro pisos (planta baja, Nivel 1, Nivel 2 y azotea) que se recorre sin pantallas de carga: atrio central abierto, escaleras mecánicas paradas, escalera de servicio con atajos que se abren desde un lado y tiendas con escaparate a ambos lados del pasillo.
-- Pistola, escopeta escondida tras una reja con llave y armas cuerpo a cuerpo que se desgastan y se rompen; mochila con iconos, detalle de cada objeto y una pestaña con las combinaciones que se pueden hacer con lo que se lleva.
-- Cuaderno del guardia con el objetivo actual, dónde buscar las piezas del teléfono y todas las combinaciones.
+- Tres dificultades (Fácil, Medio y Difícil) que se eligen al empezar, se guardan con la partida y tienen su propia mejor nota.
+- Pistola, escopeta escondida tras una reja con llave y armas cuerpo a cuerpo que se desgastan y se rompen; mochila con iconos, detalle de cada objeto, una bolsa de materiales que no ocupa casillas (con tope por material) y una pestaña con las combinaciones que se pueden hacer con lo que se lleva.
+- Cuaderno del guardia con el objetivo actual y solo lo que ya se descubrió: el teléfono, dónde buscar sus piezas y las combinaciones.
+- Decoración por tipo de tienda, ascensor averiado y escaparates que se rompen con un disparo, un golpe o un objeto lanzado: hacen ruido y se quedan rotos.
+- Linterna en el hombro, con pilas, que se usa a la vez que se dispara o se golpea; al empezar la pelea, El Técnico corta la luz de su piso y solo quedan las de emergencia.
 - Enemigos con comportamientos distintos: caminantes, oyentes que acuden al ruido, policías zombis con chaleco, acechadores que rodean al jugador y el jefe, El Técnico.
 - Sigilo: agacharse, lanzar objetos con la trayectoria marcada para distraer, indicador de ruido y subtítulos con dirección (se puede jugar sin sonido).
 - Infección por mordidas con cuenta atrás; vendas, antibióticos (suman tiempo a la cuenta) y Neutrax, con un panel que muestra qué hace cada cura. Curarse y combinar ocupan las manos: se puede mirar y caminar despacio, pero no atacar.
-- Teléfono por piezas, plano con zonas probables, cámaras de seguridad y rescate en helicóptero; la llamada atrae oleadas a la azotea mientras se espera. Tres desenlaces: rescate, rescate perdido y muerte, con estadísticas y nota.
+- Teléfono por piezas con una nota del técnico que dice qué hace falta, plano que marca lo que falta con una lista escrita (también se abre tocándolo en la mochila), cámaras de seguridad con imagen real y rescate en helicóptero; la llamada atrae oleadas a la azotea mientras se espera. Tres desenlaces: rescate, rescate perdido y muerte, con estadísticas y nota.
 - Guardado automático en zonas seguras y al cambiar de piso, y «Continuar».
-- Opciones de imagen, sonido, teclas reasignables, controles táctiles y accesibilidad (reducir movimiento, destellos y sangre; subtítulos).
+- Resumen de la partida en la pausa y al terminar.
+- Opciones de imagen, sonido, teclas reasignables, controles táctiles y accesibilidad (reducir movimiento, destellos y sangre; subtítulos; consejos de primera vez).
 
 Todavía no hay sonidos (los volúmenes ya se pueden ajustar) ni arte definitivo.
 
@@ -34,7 +38,9 @@ Todavía no hay sonidos (los volúmenes ya se pueden ajustar) ni arte definitivo
 | Curarse (elige la cura que hace falta) | H | Botón «Curarse» |
 | Mochila, combinar y teléfono | Tab o I | Botón «Mochila» |
 | Cuaderno (objetivo y pistas) | N | En la mochila |
-| Mapa (con el plano) | M | Botón «Mapa» |
+| Mapa (con el plano; también tocándolo en la mochila) | M | Botón «Mapa» |
+| Linterna | F | Botón «Linterna» |
+| Cambiar de cámara (en los monitores de seguridad) | Flechas izquierda y derecha | Botones «Anterior» y «Siguiente» |
 | Cambiar de arma | Q o rueda del ratón, 1 a 3 | Botón «Arma» |
 | Agacharse | Ctrl o C | Botón «Agachar» |
 | Correr | Mayús | Empujar la palanca hasta el borde |
