@@ -20,10 +20,23 @@ const WEAPON_SHAPES: Dictionary = {
 	"extinguisher": [Vector3(0.14, 0.14, 0.42), Color(0.75, 0.12, 0.1), Vector3(0.0, -0.05, -0.18)],
 	"shotgun": [Vector3(0.06, 0.09, 0.7), Color(0.22, 0.18, 0.14), Vector3(0.0, 0.03, -0.3)],
 }
+## Forma de los objetos que no son armas cuando se sostienen al combinar o curarse.
+const ITEM_SHAPES: Dictionary = {
+	"nails": [Vector3(0.05, 0.03, 0.12), Color(0.6, 0.62, 0.66), Vector3(0.0, 0.0, -0.06)],
+	"rag": [Vector3(0.14, 0.02, 0.12), Color(0.85, 0.84, 0.78), Vector3(0.0, 0.0, -0.06)],
+	"tape": [Vector3(0.1, 0.1, 0.04), Color(0.55, 0.57, 0.6), Vector3(0.0, 0.02, -0.06)],
+	"bottle": [Vector3(0.06, 0.06, 0.2), Color(0.3, 0.55, 0.32), Vector3(0.0, 0.0, -0.1)],
+	"bandage": [Vector3(0.07, 0.07, 0.1), Color(0.92, 0.92, 0.88), Vector3(0.0, 0.0, -0.06)],
+	"antibiotics": [Vector3(0.05, 0.08, 0.05), Color(0.9, 0.9, 0.85), Vector3(0.0, 0.02, -0.05)],
+	"neutrax": [Vector3(0.03, 0.03, 0.11), Color(0.55, 0.75, 0.95), Vector3(0.0, 0.0, -0.06)],
+}
 
 var _right: Node3D = null
 var _left: Node3D = null
 var _weapon_holder: Node3D = null
+## Lo que sostiene cada mano al combinar o curarse (el arma se guarda mientras tanto).
+var _left_hold: Node3D = null
+var _right_hold: Node3D = null
 var _tween: Tween = null
 var _crafting: bool = false
 
@@ -35,6 +48,12 @@ func _ready() -> void:
 	_weapon_holder = Node3D.new()
 	_weapon_holder.position = Vector3(0.0, 0.05, -0.18)
 	_right.add_child(_weapon_holder)
+	_left_hold = Node3D.new()
+	_left_hold.position = Vector3(0.0, 0.04, -0.16)
+	_left.add_child(_left_hold)
+	_right_hold = Node3D.new()
+	_right_hold.position = Vector3(0.0, 0.04, -0.16)
+	_right.add_child(_right_hold)
 
 
 ## Muestra en la mano el arma dada (o ninguna) con su estado de desgaste.
@@ -93,9 +112,12 @@ func play_reload(duration: float) -> void:
 	)
 
 
-## Animación genérica de combinar: las dos manos se juntan y «envuelven» en bucle.
-func start_craft() -> void:
+## Animación genérica de combinar: guarda el arma, cada mano sostiene uno de los objetos y las
+## dos se juntan y «envuelven» en bucle.
+func start_craft(first_id: String, second_id: String) -> void:
 	_crafting = true
+	_hold(_left_hold, first_id)
+	_hold(_right_hold, second_id)
 	_start_tween()
 	_tween.set_loops()
 	_tween.tween_property(_left, "position", Vector3(-0.06, -0.05, -0.1), 0.35)
@@ -108,15 +130,18 @@ func stop_craft() -> void:
 	if not _crafting:
 		return
 	_crafting = false
+	_release_hands()
 	_start_tween()
 	_tween.tween_property(_left, "position", Vector3(-0.24, -0.02, 0.05), 0.25)
 	_tween.parallel().tween_property(_right, "position", Vector3(0.22, 0.0, 0.0), 0.25)
 	_tween.parallel().tween_property(_left, "rotation", Vector3.ZERO, 0.25)
 
 
-## Animación genérica de curarse: la mano derecha baja al centro y la izquierda envuelve.
-func start_heal() -> void:
+## Animación genérica de curarse: guarda el arma, la mano izquierda sostiene la cura y la
+## derecha la aplica.
+func start_heal(item_id: String) -> void:
 	_crafting = true
+	_hold(_left_hold, item_id)
 	_start_tween()
 	_tween.tween_property(_right, "position", Vector3(0.04, -0.12, -0.08), 0.3)
 	_tween.parallel().tween_property(_right, "rotation:x", -0.6, 0.3)
@@ -127,11 +152,45 @@ func start_heal() -> void:
 
 func stop_heal() -> void:
 	_crafting = false
+	_release_hands()
 	_start_tween()
 	_tween.tween_property(_left, "position", Vector3(-0.24, -0.02, 0.05), 0.25)
 	_tween.parallel().tween_property(_right, "position", Vector3(0.22, 0.0, 0.0), 0.25)
 	_tween.parallel().tween_property(_left, "rotation", Vector3.ZERO, 0.25)
 	_tween.parallel().tween_property(_right, "rotation", Vector3.ZERO, 0.25)
+
+
+## Pone en una mano la forma de un objeto y esconde el arma.
+func _hold(holder: Node3D, item_id: String) -> void:
+	for child: Node in holder.get_children():
+		child.queue_free()
+	_weapon_holder.visible = false
+	var shape: Array = ITEM_SHAPES.get(item_id, WEAPON_SHAPES.get(item_id, []))
+	if shape.is_empty():
+		shape = [Vector3(0.06, 0.06, 0.1), Color.GRAY, Vector3(0.0, 0.0, -0.05)]
+	var size: Vector3 = shape[0]
+	var color: Color = shape[1]
+	var offset: Vector3 = shape[2]
+	var body := _box(size, color)
+	body.position = offset
+	holder.add_child(body)
+
+
+## Pone el objeto que se va a lanzar en la mano derecha (el arma se guarda).
+func hold_for_throw(item_id: String) -> void:
+	_hold(_right_hold, item_id)
+
+
+## Vacía las manos y vuelve a mostrar el arma.
+func release_hands() -> void:
+	_release_hands()
+
+
+func _release_hands() -> void:
+	for holder: Node3D in [_left_hold, _right_hold]:
+		for child: Node in holder.get_children():
+			child.queue_free()
+	_weapon_holder.visible = true
 
 
 func _start_tween() -> void:

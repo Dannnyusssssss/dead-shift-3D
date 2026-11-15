@@ -1,7 +1,7 @@
 class_name PlayerCrafting
 extends Node
-## Combinar objetos en juego: toma unos segundos, hace ruido y deja al jugador indefenso
-## (sin moverse ni atacar) mientras las manos hacen la animación genérica.
+## Combinar objetos en juego: toma unos segundos y hace ruido. Mientras dura, las manos
+## sostienen los dos objetos (el arma se guarda): se puede mirar y caminar despacio, no atacar.
 ## Las reglas de recetas son de core (Crafting). Va como hijo del nodo Player.
 
 const ERROR_BUSY: String = "busy"
@@ -17,6 +17,8 @@ var _duration: float = 0.0
 var _noise_timer: float = 0.0
 var _slot_a: int = -1
 var _slot_b: int = -1
+## Lo que se está combinando: los dos objetos y el resultado ("" si es una reparación).
+var _description: Array[String] = []
 
 
 func _ready() -> void:
@@ -45,10 +47,17 @@ func start(slot_a: int, slot_b: int) -> String:
 	_duration = recipe.craft_time
 	_timer = _duration
 	_noise_timer = 0.0
-	_player.set_blocked("crafting", true)
-	_player.arms.start_craft()
+	var first := inventory.get_slot(slot_a).id()
+	var second := inventory.get_slot(slot_b).id()
+	_description = [first, second, "" if recipe.is_repair() else recipe.result_id]
+	_player.arms.start_craft(first, second)
 	EventBus.crafting_changed.emit(true)
 	return Crafting.ERROR_NONE
+
+
+## Objetos de la combinación en curso: [primero, segundo, resultado] (resultado "" si repara).
+func description() -> Array[String]:
+	return _description if active else []
 
 
 ## Fracción completada de la combinación en curso (0 a 1).
@@ -90,6 +99,5 @@ func _finish() -> void:
 
 func _end() -> void:
 	active = false
-	_player.set_blocked("crafting", false)
 	_player.arms.stop_craft()
 	EventBus.crafting_changed.emit(false)
