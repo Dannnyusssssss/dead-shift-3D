@@ -82,11 +82,20 @@ signal rescue_changed
 @warning_ignore("unused_signal")
 signal rescue_lost
 ## Informe de las cámaras de seguridad (texto ya traducido).
+## Se usaron los monitores de seguridad: la interfaz abre las cámaras.
 @warning_ignore("unused_signal")
-signal camera_report(text: String)
+signal cameras_requested
 ## Las cámaras ven movimiento cerca de la zona segura donde está el jugador.
 @warning_ignore("unused_signal")
 signal camera_alert(active: bool)
+
+## Se corta (activo) o vuelve la energía del piso que contiene el punto (apagón del jefe).
+@warning_ignore("unused_signal")
+signal blackout_changed(active: bool, origin: Vector3)
+
+## Se leyó una nota del mundo (la nota del técnico): la interfaz la muestra.
+@warning_ignore("unused_signal")
+signal note_opened(note_id: String)
 ## Terminó la partida con un desenlace (RunStats.OUTCOME_*).
 @warning_ignore("unused_signal")
 signal run_finished(outcome: int)

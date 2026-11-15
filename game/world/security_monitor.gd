@@ -1,8 +1,9 @@
 class_name SecurityMonitor
 extends Interactable
-## Monitores de las cámaras de la sala de seguridad. Al usarlos muestran cuántos enemigos ven
-## las cámaras en cada piso (según el estado del mundo). Mientras el jugador está en una zona
-## segura, las cámaras avisan además si algo se mueve cerca (lo hace Game).
+## Monitores de las cámaras de la sala de seguridad. Al usarlos se abre el visor de cámaras
+## (imagen real de cada una) con el informe de cuántos enemigos hay en cada piso (según el
+## estado del mundo). Mientras el jugador está en una zona segura, las cámaras avisan además si
+## algo se mueve cerca (lo hace Game).
 
 const SIZE: Vector3 = Vector3(1.4, 0.9, 0.5)
 
@@ -31,7 +32,7 @@ func _ready() -> void:
 
 
 func interact(player: Player) -> void:
-	EventBus.camera_report.emit(report())
+	EventBus.cameras_requested.emit()
 	used.emit(player)
 
 

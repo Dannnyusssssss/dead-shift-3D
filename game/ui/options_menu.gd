@@ -30,6 +30,7 @@ const TOGGLES: Array = [
 	["reduce_flashes", "option_reduce_flashes"],
 	["reduce_gore", "option_reduce_gore"],
 	["subtitles", "option_subtitles"],
+	["tips", "option_tips"],
 ]
 ## Secciones: título y qué filas lleva (claves de ajustes o «bindings» o «quality»).
 const SECTIONS: Array = [
@@ -37,7 +38,10 @@ const SECTIONS: Array = [
 	["options_sound", ["volume_master", "volume_music", "volume_sfx", "volume_ambience"]],
 	["options_controls", ["mouse_sensitivity", "invert_y", "bindings"]],
 	["options_touch", ["touch_sensitivity", "touch_button_scale", "touch_opacity", "aim_assist"]],
-	["options_accessibility", ["reduce_motion", "reduce_flashes", "reduce_gore", "subtitles"]],
+	[
+		"options_accessibility",
+		["reduce_motion", "reduce_flashes", "reduce_gore", "subtitles", "tips"]
+	],
 ]
 
 ## Acción que espera una tecla nueva ("" = ninguna).

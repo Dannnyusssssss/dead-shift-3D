@@ -20,6 +20,14 @@ const POINTS: Array = [
 	["10_n2_almacen", Vector3(12.0, 10.0, 7.5), 180.0, 0.0],
 	["11_n2_atrio", Vector3(0.0, 10.0, -4.3), 180.0, -38.0],
 	["12_azotea", Vector3(-10.0, 15.0, 7.0), -60.0, 0.0],
+	["13_n1_nota_tecnico", Vector3(7.5, 5.0, -13.8), 0.0, -28.0],
+	["14_pb_ascensor", Vector3(19.5, 0.0, 3.5), -90.0, 0.0],
+	["15_n1_ropa", Vector3(-17.0, 5.0, -6.6), 0.0, -8.0],
+	["16_n1_electronica", Vector3(8.0, 5.0, -6.8), 10.0, -8.0],
+	["17_n1_farmacia", Vector3(-18.0, 5.0, 6.8), 180.0, -8.0],
+	["18_n2_patio_comidas_mostradores", Vector3(-13.0, 10.0, -8.5), 0.0, -5.0],
+	["19_n1_oficinas", Vector3(24.6, 5.0, 0.0), -90.0, -10.0],
+	["20_pb_deposito", Vector3(24.6, 0.0, 0.0), -90.0, -10.0],
 ]
 const QUALITIES: Array[int] = [SettingsSchema.QUALITY_LOW, SettingsSchema.QUALITY_MEDIUM]
 const SETTLE_FRAMES: int = 30
@@ -62,6 +70,9 @@ func _run() -> void:
 				await get_tree().process_frame
 			await _measure(label, quality)
 	Settings.set_value("quality", original_quality)
+	await _capture_broken_glass()
+	await _capture_cameras()
+	await _capture_blackout()
 	await _capture_interface()
 	var report_path := _out_dir.path_join("medicion.txt")
 	var file := FileAccess.open(report_path, FileAccess.WRITE)
@@ -94,7 +105,66 @@ func _measure(label: String, quality: int) -> void:
 	)
 
 
-## Capturas de la interfaz con objetos de ejemplo: mochila, combinar, cuaderno y curación.
+## Escaparate de electrónica del Nivel 1 roto, visto desde el pasillo (trozos y hueco).
+func _capture_broken_glass() -> void:
+	for node: Node in _game.level.find_children(
+		"glass_electronics_store", "GlassPanes", true, false
+	):
+		var panes := node as GlassPanes
+		for index: int in panes.pane_count():
+			panes.break_pane(index)
+	var player := _game.level.player
+	player.global_position = Vector3(11.6, 5.0, -3.6)
+	player.rotation.y = 0.0
+	player.head.rotation.x = deg_to_rad(-30.0)
+	for _frame: int in SETTLE_FRAMES:
+		await get_tree().process_frame
+	_save_image("21_n1_escaparate_roto")
+
+
+## Visor de cámaras desde la sala de seguridad: una captura y una medición por cámara (FPS con
+## el monitor abierto, que renderiza la escena dos veces).
+func _capture_cameras() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", false)
+	player.global_position = Vector3(-28.0, 0.0, -3.5)
+	await get_tree().process_frame
+	var view := _game.find_children("*", "CameraView", true, false)[0] as CameraView
+	EventBus.cameras_requested.emit()
+	var count := CameraSpots.from_floors(GameState.CATALOG.floors).size()
+	for index: int in count:
+		for _frame: int in SETTLE_FRAMES:
+			await get_tree().process_frame
+		await _measure("24_camara_%d" % (index + 1), Settings.get_int("quality"))
+		view.cycle(1)
+	view.close()
+	player.set_blocked("capture", true)
+
+
+## Apagón del jefe en el almacén del Nivel 2: a oscuras con las luces de emergencia y luego con
+## la linterna encendida.
+func _capture_blackout() -> void:
+	var boss := get_tree().get_first_node_in_group("boss") as Boss
+	if boss == null:
+		return
+	boss.call("_engage")
+	boss.set_physics_process(false)
+	var player := _game.level.player
+	player.global_position = Vector3(5.0, 10.0, 7.2)
+	player.rotation.y = deg_to_rad(200.0)
+	player.head.rotation.x = deg_to_rad(-5.0)
+	for _frame: int in int((Rules.BLACKOUT_FADE + 0.5) * 60.0):
+		await get_tree().process_frame
+	_save_image("22_n2_apagon")
+	GameState.player.flashlight.on = true
+	for _frame: int in 40:
+		await get_tree().process_frame
+	_save_image("23_n2_apagon_linterna")
+	GameState.player.flashlight.on = false
+
+
+## Capturas de la interfaz con objetos de ejemplo: mochila, combinar, cuaderno, mapa (abierto
+## desde el plano de la mochila, en el Nivel 1), nota del técnico y curación.
 func _capture_interface() -> void:
 	var state := GameState.player
 	var items := GameState.items
@@ -105,6 +175,9 @@ func _capture_interface() -> void:
 	state.inventory.add_item(items.get_item("bottle"), 2)
 	state.keys.add("phone_antenna")
 	state.keys.add("security_key")
+	state.keys.add("mall_map")
+	GameState.world.set_flag(Discovery.NOTE_FLAG)
+	EventBus.inventory_changed.emit()
 	state.take_damage(45.0)
 	var panel := _game.find_children("*", "InventoryPanel", true, false)[0] as InventoryPanel
 	var player := _game.level.player
@@ -119,11 +192,40 @@ func _capture_interface() -> void:
 			await get_tree().process_frame
 		_save_image("ui_%d_mochila" % tab)
 		panel.close()
+	player.global_position = Vector3(8.0, 5.0, -10.0)
+	await get_tree().process_frame
+	panel.open()
+	await get_tree().process_frame
+	(panel.find_child("MapButton", true, false) as TapButton).pressed.emit()
+	for _frame: int in 10:
+		await get_tree().process_frame
+	_save_image("ui_4_mapa")
+	(_game.find_children("*", "MapView", true, false)[0] as MapView).close()
+	EventBus.note_opened.emit("technician")
+	for _frame: int in 10:
+		await get_tree().process_frame
+	_save_image("ui_5_nota")
+	(_game.find_children("*", "NoteView", true, false)[0] as NoteView).close()
 	var slot := state.inventory.find_slot("bandage")
 	player.healing.start(slot)
 	for _frame: int in 40:
 		await get_tree().process_frame
-	_save_image("ui_3_curacion")
+	_save_image("ui_6_curacion")
+	player.healing.cancel()
+	# Teléfono armado: botón de llamar y su confirmación, con todos los objetos clave.
+	for part: String in Rules.PHONE_PARTS:
+		state.keys.add(part)
+	state.keys.add("roof_key")
+	state.keys.assemble_phone()
+	panel.open(InventoryPanel.TAB_BAG)
+	for _frame: int in 10:
+		await get_tree().process_frame
+	_save_image("ui_7_llamar")
+	panel.call("_on_call")
+	for _frame: int in 10:
+		await get_tree().process_frame
+	_save_image("ui_8_llamar_confirmar")
+	panel.close()
 
 
 func _save_image(label: String) -> void:

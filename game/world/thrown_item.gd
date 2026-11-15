@@ -51,6 +51,9 @@ func _physics_process(delta: float) -> void:
 	if not hit.is_empty():
 		var point: Vector3 = hit.get("position", to)
 		var normal: Vector3 = hit.get("normal", Vector3.UP)
+		var pane := hit.get("collider") as GlassPane
+		if pane != null:
+			pane.shatter()
 		_land(point + normal * 0.1)
 		return
 	global_position = to

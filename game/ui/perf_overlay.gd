@@ -40,11 +40,15 @@ func _process(delta: float) -> void:
 	var frame_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 	var draws := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	var primitives := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
-	var memory := Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0
+	var video := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0
 	text = (
-		"FPS %d\nframe %.1f ms\ndraw calls %d\nprimitivas %d\nmemoria %.0f MB"
-		% [fps, frame_ms, draws, primitives, memory]
+		"FPS %d\nframe %.1f ms\ndraw calls %d\nprimitivas %d\nmemoria de video %.0f MB"
+		% [fps, frame_ms, draws, primitives, video]
 	)
+	# La memoria del programa solo se mide en las versiones de desarrollo (en la exportada es 0).
+	var memory := Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0
+	if memory > 0.0:
+		text += "\nmemoria %.0f MB" % memory
 
 
 func _on_settings_changed(key: String) -> void:

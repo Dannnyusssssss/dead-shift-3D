@@ -5,9 +5,9 @@
 
 [sub_resource type="Resource" id="Resource_36hck"]
 script = ExtResource("2_8b78p")
-damage = 25.0
+damage = 28.0
 attack_interval = 0.7
-max_durability = 40.0
+max_durability = 48.0
 wear_per_hit = 4.0
 
 [resource]

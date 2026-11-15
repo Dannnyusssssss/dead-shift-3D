@@ -215,6 +215,11 @@ func _physics_process(delta: float) -> void:
 		return
 	_wanted.clear()
 	_has_aim = false
+	# Hasta la primera sincronización la navegación no responde (y avisa con un error).
+	var map := _player.get_world_3d().navigation_map
+	if NavigationServer3D.map_get_iteration_id(map) == 0:
+		_apply_actions()
+		return
 	if _player.healing.active or _player.crafting.active or _game.finished:
 		_apply_actions()
 		return
@@ -280,6 +285,10 @@ func _active_boss() -> Boss:
 ## Táctica contra el jefe: esquivar la embestida de lado, salir de las nubes, esperarlo delante
 ## de un tablero con corriente y castigar el tanque cuando está aturdido.
 func _fight_boss(boss: Boss, delta: float) -> void:
+	# El jefe corta la luz al empezar la pelea: enciende la linterna (con la acción del jugador).
+	if not GameState.player.flashlight.on and not _wanted.has("flashlight"):
+		_wanted["flashlight"] = true
+		print("[bot] enciende la linterna")
 	var distance := _flat(boss.global_position).distance_to(_flat(_player.global_position))
 	var cloud := _cloud_here()
 	var hurt := (
@@ -701,7 +710,7 @@ func _nearby_loot() -> Pickup:
 		if (
 			_ignored.has(pickup.get_instance_id())
 			or not pickup.is_inside_tree()
-			or not _wants(pickup.stack)
+			or not BotHelpers.wants(pickup.stack)
 			or absf(pickup.global_position.y - _player.global_position.y) > SAME_FLOOR
 		):
 			continue
@@ -715,23 +724,15 @@ func _nearby_loot() -> Pickup:
 	return best
 
 
-func _wants(stack: ItemStack) -> bool:
-	var category := stack.item.category
-	if category == ItemData.CATEGORY_WEAPON:
-		return BotHelpers.weapon_count() < 4
-	return (
-		category == ItemData.CATEGORY_AMMO
-		or category == ItemData.CATEGORY_CONSUMABLE
-		or category == ItemData.CATEGORY_KEY
-	)
-
-
 func _collect(pickup: Pickup, delta: float) -> void:
 	if pickup != _loot_target:
 		_loot_target = pickup
 		_loot_time = 0.0
 	_loot_time += delta
-	if _loot_time > 6.0:
+	# Los objetos clave se buscan a cualquier distancia: con 6 s el bot no llegaba desde lejos,
+	# lo descartaba y volvía a intentarlo desde aún más lejos, sin recogerlo nunca.
+	var patience := 30.0 if pickup.stack.item.category == ItemData.CATEGORY_KEY else 6.0
+	if _loot_time > patience:
 		_ignored.append(pickup.get_instance_id())
 		_loot_target = null
 		_forget_ignored_later(pickup.get_instance_id())
@@ -909,7 +910,7 @@ func _tap(action: String) -> void:
 func _apply_actions() -> void:
 	_apply_aim()
 	for action: String in [
-		"move_forward", "move_back", "move_right", "move_left", "attack", "reload"
+		"move_forward", "move_back", "move_right", "move_left", "attack", "reload", "flashlight"
 	]:
 		if _wanted.has(action):
 			if not Input.is_action_pressed(action):

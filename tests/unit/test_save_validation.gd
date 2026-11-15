@@ -306,3 +306,15 @@ func test_materials_in_slots_move_to_the_bag() -> void:
 	var inventory: Array = clean["inventory"]
 	assert_eq(inventory.size(), 1, "solo el tubo queda en casillas")
 	assert_eq(clean["bag"], {"nails": 10}, "se suman sin pasar del tope")
+
+
+func test_flashlight_charge_is_clamped_and_defaults_to_full() -> void:
+	var full := Rules.FLASHLIGHT_SECONDS
+	assert_eq(_parse({})["flashlight"], {"on": false, "charge": full}, "ausente: apagada y llena")
+	var clean := _parse({"flashlight": {"on": true, "charge": 42.5}})
+	assert_eq(clean["flashlight"], {"on": true, "charge": 42.5})
+	assert_eq(_parse({"flashlight": {"charge": -30.0}})["flashlight"]["charge"], 0.0, "negativa")
+	assert_eq(_parse({"flashlight": {"charge": 1e9}})["flashlight"]["charge"], full, "enorme")
+	assert_eq(_parse({"flashlight": {"charge": "lots"}})["flashlight"]["charge"], full, "texto")
+	assert_eq(_parse({"flashlight": {"on": "yes"}})["flashlight"]["on"], false, "no booleano")
+	assert_eq(_parse({"flashlight": [1, 2]})["flashlight"]["charge"], full, "no es diccionario")

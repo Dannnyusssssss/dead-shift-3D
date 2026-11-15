@@ -173,6 +173,8 @@ func _shoot(stack: ItemStack) -> void:
 			var enemy: Enemy = collider
 			enemy.take_hit(weapon.damage, point, true)
 			EventBus.hit_confirmed.emit(enemy.is_dead())
+		elif collider is GlassPane:
+			(collider as GlassPane).shatter()
 	_player.kick_camera(RECOIL_KICK)
 	EventBus.weapon_changed.emit()
 
@@ -194,6 +196,7 @@ func _resolve_melee() -> void:
 	var weapon := stack.item.weapon
 	var target := _melee_target(weapon.attack_range)
 	if target == null:
+		_melee_glass(weapon.attack_range)
 		return
 	var point := target.global_position + Vector3.UP * CHEST_HEIGHT
 	target.take_hit(weapon.damage, point, false, weapon.stuns)
@@ -205,6 +208,15 @@ func _resolve_melee() -> void:
 		_state().handle_broken_weapons()
 		EventBus.inventory_changed.emit()
 	EventBus.weapon_changed.emit()
+
+
+## Golpe sin enemigo delante: si alcanza un cristal de escaparate, lo rompe.
+func _melee_glass(reach: float) -> void:
+	var origin := _player.aim_origin()
+	var hit := _cast(origin, origin + _player.aim_direction() * (reach + 0.4))
+	var pane := hit.get("collider") as GlassPane
+	if pane != null and pane.shatter():
+		_player.kick_camera(MELEE_KICK)
 
 
 func _melee_target(reach: float) -> Enemy:

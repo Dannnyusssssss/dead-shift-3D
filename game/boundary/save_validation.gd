@@ -40,6 +40,7 @@ static func sanitize(source: Dictionary, context: Dictionary) -> Dictionary:
 	var inventory := _read_inventory(source, items, capacity, bag)
 	result["inventory"] = inventory
 	result["bag"] = bag
+	result["flashlight"] = _read_flashlight(source)
 	result["vest"] = _read_vest(source, items)
 	result["equipped"] = _read_equipped(source, inventory, items, capacity)
 	var keys := _read_keys(source, items)
@@ -85,6 +86,19 @@ static func _read_location(
 		spawn_id = exits[0]
 	result["floor"] = floor_id
 	result["spawn_id"] = spawn_id
+
+
+## Linterna: encendida o no y carga dentro de una carga completa (sin el campo, guardados
+## anteriores: apagada y llena).
+static func _read_flashlight(source: Dictionary) -> Dictionary:
+	var raw := Validation.read_dict(source, "flashlight")
+	return {
+		"on": Validation.read_bool(raw, "on", false),
+		"charge":
+		Validation.read_float(
+			raw, "charge", 0.0, Rules.FLASHLIGHT_SECONDS, Rules.FLASHLIGHT_SECONDS
+		),
+	}
 
 
 static func _read_infection(source: Dictionary) -> Dictionary:

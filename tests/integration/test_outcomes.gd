@@ -49,6 +49,8 @@ func test_boarding_the_helicopter_is_the_rescue() -> void:
 	await wait_frames(6)
 	assert_eq(_outcomes, [RunStats.OUTCOME_RESCUED] as Array[int])
 	assert_true(_game.won)
+	var huds := _game.find_children("*", "Hud", true, false)
+	assert_false((huds[0] as Hud).visible, "el HUD no se ve detrás del resultado")
 
 
 func test_lost_rescue_brings_capped_waves_and_surrender_ends_it() -> void:

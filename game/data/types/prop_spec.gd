@@ -1,8 +1,9 @@
 class_name PropSpec
 extends Resource
 ## Accesorio de un piso. Con función en el juego: estantería que el jefe rompe al embestir,
-## tablero eléctrico que lo aturde o monitores de las cámaras. Decorado: bloque sólido (bancos,
-## macetas, mostradores, máquinas…), cristal, rótulo de texto o tramo de barandilla.
+## tablero eléctrico que lo aturde, monitores de las cámaras o una nota que se lee. Decorado:
+## bloque sólido (bancos, macetas, mostradores, máquinas…), cristal, rótulo de texto o tramo de
+## barandilla.
 
 const KIND_SHELF: int = 0
 const KIND_PANEL: int = 1
@@ -16,6 +17,11 @@ const KIND_SIGN: int = 4
 const KIND_RAIL: int = 5
 ## Cristal sólido (lucernario, mamparas).
 const KIND_GLASS: int = 6
+## Nota que se puede leer (text_key = identificador de la nota).
+const KIND_NOTE: int = 7
+## Cámara de seguridad: position = lente, rotation_deg = hacia dónde mira, text_key = nombre.
+## Se ve en los monitores de la sala de seguridad.
+const KIND_CAMERA: int = 8
 
 @export var kind: int = KIND_SHELF
 ## Centro de la base (en coordenadas del piso; y > 0 para lo que no apoya en el suelo),

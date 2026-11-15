@@ -7,9 +7,19 @@ extends Node3D
 ## Respeta el estado del mundo: lo recogido no vuelve, lo registrado sigue vacío y lo roto
 ## sigue roto. Los enemigos los crea el edificio (pueden cambiar de piso).
 
+## Color de las luces de las salas y de las de emergencia durante un apagón.
+const LIGHT_COLOR: Color = Color(0.85, 0.9, 1.0)
+const EMERGENCY_COLOR: Color = Color(1.0, 0.62, 0.42)
+
 var floor_data: FloorData = null
 ## Huecos del piso de arriba: allí las salas de este piso no llevan techo.
 var holes_above: Array[Rect2] = []
+## Falso durante el apagón del jefe.
+var powered: bool = true
+
+var _lights: Array[OmniLight3D] = []
+var _light_energy: Array[float] = []
+var _power_tween: Tween = null
 
 
 func _ready() -> void:
@@ -93,6 +103,11 @@ func _build_room(room: RoomData, builder: Kit.Builder) -> void:
 		Kit.add_slab(
 			builder, rect, ceiling_holes, room.height + Kit.SLAB_THICKNESS, ceiling_mat, false
 		)
+	# Cristales del escaparate: se pueden romper y se recuerdan rotos.
+	var panes := GlassPanes.new()
+	panes.name = "glass_" + room.id
+	panes.floor_id = floor_data.id
+	panes.room_id = room.id
 	var half := Kit.WALL_THICKNESS * 0.5
 	var x0 := rect.position.x
 	var x1 := rect.end.x
@@ -136,7 +151,13 @@ func _build_room(room: RoomData, builder: Kit.Builder) -> void:
 		var start: Vector3 = side[2]
 		var end: Vector3 = side[3]
 		var openings := _openings(room, side_id, start.distance_to(end))
-		Kit.add_wall(builder, start, end, room.height, openings, wall_mat)
+		Kit.add_wall(builder, start, end, room.height, openings, wall_mat, panes)
+	if panes.pane_count() > 0:
+		add_child(panes)
+		panes.build()
+	else:
+		# Sala sin escaparate: el grupo no entra en el árbol y hay que liberarlo a mano.
+		panes.free()
 	_add_shutter(room, builder)
 	add_child(builder.build(room.id))
 	_add_lights(room)
@@ -172,6 +193,25 @@ func _door_center(room: RoomData, door: DoorSpec) -> Vector3:
 
 
 ## Luces del techo repartidas a lo largo del lado más largo de la sala, sin sombras.
+## Corta o devuelve la energía del piso: cada luz baja hasta la de emergencia (tenue y
+## anaranjada) o vuelve a la suya, en BLACKOUT_FADE segundos y sin parpadeos.
+func set_power(on: bool) -> void:
+	if on == powered:
+		return
+	powered = on
+	if _power_tween != null:
+		_power_tween.kill()
+	if _lights.is_empty():
+		return
+	_power_tween = create_tween().set_parallel()
+	for index: int in _lights.size():
+		var light := _lights[index]
+		var energy := _light_energy[index] * (1.0 if on else Rules.BLACKOUT_LIGHT_FACTOR)
+		var color := LIGHT_COLOR if on else EMERGENCY_COLOR
+		_power_tween.tween_property(light, "light_energy", energy, Rules.BLACKOUT_FADE)
+		_power_tween.tween_property(light, "light_color", color, Rules.BLACKOUT_FADE)
+
+
 func _add_lights(room: RoomData) -> void:
 	if room.light_energy <= 0.0:
 		return
@@ -188,9 +228,11 @@ func _add_lights(room: RoomData) -> void:
 		light.position = center + offset + Vector3.UP * height
 		light.omni_range = maxf(span / float(count), minf(rect.size.x, rect.size.y)) * 0.95
 		light.light_energy = room.light_energy
-		light.light_color = Color(0.85, 0.9, 1.0)
+		light.light_color = LIGHT_COLOR
 		light.shadow_enabled = false
 		add_child(light)
+		_lights.append(light)
+		_light_energy.append(room.light_energy)
 
 
 ## Rótulo con el nombre de la tienda sobre su puerta principal, pegado a la fachada.
@@ -281,20 +323,21 @@ func _place_loot(room: RoomData, loot: Difficulty.FloorLoot) -> void:
 		add_child(node)
 
 
-## Accesorios: los de decorado se funden con la malla de su sala; los que tienen función son
-## nodos propios. Si una estantería ya se rompió o un tablero ya se apagó, aparecen así.
-func _build_prop(spec: PropSpec, key: String, builders: Dictionary, loose: Kit.Builder) -> void:
+## Accesorios de decorado (bloque, cristal, barandilla, rótulo). Devuelve falso si el accesorio
+## tiene función y necesita su propio nodo.
+func _build_decor(spec: PropSpec, builders: Dictionary, loose: Kit.Builder) -> bool:
 	var basis := Basis(Vector3.UP, deg_to_rad(spec.rotation_deg))
+	var center := spec.position + Vector3.UP * (spec.size.y * 0.5)
 	match spec.kind:
-		PropSpec.KIND_BLOCK, PropSpec.KIND_GLASS:
-			var center := spec.position + Vector3.UP * (spec.size.y * 0.5)
-			var mat := (
-				Kit.gray(spec.shade) if spec.kind == PropSpec.KIND_BLOCK else Kit.glass_material()
+		PropSpec.KIND_BLOCK:
+			# Todos los bloques de una sala comparten una superficie (gris en los vértices).
+			_builder_at(spec.position, builders, loose).add_colored_box(
+				Transform3D(basis, center), spec.size, Kit.gray_color(spec.shade)
 			)
+		PropSpec.KIND_GLASS:
 			_builder_at(spec.position, builders, loose).add_oriented_box(
-				Transform3D(basis, center), spec.size, mat
+				Transform3D(basis, center), spec.size, Kit.glass_material()
 			)
-			return
 		PropSpec.KIND_RAIL:
 			Kit.add_rail(
 				_builder_at(spec.position, builders, loose),
@@ -302,7 +345,14 @@ func _build_prop(spec: PropSpec, key: String, builders: Dictionary, loose: Kit.B
 				spec.rotation_deg,
 				spec.size.x
 			)
-			return
+		PropSpec.KIND_CAMERA:
+			# Carcasa de la cámara (decorado sin colisión; la imagen la da el monitor).
+			_builder_at(spec.position, builders, loose).add_colored_box(
+				Transform3D(basis, spec.position),
+				Vector3(0.22, 0.16, 0.34),
+				Color(0.12, 0.12, 0.13),
+				false
+			)
 		PropSpec.KIND_SIGN:
 			var label := Label3D.new()
 			label.text = tr(spec.text_key)
@@ -312,10 +362,26 @@ func _build_prop(spec: PropSpec, key: String, builders: Dictionary, loose: Kit.B
 			label.position = spec.position
 			label.rotation.y = deg_to_rad(spec.rotation_deg)
 			add_child(label)
-			return
+		_:
+			return false
+	return true
+
+
+## Accesorios: los de decorado se funden con la malla de su sala; los que tienen función son
+## nodos propios. Si una estantería ya se rompió o un tablero ya se apagó, aparecen así.
+func _build_prop(spec: PropSpec, key: String, builders: Dictionary, loose: Kit.Builder) -> void:
+	if _build_decor(spec, builders, loose):
+		return
 	var world := GameState.world
 	var floor_id := floor_data.id
 	var used := world.is_taken(floor_id, key)
+	if spec.kind == PropSpec.KIND_NOTE:
+		var note := TechNote.new()
+		note.note_id = spec.text_key
+		note.position = spec.position
+		note.rotation.y = deg_to_rad(spec.rotation_deg)
+		add_child(note)
+		return
 	if spec.kind == PropSpec.KIND_MONITOR:
 		var monitor := SecurityMonitor.new()
 		monitor.position = spec.position

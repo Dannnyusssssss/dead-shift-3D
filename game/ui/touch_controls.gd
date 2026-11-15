@@ -17,6 +17,7 @@ const BUTTONS: Array = [
 	["heal", "touch_heal", Vector2(0.66, 0.34)],
 	["inventory", "touch_inventory", Vector2(0.4, 0.1)],
 	["map", "touch_map", Vector2(0.54, 0.1)],
+	["flashlight", "touch_flashlight", Vector2(0.68, 0.1)],
 	["pause", "touch_pause", Vector2(0.94, 0.1)],
 ]
 ## Tamaño base de un botón en unidades de la interfaz, antes de la escala del jugador.

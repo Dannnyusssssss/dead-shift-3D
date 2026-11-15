@@ -4,7 +4,11 @@ extends Control
 ## Tres pestañas: «Mochila» (casillas con icono, bolsa de materiales, detalle del objeto elegido
 ## y sus acciones, chaleco y objetos clave), «Combinar» (CombineList: lo que se puede hacer ahora,
 ## a un toque, y lo que falta para otras combinaciones) y «Cuaderno» (objetivo y pistas).
+## Tocar el plano entre los objetos clave cierra la mochila y pide abrir el mapa.
 ## Abrirla no pausa el mundo: el jugador queda quieto y expuesto mientras la usa.
+
+## Se tocó el plano: la mochila ya se cerró y quien la contiene abre el mapa.
+signal map_requested
 
 const TAB_BAG: int = 0
 const TAB_COMBINE: int = 1
@@ -12,7 +16,7 @@ const TAB_NOTEBOOK: int = 2
 const WEAR_KEYS: Array[String] = ["wear_good", "wear_damaged", "wear_critical", "wear_broken"]
 ## Icono de estado en tres pasos hecho con forma (no solo color).
 const WEAR_ICONS: Array[String] = ["[###]", "[##-]", "[#--]", "[---]"]
-const TILE_SIZE: Vector2 = Vector2(150.0, 132.0)
+const TILE_SIZE: Vector2 = Vector2(150.0, 112.0)
 
 var _player: Player = null
 var _crafting: Crafting = null
@@ -34,7 +38,7 @@ var _actions: HFlowContainer = null
 var _info: Label = null
 var _vest_icon: ItemIcon = null
 var _vest_label: Label = null
-var _keys_row: HBoxContainer = null
+var _keys_row: HFlowContainer = null
 var _keys_label: Label = null
 var _call_button: TapButton = null
 var _combine_list: CombineList = null
@@ -75,13 +79,15 @@ func open(tab: int = TAB_BAG) -> void:
 	_show_tab(tab)
 
 
-func close() -> void:
+## Cierra la mochila. Con «recapture» falso no pide el puntero (se abre otro panel encima).
+func close(recapture: bool = true) -> void:
 	if not visible:
 		return
 	visible = false
 	_player.set_blocked("inventory", false)
 	InputRouter.menu_open = false
-	InputRouter.request_capture()
+	if recapture:
+		InputRouter.request_capture()
 
 
 func _process(_delta: float) -> void:
@@ -258,12 +264,18 @@ func _refresh_keys() -> void:
 		child.queue_free()
 	var state := GameState.player
 	for item_id: String in state.keys.items:
+		# Con el teléfono armado, sus piezas ya no se muestran sueltas (solo el teléfono).
+		if state.keys.phone_assembled and Rules.PHONE_PARTS.has(item_id):
+			continue
 		var icon := ItemIcon.new()
 		icon.custom_minimum_size = Vector2(48.0, 48.0)
 		icon.item_id = item_id
 		var item := GameState.items.get_item(item_id)
 		icon.tooltip_text = tr(item.name_key) if item != null else item_id
-		_keys_row.add_child(icon)
+		if item_id == MapMarkers.MAP_ITEM:
+			_keys_row.add_child(_map_button(icon))
+		else:
+			_keys_row.add_child(icon)
 	if state.keys.phone_assembled:
 		var phone := ItemIcon.new()
 		phone.custom_minimum_size = Vector2(48.0, 48.0)
@@ -279,6 +291,24 @@ func _refresh_keys() -> void:
 		_keys_label.text = tr("inventory_key_items") + " · " + tr("item_phone")
 	_call_button.visible = state.keys.phone_assembled and not GameState.rescue.is_called()
 	_call_button.text = tr("inventory_call_confirm") if _call_armed else tr("inventory_call")
+
+
+## El plano es un botón (con el tamaño mínimo táctil) que abre el mapa.
+func _map_button(icon: ItemIcon) -> TapButton:
+	var button := TapButton.new()
+	button.custom_minimum_size = Vector2(56.0, 56.0)
+	button.tooltip_text = tr("inventory_open_map")
+	button.name = "MapButton"
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(icon)
+	button.pressed.connect(_on_map)
+	return button
+
+
+func _on_map() -> void:
+	close(false)
+	map_requested.emit()
 
 
 ## Detalle de un material de la bolsa: descripción, unidades sobre el tope, con qué se combina y
@@ -444,9 +474,16 @@ func _build() -> void:
 func _build_bag() -> Control:
 	var page := HBoxContainer.new()
 	page.add_theme_constant_override("separation", 18)
+	# La columna izquierda se desplaza si no cabe (muchos materiales o pantallas bajas): así
+	# nada queda fuera de la pantalla.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(scroll)
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 12)
-	page.add_child(left)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(left)
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 8)
@@ -490,19 +527,21 @@ func _build_bag() -> Control:
 	_keys_label = Label.new()
 	_keys_label.add_theme_font_size_override("font_size", 16)
 	left.add_child(_keys_label)
-	var keys_line := HBoxContainer.new()
-	keys_line.add_theme_constant_override("separation", 10)
-	left.add_child(keys_line)
-	_keys_row = HBoxContainer.new()
-	_keys_row.add_theme_constant_override("separation", 6)
-	keys_line.add_child(_keys_row)
-	_call_button = _action(keys_line, "inventory_call", _on_call)
+	_keys_row = HFlowContainer.new()
+	_keys_row.add_theme_constant_override("h_separation", 6)
+	_keys_row.add_theme_constant_override("v_separation", 6)
+	left.add_child(_keys_row)
 	var detail := PanelContainer.new()
 	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.add_child(detail)
 	var detail_box := VBoxContainer.new()
 	detail_box.add_theme_constant_override("separation", 10)
 	detail.add_child(detail_box)
+	# Llamar al helicóptero: arriba del panel de detalle, ancho y grande, siempre a la vista.
+	_call_button = _action(detail_box, "inventory_call", _on_call)
+	_call_button.custom_minimum_size = Vector2(0.0, 72.0)
+	_call_button.add_theme_font_size_override("font_size", 24)
+	_call_button.name = "CallButton"
 	_detail_icon = ItemIcon.new()
 	_detail_icon.custom_minimum_size = Vector2(0.0, 120.0)
 	detail_box.add_child(_detail_icon)

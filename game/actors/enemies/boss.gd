@@ -133,6 +133,8 @@ func _engage() -> void:
 	if not _announced:
 		_announced = true
 		EventBus.sound_cue.emit("cue_boss_roar", global_position)
+		# Al empezar la pelea rompe la energía del piso: solo quedan las luces de emergencia.
+		EventBus.blackout_changed.emit(true, global_position)
 	EventBus.boss_changed.emit()
 
 
@@ -298,6 +300,8 @@ func _boss_die() -> void:
 	EventBus.enemy_died.emit(global_position, drops)
 	EventBus.boss_changed.emit()
 	EventBus.sound_cue.emit("cue_boss_down", global_position)
+	if _announced:
+		EventBus.blackout_changed.emit(false, global_position)
 	died.emit()
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -PI * 0.5, 0.8)

@@ -179,6 +179,13 @@ rotation_deg = 0
 size = Vector3(2.5, 1.2, 1.5)
 shade = 0.35
 
+[sub_resource type="Resource" id="Resource_prop_23"]
+script = ExtResource("7_prop_spe")
+kind = 8
+position = Vector3(-29, 4.5, 7.5)
+rotation_deg = -51
+text_key = "cam_roof"
+
 [resource]
 script = ExtResource("8_floor_da")
 id = "rooftop"
@@ -190,7 +197,7 @@ enemies = Array[ExtResource("2_enemy_sp")]([SubResource("Resource_spawn_1"), Sub
 player_spawn = Vector3(22, 0, -4)
 player_yaw_deg = 90
 exits = Array[ExtResource("6_floor_ex")]([SubResource("Resource_exit_9")])
-props = Array[ExtResource("7_prop_spe")]([SubResource("Resource_prop_10"), SubResource("Resource_prop_11"), SubResource("Resource_prop_12"), SubResource("Resource_prop_13"), SubResource("Resource_prop_14"), SubResource("Resource_prop_15"), SubResource("Resource_prop_16"), SubResource("Resource_prop_17"), SubResource("Resource_prop_18"), SubResource("Resource_prop_19"), SubResource("Resource_prop_20"), SubResource("Resource_prop_21"), SubResource("Resource_prop_22")])
+props = Array[ExtResource("7_prop_spe")]([SubResource("Resource_prop_10"), SubResource("Resource_prop_11"), SubResource("Resource_prop_12"), SubResource("Resource_prop_13"), SubResource("Resource_prop_14"), SubResource("Resource_prop_15"), SubResource("Resource_prop_16"), SubResource("Resource_prop_17"), SubResource("Resource_prop_18"), SubResource("Resource_prop_19"), SubResource("Resource_prop_20"), SubResource("Resource_prop_21"), SubResource("Resource_prop_22"), SubResource("Resource_prop_23")])
 has_helipad = true
 helipad_position = Vector3(-20, 0, 0)
 helipad_radius = 3.5

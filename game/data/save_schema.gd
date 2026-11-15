@@ -7,7 +7,8 @@ extends RefCounted
 const V1_FLOORS: Array[String] = ["ground_floor", "level_1", "level_2", "rooftop"]
 
 const MAX_KEY_ITEMS: int = 16
-const MAX_FLAGS: int = 32
+## Marcas del mundo: rejas, jefe, nota, materiales vistos y consejos ya mostrados.
+const MAX_FLAGS: int = 48
 const MAX_KILLED: int = 256
 const MAX_CONTAINERS: int = 128
 const MAX_CONTAINER_ENTRIES: int = 16

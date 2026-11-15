@@ -26,6 +26,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	items = CATALOG.item_catalog()
 	EventBus.pause_requested.connect(set_paused.bind(true))
+	EventBus.inventory_changed.connect(mark_discoveries)
 
 
 ## Empieza una partida nueva con el equipo inicial.
@@ -38,6 +39,7 @@ func start_new_run() -> void:
 	rescue = RescueClock.new(Rules.HELICOPTER_ARRIVAL_TIME, difficulty.helicopter_wait_time())
 	world.current_floor = CATALOG.start_floor
 	player.give_starting_kit()
+	mark_discoveries()
 	set_paused(false)
 
 
@@ -51,7 +53,14 @@ func load_run(data: Dictionary) -> void:
 	player = SaveGame.restore_player(data, items)
 	world = SaveGame.restore_world(data)
 	rescue = SaveGame.restore_rescue(data, difficulty.helicopter_wait_time())
+	mark_discoveries()
 	set_paused(false)
+
+
+## Anota como descubiertos los ingredientes de combinaciones que el jugador tiene ahora.
+func mark_discoveries() -> void:
+	if player != null and world != null:
+		Discovery.mark_seen(world, player.inventory, CATALOG.recipes)
 
 
 func _pick_seed() -> int:

@@ -32,8 +32,11 @@ var _healing: HealingPanel = null
 var _throw_hint: Label = null
 var _click_prompt: Label = null
 var _objective: Label = null
+var _flashlight: Label = null
 var _objective_timer: float = 0.0
 var _click_wait: float = 0.0
+## La partida terminó: el HUD queda oculto bajo la pantalla final.
+var _finished: bool = false
 
 
 func _ready() -> void:
@@ -49,9 +52,9 @@ func _ready() -> void:
 	EventBus.player_damaged.connect(_on_damaged)
 	EventBus.weapon_broken.connect(_on_weapon_broken)
 	EventBus.infection_changed.connect(_refresh_infection)
-	EventBus.camera_report.connect(_on_camera_report)
 	EventBus.game_saved.connect(_on_game_saved)
 	EventBus.camera_alert.connect(_on_camera_alert)
+	EventBus.run_finished.connect(func(_outcome: int) -> void: _finished = true)
 	_refresh()
 
 
@@ -61,8 +64,9 @@ func bind_player(player: Player) -> void:
 
 
 func _process(delta: float) -> void:
-	# Con la mochila abierta el HUD se esconde (no se lee a través del fondo).
-	visible = not InputRouter.menu_open
+	# Con la mochila abierta o la partida terminada el HUD se esconde (no se lee a través del
+	# fondo de la mochila ni detrás del resultado).
+	visible = not InputRouter.menu_open and not _finished
 	if _message_timer > 0.0:
 		_message_timer -= delta
 		if _message_timer <= 0.0:
@@ -78,6 +82,23 @@ func _process(delta: float) -> void:
 		_objective_timer = 0.5
 		var text := Notebook.objective_text()
 		_objective.text = "%s: %s" % [tr("notebook_objective"), text] if not text.is_empty() else ""
+	_refresh_flashlight()
+
+
+## Línea de la linterna mientras está encendida: carga en cuatro pasos con forma («[##--]»), o
+## el aviso de que va con la luz mínima.
+func _refresh_flashlight() -> void:
+	var state := GameState.player
+	var text := ""
+	if state != null and state.flashlight.on:
+		var torch := state.flashlight
+		if torch.is_empty():
+			text = tr("hud_flashlight_empty")
+		else:
+			var bars := ceili(torch.fraction() * 4.0)
+			text = "%s [%s%s]" % [tr("hud_flashlight"), "#".repeat(bars), "-".repeat(4 - bars)]
+	if text != _flashlight.text:
+		_flashlight.text = text
 
 
 ## Si el puntero no se pudo recuperar (el navegador lo impide a veces al cerrar un menú), se
@@ -135,11 +156,6 @@ func _refresh_rescue() -> void:
 func _on_game_saved(manual: bool) -> void:
 	if not manual:
 		_on_message("msg_autosaved")
-
-
-func _on_camera_report(text: String) -> void:
-	_message.text = text
-	_message_timer = MESSAGE_TIME * 2.0
 
 
 func _on_camera_alert(active: bool) -> void:
@@ -238,6 +254,7 @@ func _build() -> void:
 	_infection.add_theme_color_override("font_color", Color(0.75, 1.0, 0.6))
 	_rescue = _label(status, 24)
 	_camera = _label(status, 22)
+	_flashlight = _label(status, 22)
 	_objective = _label(status, 18)
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_objective.custom_minimum_size = Vector2(440.0, 0.0)
@@ -272,6 +289,10 @@ func _build() -> void:
 	_click_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_click_prompt.visible = false
 	_place(_click_prompt, Control.PRESET_CENTER, Rect2(-360.0, -90.0, 720.0, 44.0))
+	# Consejos de primera vez: abajo y al centro, lejos de la mira y de los botones.
+	var tips := TipBanner.new()
+	add_child(tips)
+	_place(tips, Control.PRESET_CENTER_BOTTOM, Rect2(-380.0, -200.0, 760.0, 70.0))
 	_healing = HealingPanel.new()
 	add_child(_healing)
 	_place(_healing, Control.PRESET_CENTER_LEFT, Rect2(24.0, -60.0, 330.0, 0.0))

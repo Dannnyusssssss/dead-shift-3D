@@ -14,6 +14,8 @@ var _effect: Label = null
 var _bar: ProgressBar = null
 var _warning: Label = null
 var _was_active: bool = false
+## Verdadero mientras el panel muestra una combinación: al terminar se oculta.
+var _crafting_shown: bool = false
 var _last_progress: float = 0.0
 var _result_timer: float = 0.0
 var _last_item: ItemData = null
@@ -55,8 +57,13 @@ func _process(delta: float) -> void:
 	var active := healing != null and healing.active
 	if crafting != null and crafting.active:
 		_show_crafting(crafting.description(), crafting.progress())
+		_crafting_shown = true
 		_was_active = false
 		return
+	if _crafting_shown:
+		# La combinación terminó o se canceló: el resultado ya lo dice el mensaje de la partida.
+		_crafting_shown = false
+		visible = false
 	if active:
 		var item := healing.current_item()
 		if item != _last_item or not _was_active:
@@ -136,12 +143,13 @@ func _effect_text(item: ItemData) -> String:
 			var after := minf(state.health + item.heal_amount, Rules.PLAYER_MAX_HEALTH)
 			return (
 				tr("heal_effect_health")
-				% [ceili(after - state.health), ceili(state.health), ceili(after)]
+				% [roundi(after - state.health), ceili(state.health), ceili(after)]
 			)
 		ItemData.EFFECT_DELAY_INFECTION:
 			var left := state.infection.time_left
 			var later := minf(left + Rules.ANTIBIOTIC_BONUS, Rules.INFECTION_TIME)
-			return tr("heal_effect_time") % [ceili(later - left), _clock(left), _clock(later)]
+			# La diferencia se redondea: con ceili, 189,9 - 99,9 = 90,0000001 mostraba «+91 s».
+			return tr("heal_effect_time") % [roundi(later - left), _clock(left), _clock(later)]
 		ItemData.EFFECT_CURE_INFECTION:
 			return tr("heal_effect_cure")
 	return ""

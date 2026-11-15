@@ -22,6 +22,8 @@ var _hud: Hud = null
 var _inventory: InventoryPanel = null
 var _end_screen: EndScreen = null
 var _map: MapView = null
+var _note: NoteView = null
+var _cameras: CameraView = null
 var _camera_timer: float = 0.0
 var _camera_alert: bool = false
 var _waves: WaveSpawner = null
@@ -58,6 +60,11 @@ func _ready() -> void:
 	ui.add_child(_inventory)
 	_map = MapView.new()
 	ui.add_child(_map)
+	_inventory.map_requested.connect(_map.open)
+	_note = NoteView.new()
+	ui.add_child(_note)
+	_cameras = CameraView.new()
+	ui.add_child(_cameras)
 	ui.add_child(PauseMenu.new())
 	_end_screen = EndScreen.new()
 	ui.add_child(_end_screen)
@@ -152,6 +159,8 @@ func _bind_player() -> void:
 	_hud.bind_player(level.player)
 	_inventory.bind_player(level.player)
 	_map.bind_player(level.player)
+	_note.bind_player(level.player)
+	_cameras.bind_player(level.player)
 
 
 ## Oleadas en la azotea (con el jugador en ella): durante la espera del helicóptero, las que

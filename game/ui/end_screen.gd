@@ -50,20 +50,8 @@ func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = n
 	var outcome := clampi(stats.outcome, 0, TITLE_KEYS.size() - 1)
 	_title.text = tr(TITLE_KEYS[outcome])
 	_story.text = tr(TEXT_KEYS[outcome])
-	var seconds := int(stats.seconds)
-	var difficulty_key := "difficulty_easy"
-	if difficulty != null and difficulty.data != null:
-		difficulty_key = difficulty.data.name_key
-	var lines: Array[String] = [
-		"%s %s" % [tr("end_difficulty"), tr(difficulty_key)],
-		"%s %d:%02d" % [tr("end_time"), seconds / 60, seconds % 60],
-		"%s %d" % [tr("end_damage"), roundi(stats.damage_taken)],
-		"%s %d" % [tr("end_weapons_broken"), stats.weapons_broken],
-		"%s %d" % [tr("end_crafted"), stats.items_crafted],
-		"%s %d" % [tr("end_ammo_left"), stats.ammo_left],
-		"%s %d" % [tr("end_kills"), stats.kills],
-		"%s %s" % [tr("end_grade"), stats.grade()],
-	]
+	var lines := summary_lines(stats, difficulty)
+	lines.append("%s %s" % [tr("end_grade"), stats.grade()])
 	_stats.text = "\n".join(lines)
 	var dead := (
 		stats.outcome == RunStats.OUTCOME_DEAD or stats.outcome == RunStats.OUTCOME_CONVERTED
@@ -76,6 +64,32 @@ func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = n
 		_continue_button.grab_focus()
 	else:
 		_button.grab_focus()
+
+
+## Resumen de la partida (también lo usa la pausa): dificultad, tiempo, daño recibido, armas
+## rotas, combinaciones, munición, enemigos y piezas del teléfono. Sin la nota final.
+static func summary_lines(stats: RunStats, difficulty: Difficulty) -> Array[String]:
+	var seconds := int(stats.seconds)
+	var difficulty_key := "difficulty_easy"
+	if difficulty != null and difficulty.data != null:
+		difficulty_key = difficulty.data.name_key
+	var keys := GameState.player.keys if GameState.player != null else KeyItems.new()
+	var parts := Rules.PHONE_PARTS.size() if keys.phone_assembled else keys.phone_parts_count()
+	var lines: Array[String] = [
+		"%s %s" % [_text("end_difficulty"), _text(difficulty_key)],
+		"%s %d:%02d" % [_text("end_time"), seconds / 60, seconds % 60],
+		"%s %d" % [_text("end_damage"), roundi(stats.damage_taken)],
+		"%s %d" % [_text("end_weapons_broken"), stats.weapons_broken],
+		"%s %d" % [_text("end_crafted"), stats.items_crafted],
+		"%s %d" % [_text("end_ammo_left"), stats.ammo_left],
+		"%s %d" % [_text("end_kills"), stats.kills],
+		"%s %d/%d" % [_text("end_phone_parts"), parts, Rules.PHONE_PARTS.size()],
+	]
+	return lines
+
+
+static func _text(key: String) -> String:
+	return String(TranslationServer.translate(key))
 
 
 func _label(parent: Control, font_size: int) -> Label:

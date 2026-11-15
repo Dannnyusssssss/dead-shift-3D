@@ -25,6 +25,8 @@ const NOISE_CRAFT: int = NOISE_MEDIUM
 ## Ruido al caer un objeto lanzado (intacto) y al romperse uno frágil.
 const NOISE_THROW_LAND: int = NOISE_MEDIUM
 const NOISE_THROW_BREAK: int = NOISE_HIGH
+## Ruido al romperse un cristal de escaparate.
+const NOISE_GLASS_BREAK: int = NOISE_HIGH
 ## Cada pared entre el ruido y quien escucha multiplica el radio por este factor.
 const NOISE_WALL_FACTOR: float = 0.5
 ## Metros de intensidad que pierde por segundo el recuerdo de un ruido.
@@ -46,6 +48,17 @@ const ANTIBIOTIC_BONUS: float = 90.0
 const PHONE_PARTS: Array[String] = ["phone_antenna", "phone_battery", "phone_board"]
 const HELICOPTER_ARRIVAL_TIME: float = 150.0
 const HELICOPTER_WAIT_TIME: float = 75.0
+
+## Linterna: segundos de luz de una carga completa (pilas nuevas).
+const FLASHLIGHT_SECONDS: float = 180.0
+## Apagón del jefe: segundos que tarda la luz en bajar o volver (siempre suave, sin parpadeos),
+## fracción de la luz de cada sala que queda como emergencia y fracción de la luz ambiente.
+const BLACKOUT_FADE: float = 2.5
+const BLACKOUT_LIGHT_FACTOR: float = 0.1
+const BLACKOUT_AMBIENT_FACTOR: float = 0.3
+
+## Resolución de la imagen de las cámaras de seguridad (baja: se renderiza aparte).
+const CAMERA_RESOLUTION: Vector2i = Vector2i(426, 240)
 
 ## Zonas de impacto en un enemigo.
 const ZONE_BODY: int = 0

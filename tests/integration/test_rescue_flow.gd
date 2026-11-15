@@ -87,3 +87,173 @@ func test_map_needs_the_plan() -> void:
 	assert_false(_game.level.player.controls_enabled, "con el mapa abierto queda quieto")
 	map.close()
 	assert_true(_game.level.player.controls_enabled)
+
+
+func _ui_node(type_name: String) -> Node:
+	var found := _game.get_node("UI").find_children("*", type_name, false, false)
+	return found[0] if not found.is_empty() else null
+
+
+func test_plan_in_backpack_closes_it_and_opens_the_map() -> void:
+	GameState.player.keys.add("mall_map")
+	var panel := _ui_node("InventoryPanel") as InventoryPanel
+	var map := _ui_node("MapView") as MapView
+	InputRouter.gameplay_active = true
+	panel.open()
+	await wait_frames(2)
+	var button := panel.find_child("MapButton", true, false) as TapButton
+	assert_not_null(button, "el plano es un botón entre los objetos clave")
+	button.pressed.emit()
+	assert_false(panel.is_open(), "la mochila se cierra")
+	assert_true(map.is_open(), "y se abre el mapa")
+	assert_true(InputRouter.menu_open, "con el cursor libre para el mapa")
+	assert_false(_game.level.player.controls_enabled)
+	map.close()
+	assert_true(_game.level.player.controls_enabled)
+
+
+## Con el teléfono armado, «Llamar al helicóptero» queda siempre a la vista (en el panel de
+## detalle, no al final de la columna de objetos clave) y las piezas ya no salen sueltas.
+func test_call_button_fits_on_screen() -> void:
+	var state := GameState.player
+	for part: String in Rules.PHONE_PARTS:
+		state.keys.add(part)
+	for key_id: String in ["mall_map", "security_key", "roof_key"]:
+		state.keys.add(key_id)
+	assert_true(state.keys.assemble_phone())
+	for item_id: String in ["nails", "rag", "tape", "bottle", "batteries"]:
+		state.inventory.add_item(GameState.items.get_item(item_id), 1)
+	var panel := _ui_node("InventoryPanel") as InventoryPanel
+	InputRouter.gameplay_active = true
+	panel.open()
+	await wait_frames(3)
+	var button := panel.find_child("CallButton", true, false) as TapButton
+	assert_true(button.is_visible_in_tree())
+	# Va en el panel de detalle, fuera de la columna que se desplaza: siempre a la vista.
+	var parent := button.get_parent()
+	while parent != panel:
+		assert_false(parent is ScrollContainer, "el botón no queda dentro de lo que se desplaza")
+		parent = parent.get_parent()
+	var row := panel.get("_keys_row") as Control
+	assert_eq(row.get_child_count(), 4, "plano, dos llaves y el teléfono")
+	panel.close()
+
+
+func test_map_numbers_what_is_missing_on_this_floor() -> void:
+	GameState.player.keys.add("mall_map")
+	var map := _ui_node("MapView") as MapView
+	var markers: Array[Dictionary] = []
+	var level_1: FloorData = GameState.CATALOG.floors[1]
+	var text := map.list_text(level_1, markers)
+	assert_string_contains(text, "1. " + tr("item_phone_antenna"))
+	assert_string_contains(text, "2. " + tr("item_phone_battery"))
+	assert_string_contains(text, "3. " + tr("item_security_key"))
+	assert_string_contains(text, tr("enemy_technician"), "la llave de la azotea la lleva el jefe")
+	assert_string_contains(text, tr("item_phone_board"), "lo de otros pisos también")
+	assert_string_contains(text, tr("map_list_other_floors"))
+	assert_eq(markers.size(), 3, "antena, batería y llave de seguridad en el Nivel 1")
+
+
+func test_technician_note_opens_and_teaches_the_phone() -> void:
+	var note: TechNote = null
+	for node: Node in _game.level.find_children("*", "TechNote", true, false):
+		note = node
+	assert_not_null(note, "la nota está en el edificio")
+	var view := _ui_node("NoteView") as NoteView
+	assert_false(Discovery.knows_phone(GameState.world, GameState.player.keys))
+	GameState.player.keys.add("phone_antenna")
+	note.interact(_game.level.player)
+	assert_true(GameState.world.has_flag(Discovery.NOTE_FLAG))
+	assert_true(view.is_open())
+	var body := NoteView.body_text("technician")
+	assert_string_contains(body, "[x] " + tr("item_phone_antenna"), "la que ya tiene")
+	assert_string_contains(body, "[ ] " + tr("item_phone_board"))
+	assert_string_contains(body, tr("room_repair"), "dice dónde la dejó")
+	assert_false(_game.level.player.controls_enabled)
+	view.close()
+	assert_true(_game.level.player.controls_enabled)
+
+
+func test_notebook_shows_only_what_was_discovered() -> void:
+	var notebook := Notebook.new()
+	add_child_autofree(notebook)
+	notebook.refresh()
+	var text := _labels(notebook)
+	assert_string_contains(text, tr("notebook_phone_unknown"))
+	assert_string_contains(text, tr("notebook_recipes_none"))
+	GameState.world.set_flag(Discovery.NOTE_FLAG)
+	GameState.player.inventory.add_item(GameState.items.get_item("rag"), 1)
+	EventBus.inventory_changed.emit()
+	notebook.refresh()
+	await wait_frames(1)
+	text = _labels(notebook)
+	assert_string_contains(text, tr("notebook_phone_intro"))
+	assert_string_contains(text, tr("room_repair"), "la nota dice dónde buscar")
+	assert_string_contains(text, tr("item_improvised_bandage"), "receta con el trapo")
+	assert_false(text.contains(tr("item_bat_nails")), "la del bate todavía no")
+
+
+func _labels(root: Node) -> String:
+	var text := ""
+	for node: Node in root.find_children("*", "Label", true, false):
+		var label := node as Label
+		if not label.is_queued_for_deletion():
+			text += label.text + "\n"
+	return text
+
+
+func test_the_building_has_breakable_storefronts() -> void:
+	var groups := _game.level.find_children("*", "GlassPanes", true, false)
+	assert_gt(groups.size(), 10, "un grupo de cristales por escaparate")
+
+
+func test_monitors_show_real_cameras_and_stop_rendering_when_closed() -> void:
+	var view := _ui_node("CameraView") as CameraView
+	var monitor: SecurityMonitor = null
+	for node: Node in _game.level.find_children("*", "SecurityMonitor", true, false):
+		monitor = node
+	assert_not_null(monitor, "monitores en la sala de seguridad")
+	assert_false(view.is_rendering(), "cerrado no renderiza")
+	monitor.interact(_game.level.player)
+	assert_true(view.is_open())
+	assert_true(view.is_rendering(), "abierto renderiza la cámara")
+	assert_false(_game.level.player.controls_enabled)
+	var first := view.current_name_key()
+	view.cycle(1)
+	assert_ne(view.current_name_key(), first, "cambia de cámara")
+	var top := _game.level.sections[2]
+	while not view.current_name_key().begins_with("cam_level2"):
+		view.cycle(1)
+	assert_true(top.visible, "el piso de la cámara se ve aunque el jugador esté lejos")
+	view.close()
+	assert_false(view.is_rendering(), "al cerrar deja de renderizar")
+	assert_false(top.visible, "y el piso lejano vuelve a ocultarse")
+	assert_true(_game.level.player.controls_enabled)
+
+
+func test_first_damage_shows_a_tip_once_and_the_option_turns_it_off() -> void:
+	var banner: TipBanner = _game.find_children("*", "TipBanner", true, false)[0]
+	Settings.set_value("tips", false)
+	banner.offer(Tips.DAMAGE)
+	assert_eq(banner.text, "", "con la opción apagada no sale")
+	assert_false(GameState.world.has_flag(Tips.PREFIX + Tips.DAMAGE), "ni se gasta")
+	Settings.set_value("tips", true)
+	EventBus.player_damaged.emit(5.0)
+	assert_string_contains(banner.text, tr("tip_damage"))
+	banner.text = ""
+	EventBus.player_damaged.emit(5.0)
+	assert_eq(banner.text, "", "una sola vez por partida")
+
+
+func test_pause_shows_the_run_summary() -> void:
+	var pause: PauseMenu = _game.find_children("*", "PauseMenu", true, false)[0]
+	GameState.player.keys.add("phone_antenna")
+	GameState.set_paused(true)
+	await wait_frames(1)
+	var text := ""
+	for node: Node in pause.find_children("*", "Label", true, false):
+		text += (node as Label).text + "\n"
+	GameState.set_paused(false)
+	assert_string_contains(text, tr("end_kills"))
+	assert_string_contains(text, "%s 1/3" % tr("end_phone_parts"))
+	assert_false(text.contains(tr("end_grade")), "sin nota a mitad de partida")

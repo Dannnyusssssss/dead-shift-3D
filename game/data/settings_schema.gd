@@ -38,6 +38,7 @@ const BOOLS: Dictionary = {
 	"invert_y": false,
 	"aim_assist": true,
 	"subtitles": true,
+	"tips": true,
 	"show_performance": false,
 }
 
@@ -57,6 +58,7 @@ const DEFAULT_BINDINGS: Dictionary = {
 	"map": [KEY_M],
 	"notebook": [KEY_N],
 	"heal": [KEY_H],
+	"flashlight": [KEY_F],
 	"weapon_next": [KEY_Q],
 }
 ## Orden en que se muestran y se resuelven los conflictos.
@@ -74,6 +76,7 @@ const REBINDABLE: Array[String] = [
 	"map",
 	"notebook",
 	"heal",
+	"flashlight",
 	"weapon_next",
 ]
 ## Teclas reservadas que nunca se asignan: pausa (P y Esc, fijas), las de cambio rápido de

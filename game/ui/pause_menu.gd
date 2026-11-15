@@ -8,6 +8,7 @@ const QUALITY_KEYS: Array[String] = ["quality_low", "quality_medium", "quality_h
 var _continue: TapButton = null
 var _quality: TapButton = null
 var _performance: TapButton = null
+var _summary: Label = null
 var _hint: Label = null
 var _surrender: TapButton = null
 var _save: TapButton = null
@@ -33,6 +34,11 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	box.add_child(title)
+	_summary = Label.new()
+	_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_summary.add_theme_font_size_override("font_size", 18)
+	_summary.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
+	box.add_child(_summary)
 	_hint = Label.new()
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.custom_minimum_size.x = 560.0
@@ -67,6 +73,24 @@ func _process(_delta: float) -> void:
 		GameState.set_paused(true)
 
 
+## Resumen de la partida hasta ahora (el tiempo lo lleva Game, que contiene la interfaz).
+func _refresh_summary() -> void:
+	var game := get_parent().get_parent() as Game
+	if game == null or GameState.player == null:
+		_summary.text = ""
+		return
+	var stats := RunStats.from_state(GameState.player, RunStats.OUTCOME_DEAD, game.elapsed)
+	var lines := EndScreen.summary_lines(stats, GameState.difficulty)
+	# En dos columnas para que la pausa no crezca demasiado.
+	var rows: Array[String] = []
+	for index: int in range(0, lines.size(), 2):
+		var row := lines[index]
+		if index + 1 < lines.size():
+			row += "    ·    " + lines[index + 1]
+		rows.append(row)
+	_summary.text = "\n".join(rows)
+
+
 func _on_paused_changed(paused: bool) -> void:
 	visible = paused
 	# Rendirse solo existe tras perder el rescate (final de «rescate perdido»).
@@ -77,6 +101,7 @@ func _on_paused_changed(paused: bool) -> void:
 		var key := "pause_hint_touch" if InputRouter.touch_mode else "pause_hint_mouse"
 		_hint.text = tr(key)
 		_refresh_options()
+		_refresh_summary()
 		_continue.grab_focus()
 
 

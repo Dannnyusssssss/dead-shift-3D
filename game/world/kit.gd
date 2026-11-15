@@ -43,6 +43,39 @@ static func gray(shade: float) -> StandardMaterial3D:
 	return material(Color(value, value, value * 1.03))
 
 
+## Color de un gris (el mismo tono que gray(), para los bloques con color de vértice).
+static func gray_color(shade: float) -> Color:
+	var value := clampf(shade, 0.0, 1.0)
+	return Color(value, value, value * 1.03)
+
+
+## Material único de los bloques de decorado: el gris va en el color de cada vértice, así todos
+## los bloques de una sala son una sola superficie (una llamada de dibujo) sea cual sea su tono.
+static func block_material() -> StandardMaterial3D:
+	var key := "blocks"
+	if _materials.has(key):
+		return _materials[key]
+	var made := StandardMaterial3D.new()
+	made.vertex_color_use_as_albedo = true
+	# El tono se interpreta igual que albedo_color de los demás materiales (sRGB).
+	made.vertex_color_is_srgb = true
+	made.roughness = 0.95
+	_materials[key] = made
+	return made
+
+
+## Trozos de cristal en el suelo (opacos y claros, para que se vean sin destellos).
+static func shard_material() -> StandardMaterial3D:
+	var key := "shards"
+	if _materials.has(key):
+		return _materials[key]
+	var made := StandardMaterial3D.new()
+	made.albedo_color = Color(0.72, 0.8, 0.82)
+	made.roughness = 0.25
+	_materials[key] = made
+	return made
+
+
 static func glass_material() -> StandardMaterial3D:
 	var key := "glass"
 	if _materials.has(key):
@@ -81,6 +114,33 @@ class Builder:
 		var box := BoxMesh.new()
 		box.size = size
 		tool.append_from(box, 0, xform)
+		if solid:
+			_shapes.append([xform, size])
+
+	## Caja de decorado con su color en los vértices (comparte superficie con las demás).
+	func add_colored_box(
+		xform: Transform3D, size: Vector3, color: Color, solid: bool = true
+	) -> void:
+		if size.x <= 0.001 or size.y <= 0.001 or size.z <= 0.001:
+			return
+		var box := BoxMesh.new()
+		box.size = size
+		var arrays := box.get_mesh_arrays()
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors := PackedColorArray()
+		colors.resize(vertices.size())
+		colors.fill(color)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		var colored := ArrayMesh.new()
+		colored.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var mat := Kit.block_material()
+		var tool: SurfaceTool = _tools.get(mat)
+		if tool == null:
+			tool = SurfaceTool.new()
+			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+			tool.set_material(mat)
+			_tools[mat] = tool
+		tool.append_from(colored, 0, xform)
 		if solid:
 			_shapes.append([xform, size])
 
@@ -174,14 +234,16 @@ static func add_slab(
 
 
 ## Añade una pared recta de start a end (en el suelo) con aberturas.
-## Cada abertura es [desde, hasta, abajo, arriba, cristal] medida a lo largo de la pared.
+## Cada abertura es [desde, hasta, abajo, arriba, cristal] medida a lo largo de la pared. Con
+## «panes», los cristales van a ese grupo (se pueden romper) en vez de a la malla de la sala.
 static func add_wall(
 	builder: Builder,
 	start: Vector3,
 	end: Vector3,
 	height: float,
 	openings: Array[Array],
-	wall_mat: StandardMaterial3D
+	wall_mat: StandardMaterial3D,
+	panes: GlassPanes = null
 ) -> void:
 	var length := start.distance_to(end)
 	var along := (end - start).normalized()
@@ -204,7 +266,10 @@ static func add_wall(
 			var size := Vector3(to - from, top - bottom, GLASS_THICKNESS)
 			if not across_x:
 				size = Vector3(GLASS_THICKNESS, top - bottom, to - from)
-			builder.add_box(center, size, glass_material())
+			if panes != null:
+				panes.add_pane(center, size)
+			else:
+				builder.add_box(center, size, glass_material())
 		cursor = maxf(cursor, to)
 	_segment(builder, start, along, across_x, cursor, length, 0.0, height, wall_mat)
 

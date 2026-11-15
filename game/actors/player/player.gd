@@ -28,6 +28,8 @@ var crouching: bool = false
 var sprinting: bool = false
 ## Lanzar con puntería (se crea al empezar; no está en la escena).
 var throw: PlayerThrow = null
+## Linterna del hombro (se crea al empezar; no está en la escena).
+var flashlight: PlayerFlashlight = null
 
 var _pitch: float = 0.0
 var _bob_time: float = 0.0
@@ -56,6 +58,9 @@ func _ready() -> void:
 	throw = PlayerThrow.new()
 	throw.name = "Throw"
 	add_child(throw)
+	flashlight = PlayerFlashlight.new()
+	flashlight.name = "FlashlightControl"
+	add_child(flashlight)
 	# Escaleras: misma velocidad en pendiente y pegado al suelo al bajar.
 	floor_constant_speed = true
 	floor_snap_length = 0.4

@@ -25,12 +25,14 @@ var sections: Array[FloorSection] = []
 
 var _actors: Node3D = null
 var _spawner: LootSpawner = null
+var _viewed_index: int = -1
 var _environment: Environment = null
 var _track_timer: float = 0.0
 
 
 func _ready() -> void:
 	_build_environment()
+	EventBus.blackout_changed.connect(_on_blackout_changed)
 	navigation = NavigationRegion3D.new()
 	navigation.name = "Navigation"
 	add_child(navigation)
@@ -75,7 +77,7 @@ func _physics_process(delta: float) -> void:
 		floor_data = sections[index].floor_data
 		GameState.world.current_floor = floor_data.id
 		_environment.ambient_light_color = floor_data.ambient_color
-		_environment.ambient_light_energy = floor_data.ambient_energy
+		_environment.ambient_light_energy = _ambient_energy(sections[index])
 		EventBus.floor_changed.emit(floor_data.id)
 	_refresh_active()
 
@@ -85,6 +87,25 @@ func _physics_process(delta: float) -> void:
 func floor_index_at(height: float) -> int:
 	var index := floori((height + Rules.FLOOR_SWITCH_MARGIN) / Rules.FLOOR_HEIGHT)
 	return clampi(index, 0, sections.size() - 1)
+
+
+## Luz ambiente de un piso: la suya, o una fracción si está en apagón.
+func _ambient_energy(section: FloorSection) -> float:
+	var energy := section.floor_data.ambient_energy
+	return energy * Rules.BLACKOUT_AMBIENT_FACTOR if not section.powered else energy
+
+
+## Apagón del jefe: baja o devuelve la luz del piso del jefe y, si el jugador está en él, la luz
+## ambiente, siempre de forma gradual.
+func _on_blackout_changed(active: bool, origin: Vector3) -> void:
+	var section := section_at(origin)
+	section.set_power(not active)
+	EventBus.sound_cue.emit("cue_power_down" if active else "cue_power_up", origin)
+	if section == sections[current_index]:
+		var tween := create_tween()
+		tween.tween_property(
+			_environment, "ambient_light_energy", _ambient_energy(section), Rules.BLACKOUT_FADE
+		)
 
 
 func section_at(point: Vector3) -> FloorSection:
@@ -203,18 +224,24 @@ func _place_player() -> void:
 
 
 ## Deja activos y visibles solo el piso del jugador y los contiguos.
+## Piso que se está mirando por las cámaras (-1 si ninguno): se ve aunque esté lejos.
+func set_viewed_floor(index: int) -> void:
+	_viewed_index = index
+	_refresh_active()
+
+
 func _refresh_active() -> void:
 	for index: int in sections.size():
-		sections[index].visible = absi(index - current_index) <= Rules.ACTIVE_FLOOR_RANGE
+		var near := absi(index - current_index) <= Rules.ACTIVE_FLOOR_RANGE
+		sections[index].visible = near or index == _viewed_index
 	for node: Node in _actors.get_children():
 		var enemy := node as Enemy
 		if enemy == null:
 			continue
-		var near := (
-			absi(floor_index_at(enemy.global_position.y) - current_index)
-			<= Rules.ACTIVE_FLOOR_RANGE
-		)
-		enemy.visible = near
+		var enemy_floor := floor_index_at(enemy.global_position.y)
+		var near := absi(enemy_floor - current_index) <= Rules.ACTIVE_FLOOR_RANGE
+		# En el piso que se mira por las cámaras se ven, pero quietos si está lejos.
+		enemy.visible = near or enemy_floor == _viewed_index
 		enemy.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
 
 

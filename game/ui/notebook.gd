@@ -1,7 +1,9 @@
 class_name Notebook
 extends ScrollContainer
-## Cuaderno del guardia (pestaña de la mochila, o tecla N): objetivo actual, cómo armar el
-## teléfono (qué piezas faltan y en qué zona buscarlas), todas las combinaciones y los controles.
+## Cuaderno del guardia (pestaña de la mochila, o tecla N): objetivo actual, el teléfono y las
+## combinaciones, pero solo lo que el jugador ya descubrió (Discovery): el teléfono aparece al
+## leer la nota del técnico o encontrar una pieza, la zona de cada pieza al leer la nota o tener
+## el plano, y cada combinación cuando ya tuvo alguno de sus ingredientes. Y los controles.
 
 var _box: VBoxContainer = null
 
@@ -48,10 +50,22 @@ func refresh() -> void:
 	if not warning.is_empty():
 		_text(warning, 20).add_theme_color_override("font_color", Color(0.8, 1.0, 0.6))
 	_heading("notebook_phone")
+	_phone_section(state)
+	_heading("notebook_recipes")
+	_recipes_section()
+	_heading("notebook_controls")
+	_text(tr("notebook_controls_text"), 16)
+
+
+func _phone_section(state: PlayerState) -> void:
+	var world := GameState.world
+	if not Discovery.knows_phone(world, state.keys):
+		_text(tr("notebook_phone_unknown"), 18)
+		return
 	_text(tr("notebook_phone_intro"), 18)
-	var zones := _part_zones()
+	var zones := _part_zones() if Discovery.knows_part_zones(world, state.keys) else {}
 	for part: String in Rules.PHONE_PARTS:
-		var name := tr(GameState.items.get_item(part).name_key)
+		var name := _name(part)
 		var line := ""
 		if state.keys.has(part) or state.keys.phone_assembled:
 			line = tr("notebook_part_have") % name
@@ -60,9 +74,15 @@ func refresh() -> void:
 		else:
 			line = tr("notebook_part_unknown") % name
 		_text(line, 18)
-	_heading("notebook_recipes")
+
+
+func _recipes_section() -> void:
 	var crafting := Crafting.new(GameState.CATALOG.recipes, GameState.items)
+	var shown := 0
 	for recipe: RecipeData in GameState.CATALOG.recipes:
+		if not Discovery.knows_recipe(GameState.world, recipe):
+			continue
+		shown += 1
 		var wanted := crafting.materials(recipe)
 		if recipe.is_repair():
 			_text(tr("notebook_recipe_repair") % _amount_name(recipe.input_a, wanted), 18)
@@ -70,24 +90,18 @@ func refresh() -> void:
 			var first := _amount_name(recipe.input_a, wanted)
 			var second := _amount_name(recipe.input_b, wanted)
 			_text("%s + %s → %s" % [first, second, _name(recipe.result_id)], 18)
-	_heading("notebook_controls")
-	_text(tr("notebook_controls_text"), 16)
+	if shown == 0:
+		_text(tr("notebook_recipes_none"), 18)
 
 
-## Zona probable de cada pieza: «tienda — piso», según dónde la colocan los datos del piso.
+## Zona de cada pieza: «tienda — piso», según dónde la colocan los datos del piso.
 func _part_zones() -> Dictionary:
 	var result: Dictionary = {}
-	for floor_data: FloorData in GameState.CATALOG.floors:
-		for room: RoomData in floor_data.rooms:
-			for spot: LootSpot in room.loot:
-				var ids: Array[String] = []
-				if spot.kind == LootSpot.KIND_PICKUP:
-					ids.append(spot.item_id)
-				for entry: String in spot.contents:
-					ids.append(entry.split(":")[0])
-				for item_id: String in ids:
-					if Rules.PHONE_PARTS.has(item_id) and not room.name_key.is_empty():
-						result[item_id] = "%s — %s" % [tr(room.name_key), tr(floor_data.name_key)]
+	for place: Dictionary in MapMarkers.locations(GameState.CATALOG.floors, Rules.PHONE_PARTS):
+		var room_key: String = place["room_key"]
+		var floor_key: String = place["floor_key"]
+		if not room_key.is_empty():
+			result[place["item_id"]] = "%s — %s" % [tr(room_key), tr(floor_key)]
 	return result
 
 

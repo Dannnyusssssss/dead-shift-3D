@@ -62,3 +62,37 @@ func test_bandage_shows_health_before_and_after() -> void:
 	for label: Node in _panel().find_children("*", "Label", true, false):
 		texts += (label as Label).text + "\n"
 	assert_string_contains(texts, "(50 → 85)")
+
+
+## Regresión: con decimales, (cuenta + 90) - cuenta da 90,00000000000001 y se mostraba «+91 s».
+func test_added_time_is_rounded_not_ceiled() -> void:
+	var state := GameState.player
+	state.infection.try_infect(1.0, GameState.rng)
+	state.infection.time_left = 38.08108108108108
+	var panel := HealingPanel.new()
+	add_child_autofree(panel)
+	var text: String = panel.call("_effect_text", GameState.items.get_item("antibiotics"))
+	assert_string_contains(text, "+90 s")
+
+
+## Al terminar de combinar (bate con clavos) el panel «Combinando…» se oculta solo.
+func test_crafting_panel_hides_when_done() -> void:
+	var inventory := GameState.player.inventory
+	inventory.add_stack(ItemStack.new(GameState.items.get_item("bat")))
+	inventory.add_item(GameState.items.get_item("nails"), 5)
+	var recipe: RecipeData = null
+	for candidate: RecipeData in GameState.CATALOG.recipes:
+		if candidate.id == "bat_nails":
+			recipe = candidate
+	var crafting := _game.level.player.crafting
+	assert_eq(crafting.start(recipe, inventory.find_slot("bat")), Crafting.ERROR_NONE)
+	await wait_process_frames(5)
+	var panel := _panel()
+	assert_true(panel.visible, "se ve mientras combina")
+	for _step: int in 60:
+		await wait_physics_frames(10)
+		if not crafting.active:
+			break
+	assert_false(crafting.active)
+	await wait_process_frames(3)
+	assert_false(panel.visible, "se oculta al terminar")

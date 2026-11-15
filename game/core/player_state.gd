@@ -29,6 +29,8 @@ var infection: Infection = Infection.new()
 var death_cause: int = CAUSE_NONE
 ## Objetos clave (llaves, plano, piezas del teléfono) y estado del teléfono.
 var keys: KeyItems = KeyItems.new()
+## Linterna con su carga.
+var flashlight: Flashlight = Flashlight.new()
 
 var _items: ItemCatalog = null
 

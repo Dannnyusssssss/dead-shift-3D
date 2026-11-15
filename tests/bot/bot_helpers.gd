@@ -209,3 +209,15 @@ static func flee_point(player: Player, threat: Vector3) -> Vector3:
 				best = reachable
 				best_score = score
 	return best
+
+
+## Objetos del suelo que le interesan: munición, curas, objetos clave y armas si le faltan.
+static func wants(stack: ItemStack) -> bool:
+	var category := stack.item.category
+	if category == ItemData.CATEGORY_WEAPON:
+		return weapon_count() < 4
+	return (
+		category == ItemData.CATEGORY_AMMO
+		or category == ItemData.CATEGORY_CONSUMABLE
+		or category == ItemData.CATEGORY_KEY
+	)
