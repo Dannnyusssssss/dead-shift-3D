@@ -9,6 +9,8 @@ const WEAR_ICONS: Array[String] = ["[###]", "[##-]", "[#--]", "[---]"]
 const MESSAGE_TIME: float = 3.0
 ## El borde de daño tarda esto en desvanecerse; con un golpe cada ~1,5 s nunca parpadea.
 const DAMAGE_FADE: float = 0.8
+## Segundos sin puntero capturado antes de pedir un clic.
+const CLICK_PROMPT_DELAY: float = 0.4
 
 var _player: Player = null
 var _health: Label = null
@@ -18,7 +20,6 @@ var _infection_seconds: int = -1
 var _weapon: Label = null
 var _prompt: Label = null
 var _message: Label = null
-var _craft_bar: ProgressBar = null
 var _damage_edge: ColorRect = null
 var _message_timer: float = 0.0
 var _noise: NoiseIndicator = null
@@ -27,6 +28,12 @@ var _boss: BossBar = null
 var _rescue: Label = null
 var _camera: Label = null
 var _rescue_seconds: int = -2
+var _healing: HealingPanel = null
+var _throw_hint: Label = null
+var _click_prompt: Label = null
+var _objective: Label = null
+var _objective_timer: float = 0.0
+var _click_wait: float = 0.0
 
 
 func _ready() -> void:
@@ -50,24 +57,49 @@ func _ready() -> void:
 
 func bind_player(player: Player) -> void:
 	_player = player
+	_healing.bind_player(player)
 
 
 func _process(delta: float) -> void:
+	# Con la mochila abierta el HUD se esconde (no se lee a través del fondo).
+	visible = not InputRouter.menu_open
 	if _message_timer > 0.0:
 		_message_timer -= delta
 		if _message_timer <= 0.0:
 			_message.text = ""
 	if _damage_edge.color.a > 0.0:
 		_damage_edge.color.a = maxf(_damage_edge.color.a - delta / DAMAGE_FADE * 0.35, 0.0)
-	var crafting := _player != null and _player.crafting.active
-	var healing := _player != null and _player.healing.active
-	_craft_bar.visible = crafting or healing
-	if crafting:
-		_craft_bar.value = _player.crafting.progress() * 100.0
-	elif healing:
-		_craft_bar.value = _player.healing.progress() * 100.0
 	_refresh_infection()
 	_refresh_rescue()
+	_refresh_throw_hint()
+	_refresh_click_prompt(delta)
+	_objective_timer -= delta
+	if _objective_timer <= 0.0:
+		_objective_timer = 0.5
+		var text := Notebook.objective_text()
+		_objective.text = "%s: %s" % [tr("notebook_objective"), text] if not text.is_empty() else ""
+
+
+## Si el puntero no se pudo recuperar (el navegador lo impide a veces al cerrar un menú), se
+## pide un clic. Espera un momento para no parpadear mientras la captura se completa.
+func _refresh_click_prompt(delta: float) -> void:
+	var needs := (
+		InputRouter.needs_click()
+		and not GameState.paused
+		and _player != null
+		and not _player.is_dead()
+	)
+	_click_wait = _click_wait + delta if needs else 0.0
+	_click_prompt.visible = _click_wait > CLICK_PROMPT_DELAY
+
+
+## Ayuda mientras hay un objeto listo para lanzar.
+func _refresh_throw_hint() -> void:
+	var aiming := _player != null and _player.throw != null and _player.throw.ready_slot >= 0
+	_throw_hint.visible = aiming
+	if aiming:
+		var key := "throw_hint_touch" if InputRouter.touch_mode else "throw_hint"
+		_throw_hint.text = tr(key)
 
 
 ## Línea del helicóptero: cuánto falta para que llegue o para que se vaya.
@@ -124,10 +156,7 @@ func _refresh_infection() -> void:
 	if seconds == _infection_seconds:
 		return
 	_infection_seconds = seconds
-	var text := "(!) %s %d:%02d" % [tr("hud_infected"), seconds / 60, seconds % 60]
-	if state.infection.is_slowed():
-		text += "  " + tr("hud_infection_slowed")
-	_infection.text = text
+	_infection.text = "(!) %s %d:%02d" % [tr("hud_infected"), seconds / 60, seconds % 60]
 
 
 func _refresh() -> void:
@@ -161,12 +190,14 @@ func _on_health_changed(_health_value: float) -> void:
 	_refresh()
 
 
-func _on_prompt(text_key: String) -> void:
+func _on_prompt(text_key: String, detail: String) -> void:
 	if text_key.is_empty():
 		_prompt.text = ""
 		return
 	var key_hint := tr("hud_touch_use") if InputRouter.touch_mode else tr("hud_key_use")
 	_prompt.text = "%s  %s" % [key_hint, tr(text_key)]
+	if not detail.is_empty():
+		_prompt.text += ": " + detail
 
 
 func _on_message(text_key: String) -> void:
@@ -193,6 +224,9 @@ func _build() -> void:
 	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(crosshair)
 	_place(crosshair, Control.PRESET_CENTER, Rect2(-3.0, -3.0, 6.0, 6.0))
+	var marker := HitMarker.new()
+	add_child(marker)
+	_place(marker, Control.PRESET_CENTER, Rect2(-30.0, -30.0, 60.0, 60.0))
 	var status := VBoxContainer.new()
 	status.position = Vector2(24.0, 20.0)
 	add_child(status)
@@ -202,6 +236,10 @@ func _build() -> void:
 	_infection.add_theme_color_override("font_color", Color(0.75, 1.0, 0.6))
 	_rescue = _label(status, 24)
 	_camera = _label(status, 22)
+	_objective = _label(status, 18)
+	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_objective.custom_minimum_size = Vector2(440.0, 0.0)
+	_objective.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
 	_weapon = _label(self, 26)
 	_place(_weapon, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -72.0, 640.0, 44.0))
 	_prompt = _label(self, 26)
@@ -221,10 +259,20 @@ func _build() -> void:
 	_place(_boss, Control.PRESET_CENTER_TOP, Rect2(-220.0, 16.0, 440.0, 70.0))
 	# Arriba y al centro: lejos de los botones táctiles y de la palanca.
 	_place(_subtitles, Control.PRESET_CENTER_TOP, Rect2(-300.0, 170.0, 600.0, 0.0))
-	_craft_bar = ProgressBar.new()
-	_craft_bar.visible = false
-	add_child(_craft_bar)
-	_place(_craft_bar, Control.PRESET_CENTER, Rect2(-160.0, 100.0, 320.0, 24.0))
+	# Curación o combinación en curso: a la izquierda, a media altura (lejos de la mira y de
+	# los botones).
+	_throw_hint = _label(self, 22)
+	_throw_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_throw_hint.visible = false
+	_place(_throw_hint, Control.PRESET_CENTER, Rect2(-360.0, 90.0, 720.0, 34.0))
+	_click_prompt = _label(self, 30)
+	_click_prompt.text = tr("hud_click_to_resume")
+	_click_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_click_prompt.visible = false
+	_place(_click_prompt, Control.PRESET_CENTER, Rect2(-360.0, -90.0, 720.0, 44.0))
+	_healing = HealingPanel.new()
+	add_child(_healing)
+	_place(_healing, Control.PRESET_CENTER_LEFT, Rect2(24.0, -60.0, 330.0, 0.0))
 
 
 ## Ancla un control y fija su rectángulo relativo al punto de anclaje.

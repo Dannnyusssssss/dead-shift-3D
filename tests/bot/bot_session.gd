@@ -33,77 +33,9 @@ const RETREAT_RANGE: float = 7.0
 const LOOT_RANGE: float = 7.0
 ## Distancia delante de un tablero con corriente donde espera la embestida del jefe.
 const PANEL_BAIT_DISTANCE: float = 2.6
-## Objetivos en orden por piso: punto y si hay que usar lo que esté ahí.
-const ROUTES: Dictionary = {
-	"ground_floor":
-	[
-		[Vector3(-6.0, 0.0, -2.0), true],
-		[Vector3(-6.8, 0.0, 2.6), true],
-		[Vector3(-0.7, 0.0, -2.8), true],
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(8.0, 0.0, -8.0), true],
-		[Vector3(11.0, 0.0, -5.5), true],
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(19.0, 0.0, 1.5), false],
-		[Vector3(17.0, 0.0, 8.0), true],
-		[Vector3(21.0, 0.0, 5.5), true],
-		[Vector3(23.3, 0.0, 9.0), true],
-		[Vector3(19.0, 0.0, 1.5), false],
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(26.0, 0.0, -7.0), true],
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(40.5, 0.0, 0.0), false],
-	],
-	"level_1":
-	[
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(27.0, 0.0, -5.5), true],
-		[Vector3(30.2, 0.0, -9.4), true],
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(19.0, 0.0, 1.5), false],
-		[Vector3(19.0, 0.0, 7.5), true],
-		[Vector3(15.2, 0.0, 9.6), true],
-		[Vector3(23.2, 0.0, 9.6), true],
-		[Vector3(19.0, 0.0, 1.5), false],
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(15.3, 0.0, -9.8), true],
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(32.0, 0.0, 1.5), false],
-		[Vector3(32.0, 0.0, 3.6), true],
-		[Vector3(32.0, 0.0, 8.0), true],
-		[Vector3(29.2, 0.0, 9.6), true],
-		[Vector3(35.2, 0.0, 9.6), true],
-		[Vector3(30.0, 0.0, 6.0), true],
-		[Vector3(32.0, 0.0, 1.5), false],
-		[Vector3(-5.5, 0.0, 0.0), false],
-	],
-	"level_2":
-	[
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(15.2, 0.0, -9.8), true],
-		[Vector3(7.2, 0.0, -9.8), true],
-		[Vector3(11.0, 0.0, -1.5), false],
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(27.0, 0.0, -5.5), true],
-		[Vector3(30.2, 0.0, -9.4), true],
-		[Vector3(27.0, 0.0, -1.5), false],
-		[Vector3(31.0, 0.0, 2.4), true],
-		[Vector3(19.0, 0.0, 1.5), false],
-		[Vector3(19.0, 0.0, 5.0), false],
-		[Vector3(32.0, 0.0, 9.0), false],
-		[Vector3(34.6, 0.0, 9.0), true],
-		[Vector3(38.0, 0.0, 9.0), false],
-	],
-}
-## Ruta del escenario del jefe: entra al almacén y, vencido, sube a la azotea.
-const BOSS_ROUTE: Array = [
-	[Vector3(19.0, 0.0, 1.5), false],
-	[Vector3(19.0, 0.0, 5.0), false],
-	[Vector3(32.0, 0.0, 9.0), false],
-	[Vector3(34.6, 0.0, 9.0), true],
-	[Vector3(38.0, 0.0, 9.0), false],
-]
-## En los escenarios del jefe, pedir el cambio a este piso da el recorrido por completado.
+## Vida del jefe por debajo de la cual el bot lo remata aunque no esté aturdido.
+const FINISH_HEALTH: float = 60.0
+## En los escenarios del jefe, llegar a este piso da el recorrido por completado.
 const FINISH_FLOOR: String = "rooftop"
 ## Desenlace esperado de cada escenario que termina la partida.
 const EXPECTED: Dictionary = {
@@ -111,8 +43,10 @@ const EXPECTED: Dictionary = {
 	"lost": RunStats.OUTCOME_LOST,
 	"death": RunStats.OUTCOME_DEAD,
 }
-## En la azotea: ir al helipuerto y esperar.
-const ROOFTOP_ROUTE: Array = [[Vector3(28.0, 0.0, 4.0), false]]
+## Diferencia de altura máxima para considerar que algo está en el mismo piso que el bot.
+const SAME_FLOOR: float = 2.0
+## Segundos que sigue atacando a un enemigo que deja de ver.
+const ENGAGE_MEMORY: float = 1.5
 
 var scenario: String = "full"
 
@@ -128,6 +62,10 @@ var _fire_toggle: bool = false
 var _stuck_timer: float = 0.0
 var _last_position: Vector3 = Vector3.ZERO
 var _unstick_timer: float = 0.0
+var _unstick_count: int = 0
+var _engaged: Enemy = null
+var _panel_choice: ElectricPanel = null
+var _engage_timer: float = 0.0
 var _kills: int = 0
 var _strafe_side: float = 1.0
 ## Objetos del suelo que no pudo recoger (para no insistir).
@@ -157,10 +95,9 @@ func _ready() -> void:
 	_game = GAME_SCRIPT.new()
 	add_child(_game)
 	_player = _game.level.player
-	_route = ROUTES.get(_game.level.floor_data.id, [])
+	_route = BotRoutes.FULL
 	EventBus.goal_reached.connect(_on_goal)
 	EventBus.floor_changed.connect(_on_floor_changed)
-	EventBus.floor_change_requested.connect(_on_floor_change_requested)
 	EventBus.player_died.connect(_on_died)
 	EventBus.run_finished.connect(_on_run_finished)
 	EventBus.enemy_died.connect(func(_o: Vector3, _d: Array[ItemStack]) -> void: _kills += 1)
@@ -180,10 +117,12 @@ func _ready() -> void:
 
 ## Escenario del jefe: equipo fijo, el resto del Nivel 2 vacío y directo al almacén.
 func _prepare_boss_scenario() -> void:
-	var level_2 := GameState.CATALOG.find_floor("level_2")
-	for index: int in level_2.enemies.size():
-		if level_2.enemies[index].enemy.boss == null:
-			GameState.world.mark_killed("level_2", "enemy_%d" % index)
+	# El edificio ya existe: los demás enemigos de los Niveles 1 y 2 se retiran (como si ya estuvieran
+	# muertos) para medir solo el combate contra el jefe.
+	for floor_id: String in ["level_1", "level_2"]:
+		for enemy: Enemy in _game.level.enemies_on_floor(floor_id):
+			if not enemy is Boss:
+				enemy.queue_free()
 	var state := GameState.player
 	state.inventory = Inventory.new()
 	var items := GameState.items
@@ -202,7 +141,9 @@ func _prepare_boss_scenario() -> void:
 		state.inventory.add_stack(ItemStack.new(items.get_item("extinguisher")))
 	state.vest = ItemStack.new(items.get_item("vest"), 1, 0.8)
 	state.equipped_slot = 0
-	_game.change_floor("level_2", "stairs_down")
+	_game.level.place_player_at_exit("level_2", "stairs_down")
+	_route = BotRoutes.BOSS
+	_route_index = 0
 
 
 ## Rescate perdido: en la azotea con el helicóptero ya ido y equipo de combate.
@@ -210,7 +151,9 @@ func _prepare_lost_scenario() -> void:
 	_give_fight_kit(false)
 	GameState.rescue.call_helicopter()
 	GameState.rescue.load_data(RescueClock.STATE_DEPARTED, 0.0)
-	_game.change_floor("rooftop", "stairs_down")
+	_game.level.place_player_at_exit("rooftop", "stairs_down")
+	_route = BotRoutes.ROOFTOP
+	_route_index = 0
 
 
 ## Muerte: en el Nivel 2, casi sin salud y sin armas.
@@ -218,7 +161,7 @@ func _prepare_death_scenario() -> void:
 	GameState.player.inventory = Inventory.new()
 	GameState.player.equipped_slot = -1
 	GameState.player.health = 5.0
-	_game.change_floor("level_2", "stairs_down")
+	_game.level.place_player_at_exit("level_2", "stairs_down")
 
 
 func _give_fight_kit(with_shotgun: bool) -> void:
@@ -251,7 +194,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_wanted.clear()
 	_has_aim = false
-	if _game.changing_floor or _player.healing.active or _game.finished:
+	if _player.healing.active or _game.finished:
 		_apply_actions()
 		return
 	_handle_phone()
@@ -301,9 +244,11 @@ func _fight_boss(boss: Boss, delta: float) -> void:
 	var distance := _flat(boss.global_position).distance_to(_flat(_player.global_position))
 	var cloud := _cloud_here()
 	var hurt := GameState.player.health < Rules.PLAYER_MAX_HEALTH * 0.45 and distance > 7.0
+	var too_close := distance < boss.data.boss.charge_min_distance
 	if boss.boss_state == Boss.B_CHARGING:
 		_dodge_charge(boss)
-	elif boss.model.is_stunned():
+	elif boss.model.is_stunned() or boss.model.health <= FINISH_HEALTH:
+		# Aturdido o casi vencido: ataca aunque sea de frente (hace la mitad de daño).
 		_punish(boss, distance, delta)
 	elif cloud != null:
 		_leave_cloud(cloud, delta)
@@ -311,26 +256,69 @@ func _fight_boss(boss: Boss, delta: float) -> void:
 		_aim_at(boss.global_position + Vector3.UP * CHEST_HEIGHT)
 	elif hurt and _try_heal():
 		pass
-	elif _best_panel(boss) != null:
+	elif _best_panel(boss) != null and not too_close:
 		var bait := _panel_bait_point(_best_panel(boss))
 		if _flat(bait).distance_to(_flat(_player.global_position)) > 0.8:
 			_walk_to(bait, delta)
 		else:
 			_aim_at(boss.global_position + Vector3.UP * CHEST_HEIGHT)
-	elif not _try_extinguisher(boss, distance, delta):
-		# Sin tableros ni extintor: mantiene la distancia para provocar embestidas contra las
-		# paredes.
-		_aim_at(boss.global_position + Vector3.UP * CHEST_HEIGHT)
-		if distance < 5.0:
-			_hold("move_back")
+	elif _try_extinguisher(boss, distance, delta):
+		pass
+	else:
+		# Sin tablero útil o con el jefe encima: gana distancia hacia el espacio abierto para
+		# que el jefe embista (y choque con una pared o un tablero).
+		_open_distance(boss, delta)
+
+
+## Se aleja del jefe hacia el punto alcanzable (en un círculo a su alrededor) que más lo aleja de
+## él sin acabar en una nube; así no se arrincona.
+func _open_distance(boss: Boss, delta: float) -> void:
+	var map := _player.get_world_3d().navigation_map
+	var best := Vector3.INF
+	var best_score := -INF
+	for step: int in 12:
+		var angle := TAU * float(step) / 12.0
+		var candidate := _player.global_position + Vector3(cos(angle), 0.0, sin(angle)) * 4.0
+		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
+		if absf(reachable.y - _player.global_position.y) > 1.0:
+			continue
+		var score := _flat(reachable).distance_to(_flat(boss.global_position))
+		score += _flat(reachable).distance_to(_flat(_player.global_position)) * 0.5
+		for node: Node in get_tree().get_nodes_in_group("toxic_cloud"):
+			var other := node as ToxicCloud
+			if other != null and other.contains(reachable):
+				score -= 10.0
+		if score > best_score:
+			best = reachable
+			best_score = score
+	if best == Vector3.INF:
+		_hold("move_back")
+		return
+	_walk_to(best, delta)
 
 
 ## Sale de la nube alejándose de su centro.
+## Prueba varias direcciones y elige la salida alcanzable más cercana (contra una pared, la
+## dirección contraria al centro puede no tener suelo).
 func _leave_cloud(cloud: ToxicCloud, delta: float) -> void:
-	var away := _player.global_position - cloud.global_position
-	away.y = 0.0
-	away = away.normalized() if away.length() > 0.1 else Vector3.RIGHT
-	_walk_to(cloud.global_position + away * (cloud.radius + 1.5), delta)
+	var map := _player.get_world_3d().navigation_map
+	var best := Vector3.INF
+	var best_distance := INF
+	for step: int in 12:
+		var angle := TAU * float(step) / 12.0
+		var candidate := (
+			cloud.global_position + Vector3(cos(angle), 0.0, sin(angle)) * (cloud.radius + 1.5)
+		)
+		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
+		if _flat(reachable).distance_to(_flat(cloud.global_position)) < cloud.radius + 0.8:
+			continue
+		var distance := _flat(reachable).distance_to(_flat(_player.global_position))
+		if distance < best_distance:
+			best = reachable
+			best_distance = distance
+	if best == Vector3.INF:
+		best = _player.global_position + Vector3.RIGHT * (cloud.radius + 1.5)
+	_walk_to(best, delta)
 
 
 func _dodge_charge(boss: Boss) -> void:
@@ -396,19 +384,38 @@ func _try_extinguisher(boss: Boss, distance: float, delta: float) -> bool:
 	return true
 
 
+## Tablero con corriente donde esperar la embestida: el más cercano al bot cuyo punto de espera
+## quede de su lado (sin cruzar por delante del jefe) y lejos del jefe para que tome carrerilla.
+## Mantiene el elegido mientras siga sirviendo, para no ir y volver entre dos tableros.
 func _best_panel(boss: Boss) -> ElectricPanel:
+	if _panel_usable(_panel_choice, boss):
+		return _panel_choice
 	var best: ElectricPanel = null
 	var best_distance := INF
-	for node: Node in _game.level.navigation.get_children():
+	for node: Node in _level_nodes():
 		var panel := node as ElectricPanel
-		if panel == null or not panel.live:
+		if not _panel_usable(panel, boss):
 			continue
-		var distance := _flat(panel.global_position).distance_to(_flat(boss.global_position))
-		# El tablero debe quedar lejos del jefe para que tenga recorrido de embestida.
-		if distance > boss.data.boss.charge_min_distance + 1.0 and distance < best_distance:
+		var bait := _flat(_panel_bait_point(panel))
+		var distance := bait.distance_to(_flat(_player.global_position))
+		if distance < best_distance:
 			best = panel
 			best_distance = distance
+	_panel_choice = best
 	return best
+
+
+func _panel_usable(panel: ElectricPanel, boss: Boss) -> bool:
+	if panel == null or not is_instance_valid(panel) or not panel.live:
+		return false
+	var boss_flat := _flat(boss.global_position)
+	if (
+		_flat(panel.global_position).distance_to(boss_flat)
+		<= boss.data.boss.charge_min_distance + 1.0
+	):
+		return false
+	var bait := _flat(_panel_bait_point(panel))
+	return bait.distance_to(_flat(_player.global_position)) < bait.distance_to(boss_flat)
 
 
 func _panel_bait_point(panel: ElectricPanel) -> Vector3:
@@ -549,7 +556,28 @@ func _retreat(enemy: Enemy) -> void:
 	_hold("move_back")
 
 
+## Enemigo al que atacar. Recuerda el último visto un momento: si la línea de visión parpadea
+## (bordes de columnas o barandillas) no alterna entre atacarlo y seguir la ruta.
 func _visible_enemy() -> Enemy:
+	var seen := _seen_enemy()
+	if seen != null:
+		_engaged = seen
+		_engage_timer = ENGAGE_MEMORY
+		return seen
+	_engage_timer -= get_physics_process_delta_time()
+	if (
+		_engaged != null
+		and is_instance_valid(_engaged)
+		and not _engaged.is_dead()
+		and _engage_timer > 0.0
+		and absf(_engaged.global_position.y - _player.global_position.y) <= SAME_FLOOR
+	):
+		return _engaged
+	_engaged = null
+	return null
+
+
+func _seen_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_distance := ENGAGE_RANGE
 	var space := _player.get_world_3d().direct_space_state
@@ -557,6 +585,8 @@ func _visible_enemy() -> Enemy:
 	for node: Node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Enemy
 		if enemy == null or enemy.is_dead() or enemy is Boss:
+			continue
+		if absf(enemy.global_position.y - _player.global_position.y) > SAME_FLOOR:
 			continue
 		var target := enemy.global_position + Vector3.UP * CHEST_HEIGHT
 		var distance := eye.distance_to(target)
@@ -580,7 +610,7 @@ func _try_heal() -> bool:
 	var wanted: Array[String] = []
 	if state.infection.infected:
 		wanted.append("neutrax")
-		if not state.infection.is_slowed():
+		if state.infection.time_left < Rules.INFECTION_TIME - Rules.ANTIBIOTIC_BONUS:
 			wanted.append("antibiotics")
 	if state.health < Rules.PLAYER_MAX_HEALTH * 0.6:
 		wanted.append("bandage")
@@ -604,6 +634,7 @@ func _nearby_loot() -> Pickup:
 			_ignored.has(pickup.get_instance_id())
 			or not pickup.is_inside_tree()
 			or not _wants(pickup.stack)
+			or absf(pickup.global_position.y - _player.global_position.y) > SAME_FLOOR
 		):
 			continue
 		var distance := _flat(pickup.global_position).distance_to(_flat(_player.global_position))
@@ -671,7 +702,8 @@ func _follow_route(delta: float) -> void:
 	var goal: Vector3 = step[0]
 	var use: bool = step[1]
 	var flat_distance := _flat(goal).distance_to(_flat(_player.global_position))
-	if flat_distance < (INTERACT_RANGE if use else 1.0):
+	var same_floor := absf(goal.y - _player.global_position.y) < 1.0
+	if same_floor and flat_distance < (INTERACT_RANGE if use else 1.0):
 		if use:
 			_use_nearby(goal)
 		_route_index += 1
@@ -691,7 +723,8 @@ func _walk_to(goal: Vector3, delta: float) -> void:
 		_path_index = 0
 	while _path_index < _path.size() - 1:
 		var point := _path[_path_index]
-		if _flat(point).distance_to(_flat(_player.global_position)) > 0.5:
+		# Margen corto: con uno mayor recorta las esquinas (descansillos de las escaleras).
+		if _flat(point).distance_to(_flat(_player.global_position)) > 0.25:
 			break
 		_path_index += 1
 	var next := goal if _path.is_empty() else _path[_path_index]
@@ -703,13 +736,17 @@ func _walk_to(goal: Vector3, delta: float) -> void:
 func _check_stuck(delta: float) -> void:
 	if _unstick_timer > 0.0:
 		_unstick_timer -= delta
-		_hold("move_right")
+		# Retrocede y se aparta de lado, alternando el lado en cada intento.
+		_wanted.erase("move_forward")
+		_hold("move_back")
+		_hold("move_right" if _unstick_count % 2 == 0 else "move_left")
 		return
 	if _player.global_position.distance_to(_last_position) < 0.02:
 		_stuck_timer += delta
 		if _stuck_timer > 2.0:
 			_stuck_timer = 0.0
-			_unstick_timer = 0.5
+			_unstick_timer = 0.7
+			_unstick_count += 1
 			_path = PackedVector3Array()
 	else:
 		_stuck_timer = 0.0
@@ -719,7 +756,7 @@ func _check_stuck(delta: float) -> void:
 func _use_nearby(point: Vector3) -> void:
 	var best: Interactable = null
 	var best_distance := 2.0
-	for node: Node in _game.level.get_children():
+	for node: Node in _level_nodes():
 		var target := node as Interactable
 		if target == null or not target.enabled:
 			continue
@@ -731,6 +768,14 @@ func _use_nearby(point: Vector3) -> void:
 		_make_room()
 		print("[bot] usa %s" % best.get_prompt_key())
 		best.interact(_player)
+
+
+## Nodos de todos los pisos (objetos, contenedores, rejas y accesorios con función).
+func _level_nodes() -> Array[Node]:
+	var result: Array[Node] = []
+	for section: FloorSection in _game.level.sections:
+		result.append_array(section.get_children())
+	return result
 
 
 ## Suelta materiales (el bot no combina) si quedan menos de dos casillas libres, para que
@@ -811,22 +856,16 @@ func _on_goal() -> void:
 
 
 func _on_floor_changed(floor_id: String) -> void:
-	_player = _game.level.player
-	if scenario.begins_with("boss"):
-		_route = BOSS_ROUTE
-	elif floor_id == "rooftop":
-		_route = ROOFTOP_ROUTE
-	else:
-		_route = ROUTES.get(floor_id, [])
-	_route_index = 0
-	_path = PackedVector3Array()
 	print("[bot] piso %s (salud %d)" % [floor_id, ceili(GameState.player.health)])
-
-
-func _on_floor_change_requested(floor_id: String, _exit_id: String) -> void:
-	if scenario.begins_with("boss") and floor_id == FINISH_FLOOR:
+	if floor_id != FINISH_FLOOR:
+		return
+	if scenario.begins_with("boss"):
 		var parts := GameState.player.keys.items.size()
-		_finish(true, "llegó a la puerta de la azotea con %d objetos clave" % parts)
+		_finish(true, "llegó a la azotea con %d objetos clave" % parts)
+	elif _route != BotRoutes.ROOFTOP:
+		_route = BotRoutes.ROOFTOP
+		_route_index = 0
+		_path = PackedVector3Array()
 
 
 func _on_died() -> void:
@@ -857,7 +896,7 @@ func _finish(success: bool, reason: String) -> void:
 		boss_text = " | jefe fase %d vida %d" % [boss.model.phase, ceili(boss.model.health)]
 	print(
 		(
-			"[bot] %s: %s | tiempo %.1f s | salud %d | enemigos muertos %d | armas rotas %d%s"
+			"[bot] %s: %s | tiempo %.1f s | salud %d | enemigos muertos %d | armas rotas %d%s | en %s"
 			% [
 				"COMPLETADO" if success else "FALLO",
 				reason,
@@ -866,6 +905,7 @@ func _finish(success: bool, reason: String) -> void:
 				_kills,
 				state.weapons_broken,
 				boss_text,
+				_player.global_position.snapped(Vector3(0.1, 0.1, 0.1)),
 			]
 		)
 	)
