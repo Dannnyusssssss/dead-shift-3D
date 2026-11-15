@@ -1,6 +1,6 @@
 extends GutTest
 @warning_ignore_start("unsafe_call_argument")
-## Guardado de partida (versión 2) con entradas hostiles: cada campo en su rango y la
+## Guardado de partida (versión actual) con entradas hostiles: cada campo en su rango y la
 ## coherencia entre campos (piso y punto de reaparición existentes, inventario dentro del límite
 ## y sin casillas repetidas, objetos clave sin repetir, teléfono armado solo con todas las
 ## piezas, helicóptero llamado solo con teléfono, reloj nunca negativo). Nada rompe el juego.
@@ -11,6 +11,7 @@ const CONTEXT: Dictionary = {
 		"pistol": {"category": 2, "max_stack": 1, "magazine": 8},
 		"pipe": {"category": 2, "max_stack": 1, "magazine": 0},
 		"nails": {"category": 0, "max_stack": 10, "magazine": 0},
+		"pistol_ammo": {"category": 1, "max_stack": 10, "magazine": 0},
 		"vest": {"category": 3, "max_stack": 1, "magazine": 0},
 		"phone_antenna": {"category": 5, "max_stack": 1, "magazine": 0},
 		"phone_battery": {"category": 5, "max_stack": 1, "magazine": 0},
@@ -81,7 +82,7 @@ func test_unknown_floor_and_spawn_fall_back() -> void:
 func test_inventory_respects_capacity_slots_and_stack_limits() -> void:
 	var entries: Array = []
 	for slot: int in 10:
-		entries.append({"slot": slot, "id": "nails", "count": 99})
+		entries.append({"slot": slot, "id": "pistol_ammo", "count": 99})
 	entries.append({"slot": 1, "id": "pipe"})
 	entries.append({"slot": 500, "id": "pipe"})
 	entries.append({"slot": 2, "id": "rocket_launcher"})
@@ -227,3 +228,81 @@ func test_round_trip_through_core_keeps_the_run() -> void:
 	)
 	assert_eq(clean["seed"], 77)
 	assert_eq(clean["stats"]["time"], 321.0)
+
+
+func test_difficulty_is_kept_when_known_and_easy_otherwise() -> void:
+	assert_eq(_parse({"difficulty": "hard"})["difficulty"], "hard")
+	assert_eq(_parse({"difficulty": "medium"})["difficulty"], "medium")
+	assert_eq(_parse({})["difficulty"], Difficulty.EASY, "ausente")
+	for hostile: Variant in ["imposible", "HARD", 2, 1.5, true, null, ["hard"], {"id": "hard"}]:
+		assert_eq(_parse({"difficulty": hostile})["difficulty"], Difficulty.EASY, str(hostile))
+	assert_eq(_parse({"difficulty": "x".repeat(5000)})["difficulty"], Difficulty.EASY, "gigante")
+
+
+func test_difficulty_must_be_in_the_context_list() -> void:
+	var context := CONTEXT.duplicate(true)
+	context["difficulties"] = ["easy", "medium"]
+	var data := {"difficulty": "hard"}
+	var result := SaveValidation.parse(SaveCodec.encode(data), context)
+	assert_eq(result.data["difficulty"], Difficulty.EASY)
+
+
+func test_round_trip_keeps_difficulty_and_its_helicopter_wait() -> void:
+	var state := PlayerState.new(GameState.items)
+	state.give_starting_kit()
+	var rescue := RescueClock.new(Rules.HELICOPTER_ARRIVAL_TIME, 45.0)
+	var data := SaveGame.capture(
+		state, WorldState.new(), rescue, "ground_floor", "start", "", 5, 10.0, "hard"
+	)
+	var parsed := SaveValidation.parse(SaveCodec.encode(data), GameState.CATALOG.save_context())
+	assert_eq(parsed.data["difficulty"], "hard")
+	var hostile: Dictionary = parsed.data.duplicate(true)
+	hostile["keys"] = Rules.PHONE_PARTS
+	hostile["phone_assembled"] = true
+	hostile["rescue"] = {"state": RescueClock.STATE_WAITING, "time_left": 75.0}
+	var clean := SaveValidation.sanitize(hostile, GameState.CATALOG.save_context())
+	var clock := SaveGame.restore_rescue(clean, 45.0)
+	assert_eq(clock.time_left, 45.0, "la espera nunca supera la de la dificultad")
+
+
+func test_best_grades_per_difficulty() -> void:
+	var ids: Array[String] = ["easy", "medium", "hard"]
+	var v2 := SaveCodec.encode({"grades": {"easy": "A", "hard": "S", "medium": "Z"}}, 2)
+	assert_eq(Validation.parse_best(v2, ids, 2), {"easy": "A", "hard": "S"}, "letra mala fuera")
+	var v1 := SaveCodec.encode({"grade": "B"}, 1)
+	assert_eq(Validation.parse_best(v1, ids, 2), {"easy": "B"}, "la marca antigua es de Fácil")
+	var unknown := SaveCodec.encode({"grades": {"pesadilla": "S", "easy": 3}}, 2)
+	assert_eq(Validation.parse_best(unknown, ids, 2), {})
+	assert_eq(Validation.parse_best("", ids, 2), {})
+	assert_eq(Validation.parse_best('{"version": 3, "grades": {}}', ids, 2), {}, "futura")
+	assert_eq(Validation.parse_best('{"version": 2, "grades": [1]}', ids, 2), {})
+
+
+func test_bag_keeps_known_materials_within_their_cap() -> void:
+	var bag_source := {
+		"nails": 6,
+		"pipe": 1,
+		"pistol_ammo": 3,
+		"rocket_launcher": 2,
+		"NAILS": 4,
+	}
+	var clean := _parse({"bag": bag_source})
+	assert_eq(clean["bag"], {"nails": 6}, "solo materiales conocidos")
+	assert_eq(_parse({"bag": {"nails": 999}})["bag"], {"nails": 10}, "tope del material")
+	assert_eq(_parse({"bag": {"nails": -5}})["bag"], {}, "negativo")
+	assert_eq(_parse({"bag": {"nails": 2.5}})["bag"], {}, "no entero")
+	assert_eq(_parse({"bag": {"nails": "6"}})["bag"], {}, "texto")
+	assert_eq(_parse({"bag": ["nails"]})["bag"], {}, "no es un diccionario")
+	assert_eq(_parse({})["bag"], {}, "ausente")
+
+
+func test_materials_in_slots_move_to_the_bag() -> void:
+	var entries: Array = [
+		{"slot": 0, "id": "nails", "count": 4},
+		{"slot": 1, "id": "nails", "count": 9},
+		{"slot": 2, "id": "pipe"},
+	]
+	var clean := _parse({"inventory": entries, "bag": {"nails": 2}})
+	var inventory: Array = clean["inventory"]
+	assert_eq(inventory.size(), 1, "solo el tubo queda en casillas")
+	assert_eq(clean["bag"], {"nails": 10}, "se suman sin pasar del tope")

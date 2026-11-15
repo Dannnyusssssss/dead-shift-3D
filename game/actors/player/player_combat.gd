@@ -64,6 +64,11 @@ func is_busy() -> bool:
 	return _reload_timer > 0.0 or _melee_timer >= 0.0
 
 
+## Segundos que faltan para poder volver a atacar.
+func cooldown_left() -> float:
+	return _cooldown
+
+
 func _state() -> PlayerState:
 	return GameState.player
 

@@ -35,6 +35,25 @@ static func material(item_id: String, max_stack: int = 5) -> ItemData:
 	return data
 
 
+## Objeto apilable que ocupa casillas (munición): para probar pilas en la mochila, porque los
+## materiales van a la bolsa.
+static func stackable(item_id: String, max_stack: int = 5) -> ItemData:
+	var data := ItemData.new()
+	data.id = item_id
+	data.category = ItemData.CATEGORY_AMMO
+	data.max_stack = max_stack
+	return data
+
+
+static func recipe_amounts(
+	a: String, b: String, result: String, amount_a: int, amount_b: int
+) -> RecipeData:
+	var data := recipe(a, b, result)
+	data.amount_a = amount_a
+	data.amount_b = amount_b
+	return data
+
+
 static func vest(reduction: float = 0.5, wear_per_damage: float = 1.0) -> ItemData:
 	var data := ItemData.new()
 	data.id = "vest"

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="DifficultyData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/difficulty_data.gd" id="1_diff"]
+
+[resource]
+script = ExtResource("1_diff")
+id = "hard"
+name_key = "difficulty_hard"
+description_key = "difficulty_hard_text"
+enemy_health_multiplier = 1.5
+enemy_damage_multiplier = 1.5
+ammo_found_multiplier = 0.6
+scarce_item_id = "bandage"
+scarce_removed_per_floor = 1
+infection_chance_multiplier = 1.8
+boss_health_multiplier = 1.4
+helicopter_wait_time = 45.0
+wave_size_multiplier = 1.5
+autosave_on_floor_change = false

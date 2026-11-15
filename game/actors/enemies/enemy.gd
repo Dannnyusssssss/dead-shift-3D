@@ -77,7 +77,8 @@ func _ready() -> void:
 	floor_constant_speed = true
 	floor_snap_length = 0.4
 	_rng.seed = rng_seed
-	health = EnemyHealth.new(data, _rng, _vest_max(), vest_override)
+	var difficulty := GameState.difficulty
+	health = EnemyHealth.new(data, _rng, _vest_max(), vest_override, difficulty.enemy_health(1.0))
 	_behavior = EnemyBehaviors.create(data.behavior)
 	_sight_query = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, Rules.LAYER_WORLD)
 	_noise_query = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, Rules.LAYER_WORLD)
@@ -318,7 +319,11 @@ func _attack(delta: float) -> void:
 		_player != null
 		and global_position.distance_to(_player.global_position) <= data.attack_range + 0.3
 	):
-		_player.receive_damage(data.attack_damage, data.infect_chance)
+		var difficulty := GameState.difficulty
+		_player.receive_damage(
+			difficulty.enemy_damage(data.attack_damage),
+			difficulty.infection_chance(data.infect_chance)
+		)
 	_attack_cooldown = data.attack_interval
 	state = STATE_CHASE
 
@@ -328,7 +333,7 @@ func _die() -> void:
 	collision_layer = 0
 	collision_mask = Rules.LAYER_WORLD
 	velocity = Vector3.ZERO
-	var drops := LootRoller.roll(health, GameState.items, _rng)
+	var drops := LootRoller.roll(health, GameState.items, _rng, GameState.difficulty)
 	EventBus.enemy_died.emit(global_position, drops)
 	died.emit()
 	var tween := create_tween()

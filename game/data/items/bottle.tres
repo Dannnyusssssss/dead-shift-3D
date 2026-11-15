@@ -8,3 +8,4 @@ id = "bottle"
 name_key = "item_bottle"
 max_stack = 3
 fragile = true
+pack_size = 1

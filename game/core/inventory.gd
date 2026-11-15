@@ -1,7 +1,11 @@
 class_name Inventory
 extends RefCounted
 ## Inventario limitado por casillas. Los objetos apilables se juntan hasta su máximo;
-## armas y chalecos ocupan una casilla cada uno con su propia durabilidad.
+## armas y chalecos ocupan una casilla cada uno con su propia durabilidad. Los materiales van
+## a la bolsa (MaterialBag), que no ocupa casillas: añadir, contar y quitar los incluye.
+
+## Bolsa de materiales.
+var bag: MaterialBag = MaterialBag.new()
 
 var _slots: Array[ItemStack] = []
 
@@ -34,7 +38,7 @@ func is_full() -> bool:
 
 
 func count_of(item_id: String) -> int:
-	var total := 0
+	var total := bag.count(item_id)
 	for stack: ItemStack in _slots:
 		if stack != null and stack.id() == item_id:
 			total += stack.count
@@ -50,8 +54,10 @@ func find_slot(item_id: String) -> int:
 	return -1
 
 
-## Añade unidades de un objeto nuevo. Devuelve cuántas no cupieron.
+## Añade unidades de un objeto nuevo (los materiales, a la bolsa). Devuelve cuántas no cupieron.
 func add_item(data: ItemData, amount: int) -> int:
+	if MaterialBag.is_material(data):
+		return bag.add(data, amount)
 	var left := maxi(amount, 0)
 	if data.max_stack > 1:
 		for stack: ItemStack in _slots:
@@ -73,7 +79,7 @@ func add_item(data: ItemData, amount: int) -> int:
 
 ## Añade una casilla ya creada (arma con desgaste, chaleco). Devuelve falso si no cabe.
 func add_stack(stack: ItemStack) -> bool:
-	if stack.item.max_stack > 1:
+	if stack.item.max_stack > 1 or MaterialBag.is_material(stack.item):
 		var leftover := add_item(stack.item, stack.count)
 		stack.count = leftover
 		return leftover == 0
@@ -84,9 +90,11 @@ func add_stack(stack: ItemStack) -> bool:
 	return true
 
 
-## Quita unidades de un objeto, empezando por las primeras casillas. Devuelve cuántas quitó.
+## Quita unidades de un objeto, empezando por la bolsa y las primeras casillas. Devuelve
+## cuántas quitó.
 func remove_count(item_id: String, amount: int) -> int:
 	var left := maxi(amount, 0)
+	left -= bag.remove(item_id, left)
 	for index: int in _slots.size():
 		if left == 0:
 			break
@@ -99,6 +107,20 @@ func remove_count(item_id: String, amount: int) -> int:
 		if stack.count == 0:
 			_slots[index] = null
 	return amount - left
+
+
+## Verdadero si caben las unidades dadas de un objeto (en su pila, en una casilla libre o en
+## la bolsa).
+func can_fit(data: ItemData, amount: int = 1) -> bool:
+	if MaterialBag.is_material(data):
+		return bag.space_for(data) >= amount
+	var room := 0
+	for stack: ItemStack in _slots:
+		if stack == null:
+			room += maxi(data.max_stack, 1)
+		elif stack.id() == data.id:
+			room += stack.space_left()
+	return room >= amount
 
 
 ## Quita una unidad de la casilla dada. Devuelve falso si estaba vacía.
@@ -177,7 +199,8 @@ func load_data(entries: Array[Dictionary], catalog: ItemCatalog) -> void:
 			var ammo: int = entry.get("ammo", 0)
 			stack.ammo_loaded = clampi(ammo, 0, data.weapon.magazine_size)
 		var slot: int = entry.get("slot", -1)
-		if not put_slot(slot, stack):
+		# Un material guardado en una casilla (partidas antiguas) pasa a la bolsa.
+		if MaterialBag.is_material(data) or not put_slot(slot, stack):
 			add_stack(stack)
 
 

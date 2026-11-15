@@ -14,6 +14,7 @@ const WEAPON_SHAPES: Dictionary = {
 	"pistol": [Vector3(0.05, 0.1, 0.22), Color(0.15, 0.15, 0.17), Vector3(0.0, 0.03, -0.08)],
 	"pipe": [Vector3(0.04, 0.04, 0.8), Color(0.55, 0.57, 0.6), Vector3(0.0, 0.0, -0.35)],
 	"pipe_grip": [Vector3(0.05, 0.05, 0.8), Color(0.45, 0.4, 0.35), Vector3(0.0, 0.0, -0.35)],
+	"pipe_nails": [Vector3(0.06, 0.06, 0.8), Color(0.5, 0.52, 0.55), Vector3(0.0, 0.0, -0.35)],
 	"bat": [Vector3(0.07, 0.07, 0.85), Color(0.6, 0.42, 0.24), Vector3(0.0, 0.0, -0.38)],
 	"bat_nails": [Vector3(0.09, 0.09, 0.85), Color(0.5, 0.36, 0.22), Vector3(0.0, 0.0, -0.38)],
 	"knife": [Vector3(0.02, 0.04, 0.3), Color(0.8, 0.82, 0.85), Vector3(0.0, 0.0, -0.14)],
@@ -29,6 +30,9 @@ const ITEM_SHAPES: Dictionary = {
 	"bandage": [Vector3(0.07, 0.07, 0.1), Color(0.92, 0.92, 0.88), Vector3(0.0, 0.0, -0.06)],
 	"antibiotics": [Vector3(0.05, 0.08, 0.05), Color(0.9, 0.9, 0.85), Vector3(0.0, 0.02, -0.05)],
 	"neutrax": [Vector3(0.03, 0.03, 0.11), Color(0.55, 0.75, 0.95), Vector3(0.0, 0.0, -0.06)],
+	"improvised_bandage":
+	[Vector3(0.09, 0.05, 0.1), Color(0.82, 0.8, 0.72), Vector3(0.0, 0.0, -0.06)],
+	"noise_bottle": [Vector3(0.06, 0.06, 0.2), Color(0.42, 0.5, 0.36), Vector3(0.0, 0.0, -0.1)],
 }
 
 var _right: Node3D = null

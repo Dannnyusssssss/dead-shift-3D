@@ -12,7 +12,8 @@ extends Node
 ## «boss_shotgun» y «boss_melee» (empiezan en el Nivel 2 frente al almacén, sin los demás
 ## enemigos, con o sin escopeta, y terminan en la puerta de la azotea), «lost» (en la azotea con
 ## el helicóptero ya ido: oleadas hasta el final de rescate perdido) y «death» (en el Nivel 2
-## casi sin salud ni armas: el final de muerte).
+## casi sin salud ni armas: el final de muerte). «--difficulty=medium» (o easy, hard) elige la
+## dificultad; por defecto, Fácil.
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Tiempo máximo de juego antes de darlo por fallido.
@@ -20,6 +21,22 @@ const TIME_LIMIT: float = 600.0
 const BOT_SEED: int = 20261114
 const ENGAGE_RANGE: float = 16.0
 const MELEE_RANGE: float = 1.3
+## Tras un golpe, si al arma le falta más que esto para recuperarse, se aparta hasta esta
+## fracción del alcance.
+const MELEE_RECOVER_MARGIN: float = 0.2
+const MELEE_BACKOFF: float = 1.7
+## Con tantos enemigos o más a esta distancia, prefiere el arma de fuego.
+const CROWD_RANGE: float = 6.0
+const CROWD_SIZE: int = 2
+## Contra el jefe se cura por debajo de esta fracción de salud si está a esta distancia o más.
+const BOSS_HEAL_FRACTION: float = 0.5
+## Contra enemigos normales se cura en plena pelea por debajo de esta fracción si el más
+## cercano está a esta distancia o más.
+const FIGHT_HEAL_FRACTION: float = 0.4
+const FIGHT_HEAL_DISTANCE: float = 6.0
+## Enemigos que tiene en cuenta al huir sin armas.
+const THREAT_RANGE: float = 14.0
+const BOSS_HEAL_DISTANCE: float = 5.0
 const INTERACT_RANGE: float = 1.6
 const REPATH_TIME: float = 0.5
 const CHEST_HEIGHT: float = 1.1
@@ -90,6 +107,10 @@ func _ready() -> void:
 			scenario = arg.trim_prefix("--scenario=")
 		elif arg.begins_with("--seed=") and arg.trim_prefix("--seed=").is_valid_int():
 			run_seed = clampi(arg.trim_prefix("--seed=").to_int(), 0, Validation.SEED_MAX)
+		elif arg.begins_with("--difficulty="):
+			var wanted := arg.trim_prefix("--difficulty=")
+			if Difficulty.IDS.has(wanted):
+				GameState.next_difficulty = wanted
 	# Semilla fija: el azar de la partida (mordidas) es el mismo en cada ejecución.
 	GameState.forced_seed = run_seed
 	_game = GAME_SCRIPT.new()
@@ -103,8 +124,8 @@ func _ready() -> void:
 	EventBus.enemy_died.connect(func(_o: Vector3, _d: Array[ItemStack]) -> void: _kills += 1)
 	print(
 		(
-			"[bot] inicio: escenario %s, semilla %d, piso %s"
-			% [scenario, run_seed, _game.level.floor_data.id]
+			"[bot] inicio: escenario %s, semilla %d, dificultad %s, piso %s"
+			% [scenario, run_seed, GameState.difficulty.id(), _game.level.floor_data.id]
 		)
 	)
 	if scenario.begins_with("boss"):
@@ -194,17 +215,26 @@ func _physics_process(delta: float) -> void:
 		return
 	_wanted.clear()
 	_has_aim = false
-	if _player.healing.active or _game.finished:
+	if _player.healing.active or _player.crafting.active or _game.finished:
 		_apply_actions()
 		return
 	_handle_phone()
 	var boss := _active_boss()
 	var enemy := _visible_enemy()
-	if boss != null:
+	if _helicopter_waiting():
+		# El helicóptero espera: corre al helipuerto pase lo que pase (subir es instantáneo).
+		var floor_data := _game.level.floor_data
+		_hold("sprint")
+		_walk_to(floor_data.helipad_position + Vector3.UP * floor_data.elevation(), delta)
+	elif boss != null:
 		_fight_boss(boss, delta)
+	elif enemy != null and _should_heal_in_fight(enemy):
+		_retreat(enemy)
 	elif enemy != null:
 		_fight(enemy, delta)
 	elif _try_heal():
+		pass
+	elif _try_craft():
 		pass
 	else:
 		var loot := _nearby_loot()
@@ -215,13 +245,22 @@ func _physics_process(delta: float) -> void:
 	_apply_actions()
 
 
-## Arma el teléfono en cuanto tiene las tres piezas y llama al llegar a la azotea.
+## Verdadero si el helicóptero está esperando en la azotea y el bot está en ella.
+func _helicopter_waiting() -> bool:
+	return (
+		GameState.rescue.state == RescueClock.STATE_WAITING and _game.level.floor_data.has_helipad
+	)
+
+
+## Arma el teléfono en cuanto tiene las tres piezas y llama al helicóptero en cuanto vence al
+## jefe (o al llegar a la azotea): así espera menos arriba, donde llegan las oleadas.
 func _handle_phone() -> void:
 	var keys := GameState.player.keys
 	if keys.can_assemble_phone() and keys.assemble_phone():
 		print("[bot] arma el teléfono")
 	var on_roof := _game.level.floor_data.has_helipad
-	if keys.phone_assembled and on_roof and GameState.rescue.call_helicopter():
+	var boss_beaten := keys.has("roof_key")
+	if keys.phone_assembled and (on_roof or boss_beaten) and GameState.rescue.call_helicopter():
 		print("[bot] llama al helicóptero")
 
 
@@ -243,7 +282,10 @@ func _active_boss() -> Boss:
 func _fight_boss(boss: Boss, delta: float) -> void:
 	var distance := _flat(boss.global_position).distance_to(_flat(_player.global_position))
 	var cloud := _cloud_here()
-	var hurt := GameState.player.health < Rules.PLAYER_MAX_HEALTH * 0.45 and distance > 7.0
+	var hurt := (
+		GameState.player.health < Rules.PLAYER_MAX_HEALTH * BOSS_HEAL_FRACTION
+		and distance > BOSS_HEAL_DISTANCE
+	)
 	var too_close := distance < boss.data.boss.charge_min_distance
 	if boss.boss_state == Boss.B_CHARGING:
 		_dodge_charge(boss)
@@ -267,12 +309,13 @@ func _fight_boss(boss: Boss, delta: float) -> void:
 	else:
 		# Sin tablero útil o con el jefe encima: gana distancia hacia el espacio abierto para
 		# que el jefe embista (y choque con una pared o un tablero).
-		_open_distance(boss, delta)
+		_open_distance(boss.global_position, delta)
 
 
-## Se aleja del jefe hacia el punto alcanzable (en un círculo a su alrededor) que más lo aleja de
-## él sin acabar en una nube; así no se arrincona.
-func _open_distance(boss: Boss, delta: float) -> void:
+## Se aleja de una amenaza (el jefe o un enemigo cuando no quedan armas) hacia el punto
+## alcanzable (en un círculo a su alrededor) que más lo aleja de ella sin acabar en una nube;
+## así no se arrincona.
+func _open_distance(threat: Vector3, delta: float) -> void:
 	var map := _player.get_world_3d().navigation_map
 	var best := Vector3.INF
 	var best_score := -INF
@@ -282,7 +325,7 @@ func _open_distance(boss: Boss, delta: float) -> void:
 		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
 		if absf(reachable.y - _player.global_position.y) > 1.0:
 			continue
-		var score := _flat(reachable).distance_to(_flat(boss.global_position))
+		var score := _flat(reachable).distance_to(_flat(threat))
 		score += _flat(reachable).distance_to(_flat(_player.global_position)) * 0.5
 		for node: Node in get_tree().get_nodes_in_group("toxic_cloud"):
 			var other := node as ToxicCloud
@@ -295,6 +338,22 @@ func _open_distance(boss: Boss, delta: float) -> void:
 		_hold("move_back")
 		return
 	_walk_to(best, delta)
+
+
+## Huye sin armas hacia espacio abierto; si no encuentra a dónde, se aleja como del jefe.
+func _flee(threat: Vector3, delta: float) -> void:
+	var floor_data := _game.level.floor_data
+	var point := Vector3.INF
+	if floor_data.has_helipad:
+		var center := floor_data.helipad_position + Vector3.UP * floor_data.elevation()
+		var threats := BotHelpers.threats_near(_player, THREAT_RANGE, SAME_FLOOR)
+		point = BotHelpers.circle_point(_player, center, threats)
+	if point == Vector3.INF:
+		point = BotHelpers.flee_point(_player, threat)
+	if point == Vector3.INF:
+		_open_distance(threat, delta)
+	else:
+		_walk_to(point, delta)
 
 
 ## Sale de la nube alejándose de su centro.
@@ -337,17 +396,18 @@ func _dodge_charge(boss: Boss) -> void:
 ## Aturdido: todo golpe cuenta como tanque. Escopeta o pistola si tiene; si no, bate de cerca.
 func _punish(boss: Boss, distance: float, delta: float) -> void:
 	var state := GameState.player
-	var shotgun := _slot_with("shotgun")
-	var melee := _best_melee_slot()
-	var pistol := _slot_with("pistol")
-	var pistol_ready := pistol >= 0 and _ammo_for(state.inventory.get_slot(pistol)) > 0
+	var shotgun := BotHelpers.slot_with("shotgun")
+	var melee := BotHelpers.best_melee_slot()
+	var pistol := BotHelpers.slot_with("pistol")
+	var pistol_ready := pistol >= 0 and BotHelpers.ammo_for(state.inventory.get_slot(pistol)) > 0
 	var choice := -1
-	if shotgun >= 0 and _ammo_for(state.inventory.get_slot(shotgun)) > 0:
+	if shotgun >= 0 and BotHelpers.ammo_for(state.inventory.get_slot(shotgun)) > 0:
 		choice = shotgun
-	elif melee >= 0 and (distance <= 3.0 or not pistol_ready):
-		choice = melee
-	else:
+	elif pistol_ready:
+		# La pistola hace más daño por segundo que cualquier arma cuerpo a cuerpo y no se acerca.
 		choice = pistol
+	else:
+		choice = melee
 	if choice >= 0 and choice != state.equipped_slot and not _player.combat.is_busy():
 		if state.select_slot(choice):
 			EventBus.weapon_changed.emit()
@@ -358,7 +418,7 @@ func _punish(boss: Boss, distance: float, delta: float) -> void:
 		_aim_at(boss.global_position + Vector3.UP * TANK_HEIGHT)
 		if stack.ammo_loaded > 0:
 			_tap("attack")
-		elif _ammo_for(stack) > 0:
+		elif BotHelpers.ammo_for(stack) > 0:
 			_tap("reload")
 		return
 	_aim_at(boss.global_position + Vector3.UP * CHEST_HEIGHT)
@@ -369,7 +429,7 @@ func _punish(boss: Boss, distance: float, delta: float) -> void:
 
 
 func _try_extinguisher(boss: Boss, distance: float, delta: float) -> bool:
-	var slot := _slot_with("extinguisher")
+	var slot := BotHelpers.slot_with("extinguisher")
 	if slot < 0 or boss.model.data == null:
 		return false
 	var state := GameState.player
@@ -437,35 +497,6 @@ func _in_cloud() -> bool:
 	return _cloud_here() != null
 
 
-func _slot_with(item_id: String) -> int:
-	return GameState.player.inventory.find_slot(item_id)
-
-
-func _best_melee_slot() -> int:
-	var state := GameState.player
-	var best := -1
-	var best_damage := 0.0
-	for index: int in state.inventory.capacity():
-		var stack := state.inventory.get_slot(index)
-		if stack == null or not stack.is_weapon() or stack.durability.is_broken():
-			continue
-		var weapon := stack.item.weapon
-		if (
-			weapon.kind == WeaponData.KIND_MELEE
-			and not weapon.stuns
-			and weapon.damage > best_damage
-		):
-			best = index
-			best_damage = weapon.damage
-	return best
-
-
-func _ammo_for(stack: ItemStack) -> int:
-	if stack == null or stack.item.weapon == null:
-		return 0
-	return stack.ammo_loaded + GameState.player.inventory.count_of(stack.item.weapon.ammo_item_id)
-
-
 # --- Enemigos normales ----------------------------------------------------------------------
 
 
@@ -477,8 +508,13 @@ func _fight(enemy: Enemy, delta: float) -> void:
 	var ranged := stack != null and stack.item.weapon.kind == WeaponData.KIND_RANGED
 	var height := HEAD_AIM_HEIGHT if ranged else CHEST_HEIGHT
 	_aim_at(enemy.global_position + Vector3.UP * height)
-	if not _has_usable_weapon() and distance > RETREAT_RANGE:
-		_follow_route(delta)
+	if not BotHelpers.has_usable_weapon():
+		# Sin armas: sigue su camino si el enemigo está lejos; si no, corre hacia espacio abierto.
+		if distance > RETREAT_RANGE:
+			_follow_route(delta)
+		else:
+			_hold("sprint")
+			_flee(enemy.global_position, delta)
 		return
 	if stack != null and ranged:
 		if stack.ammo_loaded > 0:
@@ -493,58 +529,77 @@ func _fight(enemy: Enemy, delta: float) -> void:
 	if stack == null:
 		_retreat(enemy)
 		return
+	var recovering := _player.combat.cooldown_left() > MELEE_RECOVER_MARGIN
 	if distance > MELEE_RANGE * 2.0:
 		# Lejos: se acerca por la navegación (puede haber un escaparate en medio).
 		_walk_to(enemy.global_position, delta)
+	elif recovering:
+		# Golpea y se aparta mientras el arma se recupera: el zarpazo tarda en llegar.
+		if distance < MELEE_RANGE * MELEE_BACKOFF:
+			_hold("move_back")
 	elif distance > MELEE_RANGE:
 		_hold("move_forward")
 	else:
 		_hold("attack")
 
 
-## Arma de fuego contra los resistentes (policías) y los rápidos que rodean (acechador), cuerpo
-## a cuerpo contra el resto, para no gastar balas ni atraer a todo el piso con disparos.
-## La escopeta se reserva para el jefe.
+## Arma de fuego contra los resistentes (policías), los rápidos que rodean (acechador) y cuando
+## hay varios cerca a la vez; cuerpo a cuerpo contra el resto, para no gastar balas ni atraer a
+## todo el piso con disparos. La escopeta se reserva para el jefe mientras viva.
 func _choose_weapon(enemy: Enemy) -> void:
 	if _player.combat.is_busy():
 		return
 	var state := GameState.player
 	var tough := enemy.data.max_health >= 150.0 or enemy.data.behavior == "stalker"
+	tough = tough or BotHelpers.enemies_near(_player, CROWD_RANGE, SAME_FLOOR) >= CROWD_SIZE
+	var boss_alive := BotHelpers.boss_alive(get_tree())
 	var best := -1
 	var best_score := -1.0
+	var fallback := -1
+	var any_ready := false
 	for index: int in state.inventory.capacity():
 		var stack := state.inventory.get_slot(index)
 		if stack == null or not stack.is_weapon() or stack.durability.is_broken():
 			continue
 		var weapon := stack.item.weapon
-		if stack.id() == "shotgun" or weapon.stuns:
+		if stack.id() == "shotgun" and boss_alive:
+			continue
+		if weapon.stuns and boss_alive:
+			continue
+		if weapon.stuns:
+			# El extintor, solo si no queda nada más.
+			fallback = index
 			continue
 		var score := weapon.damage
 		if weapon.kind == WeaponData.KIND_RANGED:
-			if _ammo_for(stack) <= 0:
+			if BotHelpers.ammo_for(stack) <= 0:
 				continue
 			score += 1000.0 if tough else -1000.0
+		any_ready = true
 		if score > best_score:
 			best = index
 			best_score = score
+	if best < 0 and not any_ready:
+		best = fallback
 	if best >= 0 and best != state.equipped_slot and state.select_slot(best):
 		EventBus.weapon_changed.emit()
 
 
-## Tiene un arma cuerpo a cuerpo sana o un arma de fuego con munición.
-func _has_usable_weapon() -> bool:
-	var state := GameState.player
-	for index: int in state.inventory.capacity():
-		var stack := state.inventory.get_slot(index)
-		if stack == null or not stack.is_weapon() or stack.durability.is_broken():
-			continue
-		if stack.item.weapon.kind == WeaponData.KIND_MELEE or _ammo_for(stack) > 0:
-			return true
-	return false
+## En plena pelea, se cura si la salud está baja y el enemigo no está encima (camina despacio
+## hacia atrás mientras venda). Devuelve verdadero si empezó a curarse.
+func _should_heal_in_fight(enemy: Enemy) -> bool:
+	if GameState.player.health >= Rules.PLAYER_MAX_HEALTH * FIGHT_HEAL_FRACTION:
+		return false
+	if enemy.global_position.distance_to(_player.global_position) < FIGHT_HEAL_DISTANCE:
+		return false
+	return _try_heal()
 
 
 func _equip_melee() -> bool:
-	var slot := _best_melee_slot()
+	var slot := BotHelpers.best_melee_slot()
+	if slot < 0 and not BotHelpers.boss_alive(get_tree()):
+		# Sin nada mejor, el extintor también golpea.
+		slot = BotHelpers.slot_with("extinguisher")
 	if slot >= 0 and GameState.player.select_slot(slot):
 		EventBus.weapon_changed.emit()
 		return true
@@ -622,6 +677,19 @@ func _try_heal() -> bool:
 	return false
 
 
+## Sin enemigos a la vista, combina o repara lo que valga la pena. Devuelve si empezó.
+func _try_craft() -> bool:
+	var option := BotHelpers.crafting_option()
+	if option.is_empty():
+		return false
+	var recipe: RecipeData = option[0]
+	var slot: int = option[1]
+	if _player.crafting.start(recipe, slot) != Crafting.ERROR_NONE:
+		return false
+	print("[bot] combina %s" % recipe.id)
+	return true
+
+
 ## Objeto útil cercano en el suelo (munición, curas, objetos clave y armas si faltan).
 func _nearby_loot() -> Pickup:
 	var best: Pickup = null
@@ -638,6 +706,9 @@ func _nearby_loot() -> Pickup:
 		):
 			continue
 		var distance := _flat(pickup.global_position).distance_to(_flat(_player.global_position))
+		if pickup.stack.item.category == ItemData.CATEGORY_KEY:
+			# Un objeto clave (la llave que suelta el jefe) se va a buscar a cualquier distancia.
+			distance = minf(distance, 0.0)
 		if distance < best_distance:
 			best = pickup
 			best_distance = distance
@@ -647,21 +718,12 @@ func _nearby_loot() -> Pickup:
 func _wants(stack: ItemStack) -> bool:
 	var category := stack.item.category
 	if category == ItemData.CATEGORY_WEAPON:
-		return _weapon_count() < 4
+		return BotHelpers.weapon_count() < 4
 	return (
 		category == ItemData.CATEGORY_AMMO
 		or category == ItemData.CATEGORY_CONSUMABLE
 		or category == ItemData.CATEGORY_KEY
 	)
-
-
-func _weapon_count() -> int:
-	var count := 0
-	for index: int in GameState.player.inventory.capacity():
-		var stack := GameState.player.inventory.get_slot(index)
-		if stack != null and stack.is_weapon():
-			count += 1
-	return count
 
 
 func _collect(pickup: Pickup, delta: float) -> void:
@@ -778,17 +840,30 @@ func _level_nodes() -> Array[Node]:
 	return result
 
 
-## Suelta materiales (el bot no combina) si quedan menos de dos casillas libres, para que
-## quepan las curas y la munición, como haría un jugador.
+## Si quedan menos de dos casillas libres, suelta el arma cuerpo a cuerpo más débil (si lleva
+## más de dos), para que quepan las curas y la munición, como haría un jugador. Los materiales
+## van a la bolsa y no ocupan casillas.
 func _make_room() -> void:
 	var inventory := GameState.player.inventory
+	if inventory.capacity() - inventory.used_slots() >= 2:
+		return
+	var melee: Array[int] = []
 	for index: int in inventory.capacity():
-		if inventory.capacity() - inventory.used_slots() >= 2:
-			return
 		var stack := inventory.get_slot(index)
-		if stack != null and stack.item.category == ItemData.CATEGORY_MATERIAL:
-			_player.drop_stack(inventory.take_slot(index))
-			EventBus.inventory_changed.emit()
+		if stack != null and stack.is_weapon() and stack.item.weapon.kind == WeaponData.KIND_MELEE:
+			if not stack.item.weapon.stuns:
+				melee.append(index)
+	if melee.size() <= 2:
+		return
+	var weakest := melee[0]
+	for index: int in melee:
+		var damage := inventory.get_slot(index).item.weapon.damage
+		if damage < inventory.get_slot(weakest).item.weapon.damage:
+			weakest = index
+	if weakest == GameState.player.equipped_slot:
+		return
+	_player.drop_stack(inventory.take_slot(weakest))
+	EventBus.inventory_changed.emit()
 
 
 ## Pide mirar hacia un punto este fotograma.
@@ -856,7 +931,12 @@ func _on_goal() -> void:
 
 
 func _on_floor_changed(floor_id: String) -> void:
-	print("[bot] piso %s (salud %d)" % [floor_id, ceili(GameState.player.health)])
+	print(
+		(
+			"[bot] piso %s (salud %d) mochila: %s"
+			% [floor_id, ceili(GameState.player.health), BotHelpers.inventory_text()]
+		)
+	)
 	if floor_id != FINISH_FLOOR:
 		return
 	if scenario.begins_with("boss"):
@@ -909,4 +989,6 @@ func _finish(success: bool, reason: String) -> void:
 			]
 		)
 	)
+	if not success:
+		print("[bot] mochila al fallar: %s" % BotHelpers.inventory_text())
 	get_tree().quit(0 if success else 1)

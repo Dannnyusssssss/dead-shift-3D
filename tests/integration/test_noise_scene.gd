@@ -122,8 +122,7 @@ func test_wall_muffles_the_noise() -> void:
 func test_thrown_sturdy_object_lands_as_pickup() -> void:
 	GameState.player.inventory.add_item(GameState.items.get_item("rag"), 2)
 	await wait_physics_frames(2)
-	var slot := GameState.player.inventory.find_slot("rag")
-	assert_true(_player.throw_from_slot(slot))
+	assert_true(_player.throw_material("rag"))
 	assert_eq(GameState.player.inventory.count_of("rag"), 1, "gasta una unidad")
 	for _step: int in 30:
 		await wait_physics_frames(5)

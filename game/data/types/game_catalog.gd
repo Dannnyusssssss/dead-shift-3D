@@ -7,6 +7,8 @@ extends Resource
 @export var recipes: Array[RecipeData] = []
 @export var enemies: Array[EnemyData] = []
 @export var floors: Array[FloorData] = []
+## Dificultades que se ofrecen, en orden (la primera es la de las partidas antiguas).
+@export var difficulties: Array[DifficultyData] = []
 ## Piso donde empieza una partida nueva.
 @export var start_floor: String = "ground_floor"
 
@@ -40,7 +42,24 @@ func save_context() -> Dictionary:
 		"start_floor": start_floor,
 		"capacity": Rules.INVENTORY_SLOTS,
 		"phone_parts": Rules.PHONE_PARTS,
+		"difficulties": difficulty_ids(),
 	}
+
+
+## Identificadores de las dificultades, en orden.
+func difficulty_ids() -> Array[String]:
+	var result: Array[String] = []
+	for difficulty: DifficultyData in difficulties:
+		result.append(difficulty.id)
+	return result
+
+
+## Dificultad por identificador; si no existe, la primera (Fácil).
+func find_difficulty(difficulty_id: String) -> DifficultyData:
+	for difficulty: DifficultyData in difficulties:
+		if difficulty.id == difficulty_id:
+			return difficulty
+	return difficulties[0] if not difficulties.is_empty() else null
 
 
 func find_floor(floor_id: String) -> FloorData:

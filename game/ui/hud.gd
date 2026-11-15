@@ -95,7 +95,9 @@ func _refresh_click_prompt(delta: float) -> void:
 
 ## Ayuda mientras hay un objeto listo para lanzar.
 func _refresh_throw_hint() -> void:
-	var aiming := _player != null and _player.throw != null and _player.throw.ready_slot >= 0
+	var aiming := (
+		_player != null and _player.throw != null and not _player.throw.ready_item.is_empty()
+	)
 	_throw_hint.visible = aiming
 	if aiming:
 		var key := "throw_hint_touch" if InputRouter.touch_mode else "throw_hint"

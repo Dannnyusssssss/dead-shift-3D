@@ -6,7 +6,7 @@ extends RefCounted
 ## Nunca usa recursos del motor (.tres, .res, escenas): solo tipos JSON, que no ejecutan código.
 ## Solo decodifica y migra; el esquema campo por campo lo comprueba boundary/validation.gd.
 
-const CURRENT_VERSION: int = 3
+const CURRENT_VERSION: int = 4
 ## Tamaño máximo aceptado del texto guardado (bytes UTF-8).
 const MAX_BYTES: int = 262144
 ## Profundidad máxima de anidación aceptada.
@@ -62,6 +62,8 @@ static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 			current = _migrate_1_to_2(current)
 		elif version == 2:
 			current = _migrate_2_to_3(current)
+		elif version == 3:
+			current = _migrate_3_to_4(current)
 		version += 1
 	current["version"] = CURRENT_VERSION
 	return current
@@ -120,6 +122,13 @@ static func _migrate_2_to_3(old: Dictionary) -> Dictionary:
 		var old_world: Dictionary = world
 		flags = old_world.get("flags", [])
 	result["world"] = {"flags": flags, "floors": {}}
+	return result
+
+
+## Versión 3 a 4 (dificultades): las partidas anteriores se jugaban con los valores de Fácil.
+static func _migrate_3_to_4(old: Dictionary) -> Dictionary:
+	var result := old.duplicate(true)
+	result["difficulty"] = Difficulty.EASY
 	return result
 
 

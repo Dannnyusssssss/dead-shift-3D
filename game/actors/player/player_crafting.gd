@@ -15,8 +15,8 @@ var _crafting: Crafting = null
 var _timer: float = 0.0
 var _duration: float = 0.0
 var _noise_timer: float = 0.0
-var _slot_a: int = -1
-var _slot_b: int = -1
+var _recipe: RecipeData = null
+var _slot: int = -1
 ## Lo que se está combinando: los dos objetos y el resultado ("" si es una reparación).
 var _description: Array[String] = []
 
@@ -27,28 +27,30 @@ func _ready() -> void:
 	EventBus.player_died.connect(cancel)
 
 
-## Comprueba si dos casillas se pueden combinar ahora. Devuelve un código o "".
-func check(slot_a: int, slot_b: int) -> String:
+## Comprueba si la receta se puede hacer ahora con la casilla dada (-1 si no usa casilla).
+## Devuelve un código o "".
+func check(recipe: RecipeData, slot: int) -> String:
 	if active:
 		return ERROR_BUSY
-	return _crafting.check(GameState.player.inventory, slot_a, slot_b)
+	return _crafting.check(GameState.player.inventory, recipe, slot)
 
 
 ## Empieza a combinar. Devuelve un código de error o "" si empezó.
-func start(slot_a: int, slot_b: int) -> String:
-	var problem := check(slot_a, slot_b)
+func start(recipe: RecipeData, slot: int) -> String:
+	var problem := check(recipe, slot)
 	if problem != Crafting.ERROR_NONE:
 		return problem
 	var inventory := GameState.player.inventory
-	var recipe := _crafting.find_recipe(inventory.get_slot(slot_a), inventory.get_slot(slot_b))
 	active = true
-	_slot_a = slot_a
-	_slot_b = slot_b
+	_recipe = recipe
+	_slot = slot
 	_duration = recipe.craft_time
 	_timer = _duration
 	_noise_timer = 0.0
-	var first := inventory.get_slot(slot_a).id()
-	var second := inventory.get_slot(slot_b).id()
+	var first := recipe.input_a
+	var second := recipe.input_b
+	if recipe.is_repair():
+		second = inventory.get_slot(slot).id()
 	_description = [first, second, "" if recipe.is_repair() else recipe.result_id]
 	_player.arms.start_craft(first, second)
 	EventBus.crafting_changed.emit(true)
@@ -86,7 +88,14 @@ func _physics_process(delta: float) -> void:
 
 
 func _finish() -> void:
-	var result := _crafting.craft(GameState.player.inventory, _slot_a, _slot_b)
+	var state := GameState.player
+	var was_equipped := _slot >= 0 and _slot == state.equipped_slot
+	var result := _crafting.craft(state.inventory, _recipe, _slot)
+	if result == Crafting.ERROR_NONE and was_equipped and state.equipped() == null:
+		# Se combinó el arma en la mano: se equipa lo que salió (o la siguiente arma).
+		var made := state.inventory.find_slot(_recipe.result_id)
+		if made < 0 or not state.select_slot(made):
+			state.cycle_weapon(1)
 	if result == Crafting.ERROR_NONE:
 		GameState.player.items_crafted += 1
 		EventBus.user_message.emit("msg_crafted")

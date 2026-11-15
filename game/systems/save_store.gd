@@ -6,8 +6,8 @@ extends Node
 const SETTINGS_PATH: String = "user://settings.json"
 const GAME_PATH: String = "user://save_1.json"
 const BEST_PATH: String = "user://best.json"
-## Versión del formato de la mejor marca.
-const BEST_VERSION: int = 1
+## Versión del formato de la mejor marca (2: una nota por dificultad).
+const BEST_VERSION: int = 2
 
 ## Evita repetir el aviso de almacenamiento no disponible.
 var _storage_warned: bool = false
@@ -53,25 +53,30 @@ func delete_game() -> void:
 		DirAccess.remove_absolute(GAME_PATH)
 
 
-## Mejor nota guardada en este dispositivo ("" si no hay o si está dañada).
-func load_best() -> String:
-	var decoded := SaveCodec.decode(_read_text(BEST_PATH), BEST_VERSION)
-	if not decoded.ok:
-		return ""
-	var grade: Variant = decoded.data.get("grade")
-	if grade is String and RunStats.GRADES.has(grade):
-		return grade
-	return ""
+## Mejores notas guardadas en este dispositivo, por dificultad ({} si no hay o están dañadas).
+func load_best_all() -> Dictionary:
+	var ids := GameState.CATALOG.difficulty_ids()
+	return Validation.parse_best(_read_text(BEST_PATH), ids, BEST_VERSION)
 
 
-## Guarda la nota si mejora la anterior. Devuelve verdadero si fue récord.
-func save_best(grade: String) -> bool:
+## Mejor nota de una dificultad ("" si no hay).
+func load_best(difficulty_id: String) -> String:
+	var grade: String = load_best_all().get(difficulty_id, "")
+	return grade
+
+
+## Guarda la nota de una dificultad si mejora la anterior. Devuelve verdadero si fue récord.
+func save_best(grade: String, difficulty_id: String) -> bool:
 	if not RunStats.GRADES.has(grade):
 		return false
-	var previous := load_best()
+	if not GameState.CATALOG.difficulty_ids().has(difficulty_id):
+		return false
+	var grades := load_best_all()
+	var previous: String = grades.get(difficulty_id, "")
 	if not previous.is_empty() and RunStats.grade_rank(previous) <= RunStats.grade_rank(grade):
 		return false
-	return _write_text(BEST_PATH, SaveCodec.encode({"grade": grade}, BEST_VERSION))
+	grades[difficulty_id] = grade
+	return _write_text(BEST_PATH, SaveCodec.encode({"grades": grades}, BEST_VERSION))
 
 
 ## Borra todos los datos guardados en este navegador (ajustes, partida y mejor marca).

@@ -1,7 +1,7 @@
 class_name SaveSchema
 extends RefCounted
-## Límites del guardado de partida (versión 2). Lo que exceda se ajusta o se descarta en
-## boundary/save_validation.gd.
+## Límites del guardado de partida (versión actual de SaveCodec). Lo que exceda se ajusta o se
+## descarta en boundary/save_validation.gd.
 
 ## Pisos en el orden del guardado de la versión 1 (que los guardaba por número).
 const V1_FLOORS: Array[String] = ["ground_floor", "level_1", "level_2", "rooftop"]

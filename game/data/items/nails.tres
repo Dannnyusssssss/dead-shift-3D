@@ -6,4 +6,5 @@
 script = ExtResource("1_m1x4r")
 id = "nails"
 name_key = "item_nails"
-max_stack = 20
+max_stack = 30
+pack_size = 6

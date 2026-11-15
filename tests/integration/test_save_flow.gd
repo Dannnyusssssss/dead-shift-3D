@@ -20,6 +20,7 @@ func before_each() -> void:
 func after_each() -> void:
 	EventBus.user_message.disconnect(_on_message)
 	GameState.forced_seed = -1
+	GameState.next_difficulty = Difficulty.EASY
 	GameState.set_paused(false)
 	InputRouter.gameplay_active = false
 	InputRouter.release_capture()
@@ -104,3 +105,22 @@ func test_rescue_or_lost_ending_clears_the_save() -> void:
 	EventBus.goal_reached.emit()
 	await wait_frames(2)
 	assert_false(SaveStore.has_game(), "la historia terminó")
+
+
+func test_hard_saves_only_in_safe_zones_and_keeps_difficulty() -> void:
+	GameState.next_difficulty = Difficulty.HARD
+	await _start()
+	await wait_frames(40)
+	var data := _load_saved()
+	assert_eq(data["difficulty"], Difficulty.HARD, "la dificultad va en el guardado")
+	SaveStore.delete_game()
+	await _travel("level_1", "stairs_down")
+	assert_false(SaveStore.has_game(), "en Difícil no se guarda al cambiar de piso")
+	_game.save_game(SaveValidation.SPAWN_SAFE, "security_room", false)
+	_game.queue_free()
+	await wait_physics_frames(2)
+	GameState.next_difficulty = Difficulty.EASY
+	await _start(_load_saved())
+	assert_eq(GameState.difficulty.id(), Difficulty.HARD, "continuar conserva la dificultad")
+	assert_eq(GameState.rescue.time_left, 0.0)
+	assert_eq(GameState.next_difficulty, Difficulty.HARD, "«Jugar de nuevo» repite la dificultad")

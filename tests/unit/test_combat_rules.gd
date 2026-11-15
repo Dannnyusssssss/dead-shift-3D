@@ -20,7 +20,7 @@ func _police(vest_chance: float = 1.0) -> EnemyData:
 
 
 func _catalog() -> ItemCatalog:
-	return ItemCatalog.new([Fixtures.material("ammo", 60), Fixtures.vest()])
+	return ItemCatalog.new([Fixtures.stackable("ammo", 60), Fixtures.vest()])
 
 
 func _with_vest(seed_value: int = 1) -> EnemyHealth:

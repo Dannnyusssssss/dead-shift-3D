@@ -40,6 +40,11 @@ func _ready() -> void:
 	_start_wave()
 
 
+## Ajusta el tamaño de las oleadas a la dificultad de la partida.
+func apply_difficulty(difficulty: Difficulty) -> void:
+	waves = difficulty.waves(waves)
+
+
 ## Prepara el generador para la espera del helicóptero.
 func use_call_waves() -> void:
 	waves = CALL_WAVES

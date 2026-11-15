@@ -133,13 +133,16 @@ func _tick_cameras(delta: float) -> void:
 		EventBus.camera_alert.emit(alert)
 
 
-## El jugador pasó a otro piso: autoguardado en el descansillo más cercano y, en la azotea
-## tras perder el rescate, oleadas.
+## El jugador pasó a otro piso: autoguardado en el descansillo más cercano (salvo en las
+## dificultades que solo guardan en zonas seguras) y, en la azotea tras perder el rescate,
+## oleadas.
 func _on_floor_changed(_floor_id: String) -> void:
 	_maybe_start_waves()
 	if not _started or finished or level.player.is_dead():
 		return
 	_safe_room = ""
+	if not GameState.difficulty.autosave_on_floor_change():
+		return
 	var exit_id := level.nearest_exit_id()
 	if not exit_id.is_empty():
 		save_game(SaveValidation.SPAWN_EXIT, exit_id, false)
@@ -177,6 +180,7 @@ func _make_spawner(spawner_name: String, call_waves: bool = false) -> WaveSpawne
 	spawner.name = spawner_name
 	if call_waves:
 		spawner.use_call_waves()
+	spawner.apply_difficulty(GameState.difficulty)
 	var lift := Vector3.UP * level.floor_data.elevation()
 	for point: Vector3 in level.floor_data.wave_spawn_points:
 		spawner.spawn_points.append(point + lift)
@@ -197,7 +201,8 @@ func save_game(spawn_kind: String, spawn_id: String, manual: bool) -> bool:
 		spawn_kind,
 		spawn_id,
 		GameState.run_seed,
-		elapsed
+		elapsed,
+		GameState.difficulty.id()
 	)
 	if not SaveStore.save_game(data):
 		return false
@@ -248,9 +253,9 @@ func _finish(outcome: int) -> void:
 	level.player.set_blocked("finished", true)
 	var stats := RunStats.from_state(GameState.player, outcome, elapsed)
 	if outcome == RunStats.OUTCOME_RESCUED:
-		SaveStore.save_best(stats.grade())
+		SaveStore.save_best(stats.grade(), GameState.difficulty.id())
 	if outcome == RunStats.OUTCOME_RESCUED or outcome == RunStats.OUTCOME_LOST:
 		# La historia terminó: no queda nada que continuar.
 		SaveStore.delete_game()
-	_end_screen.show_result(stats, SaveStore.has_game())
+	_end_screen.show_result(stats, SaveStore.has_game(), GameState.difficulty)
 	EventBus.run_finished.emit(outcome)

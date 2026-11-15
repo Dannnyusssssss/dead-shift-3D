@@ -16,7 +16,7 @@ func test_fire_spends_ammo_until_empty() -> void:
 
 func test_reload_takes_only_what_fits() -> void:
 	var inventory := Inventory.new(4)
-	inventory.add_item(Fixtures.material("ammo", 60), 20)
+	inventory.add_item(Fixtures.stackable("ammo", 60), 20)
 	var gun := ItemStack.new(Fixtures.pistol(8))
 	gun.ammo_loaded = 3
 	assert_eq(WeaponUse.reload_from(gun, inventory), 5)
@@ -27,7 +27,7 @@ func test_reload_takes_only_what_fits() -> void:
 
 func test_reload_with_little_ammo() -> void:
 	var inventory := Inventory.new(4)
-	inventory.add_item(Fixtures.material("ammo", 60), 2)
+	inventory.add_item(Fixtures.stackable("ammo", 60), 2)
 	var gun := ItemStack.new(Fixtures.pistol(8))
 	assert_eq(WeaponUse.reload_from(gun, inventory), 2)
 	assert_false(WeaponUse.can_reload(gun, inventory), "sin munición")

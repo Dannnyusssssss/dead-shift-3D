@@ -188,13 +188,25 @@ func ammo_left() -> int:
 	return total
 
 
-## Casilla que se lanza con la acción rápida: el primer material del inventario, o -1.
-func quick_throw_slot() -> int:
-	for index: int in inventory.capacity():
-		var stack := inventory.get_slot(index)
-		if stack != null and stack.item.category == ItemData.CATEGORY_MATERIAL:
-			return index
-	return -1
+## Material que se lanza con la acción rápida: el primero de la bolsa en el orden del catálogo
+## (los señuelos solo si no hay otro), o "".
+func quick_throw_item() -> String:
+	var lure := ""
+	for item_id: String in inventory.bag.ids(_items):
+		var data := _items.get_item(item_id)
+		if data.lure_time <= 0.0:
+			return item_id
+		if lure.is_empty():
+			lure = item_id
+	return lure
+
+
+## Saca una unidad de un material de la bolsa (para lanzarla). Devuelve null si no hay.
+func take_material(item_id: String) -> ItemStack:
+	var data := _items.get_item(item_id)
+	if data == null or inventory.bag.remove(item_id, 1) != 1:
+		return null
+	return ItemStack.new(data, 1)
 
 
 ## Saca una unidad de la casilla dada (para lanzarla). Devuelve null si está vacía.

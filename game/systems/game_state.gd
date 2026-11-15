@@ -1,6 +1,6 @@
 extends Node
-## Estado de la partida en curso: catálogo de datos, estado del jugador, semilla del azar
-## de la partida y pausa.
+## Estado de la partida en curso: catálogo de datos, estado del jugador, dificultad, semilla del
+## azar de la partida y pausa.
 
 const CATALOG: GameCatalog = preload("res://game/data/catalog.tres")
 
@@ -8,6 +8,11 @@ var items: ItemCatalog = null
 var player: PlayerState = null
 var world: WorldState = null
 var rescue: RescueClock = null
+## Dificultad de la partida en curso.
+var difficulty: Difficulty = Difficulty.new()
+## Dificultad con la que empieza la próxima partida nueva (la elige el menú; «Jugar de nuevo»
+## repite la última).
+var next_difficulty: String = Difficulty.EASY
 var paused: bool = false
 ## Semilla de la partida en curso y azar de las reglas que dependen de ella (mordidas).
 var run_seed: int = 0
@@ -27,9 +32,10 @@ func _ready() -> void:
 func start_new_run() -> void:
 	run_seed = _pick_seed()
 	rng.seed = run_seed
+	difficulty = Difficulty.new(CATALOG.find_difficulty(next_difficulty))
 	player = PlayerState.new(items)
 	world = WorldState.new()
-	rescue = RescueClock.new()
+	rescue = RescueClock.new(Rules.HELICOPTER_ARRIVAL_TIME, difficulty.helicopter_wait_time())
 	world.current_floor = CATALOG.start_floor
 	player.give_starting_kit()
 	set_paused(false)
@@ -39,9 +45,12 @@ func start_new_run() -> void:
 func load_run(data: Dictionary) -> void:
 	run_seed = data.get("seed", 0)
 	rng.seed = run_seed
+	var difficulty_id: String = data.get("difficulty", Difficulty.EASY)
+	difficulty = Difficulty.new(CATALOG.find_difficulty(difficulty_id))
+	next_difficulty = difficulty.id()
 	player = SaveGame.restore_player(data, items)
 	world = SaveGame.restore_world(data)
-	rescue = SaveGame.restore_rescue(data)
+	rescue = SaveGame.restore_rescue(data, difficulty.helicopter_wait_time())
 	set_paused(false)
 
 

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_pnails"]
+[ext_resource type="Script" path="res://game/data/types/weapon_data.gd" id="2_pnails"]
+
+[sub_resource type="Resource" id="Resource_pnails"]
+script = ExtResource("2_pnails")
+damage = 40.0
+attack_interval = 0.8
+max_durability = 36.0
+wear_per_hit = 4.0
+
+[resource]
+script = ExtResource("1_pnails")
+id = "pipe_nails"
+name_key = "item_pipe_nails"
+category = 2
+weapon = SubResource("Resource_pnails")

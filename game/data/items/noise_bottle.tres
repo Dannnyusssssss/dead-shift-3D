@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_nbottle"]
+
+[resource]
+script = ExtResource("1_nbottle")
+id = "noise_bottle"
+name_key = "item_noise_bottle"
+max_stack = 3
+lure_time = 6.0

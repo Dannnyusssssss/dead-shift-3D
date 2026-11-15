@@ -1,13 +1,17 @@
 extends Control
 ## Pantalla de inicio: nombre del juego, aviso de contenido y menú: «Continuar» (si hay una
-## partida guardada válida), «Nueva partida» (pide confirmación si se perdería la guardada) y
-## «Borrar datos guardados» (con confirmación). Muestra la mejor nota del dispositivo. El toque
+## partida guardada válida), «Nueva partida» (pide confirmación si se perdería la guardada y
+## luego la dificultad) y «Borrar datos guardados» (con confirmación). Muestra la mejor nota del
+## dispositivo en cada dificultad. El toque
 ## o clic en un botón es el gesto que el navegador exige para capturar el puntero y, más
 ## adelante, para el audio.
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 
 var _menu: Control = null
+## Botones del menú principal (se esconden mientras se elige la dificultad).
+var _main_box: VBoxContainer = null
+var _difficulty_box: VBoxContainer = null
 var _game: Game = null
 var _continue: TapButton = null
 var _play: TapButton = null
@@ -39,8 +43,8 @@ func _refresh_menu() -> void:
 	_delete_armed = false
 	_play.text = tr("start_new_game")
 	_delete.text = tr("start_delete_data")
-	var best := SaveStore.load_best()
-	_status.text = "%s %s" % [tr("start_best_grade"), best] if not best.is_empty() else ""
+	_show_difficulties(false)
+	_status.text = _best_text()
 	if _continue.visible:
 		_continue.grab_focus()
 	else:
@@ -66,13 +70,40 @@ func _on_continue() -> void:
 	_start_game(saved)
 
 
-## Empezar de nuevo sobrescribe la única ranura al primer autoguardado: se confirma.
+## Empezar de nuevo sobrescribe la única ranura al primer autoguardado: se confirma. Después se
+## elige la dificultad.
 func _on_new_game() -> void:
 	if SaveStore.has_game() and not _play_armed:
 		_play_armed = true
 		_play.text = tr("start_new_game_confirm")
 		return
+	_show_difficulties(true)
+
+
+func _on_difficulty(difficulty_id: String) -> void:
+	GameState.next_difficulty = difficulty_id
 	_start_game({})
+
+
+## Cambia entre el menú principal y la elección de dificultad.
+func _show_difficulties(choosing: bool) -> void:
+	_main_box.visible = not choosing
+	_difficulty_box.visible = choosing
+	if choosing:
+		var first: Control = _difficulty_box.get_child(1)
+		first.grab_focus()
+
+
+## «Mejor nota: Fácil A · Medio B» con las dificultades que tengan nota.
+func _best_text() -> String:
+	var grades := SaveStore.load_best_all()
+	var parts: Array[String] = []
+	for difficulty: DifficultyData in GameState.CATALOG.difficulties:
+		if grades.has(difficulty.id):
+			parts.append("%s %s" % [tr(difficulty.name_key), grades[difficulty.id]])
+	if parts.is_empty():
+		return ""
+	return "%s %s" % [tr("start_best_grade"), " · ".join(parts)]
 
 
 func _on_delete() -> void:
@@ -137,16 +168,34 @@ func _build_menu() -> void:
 	box.add_child(title)
 	box.add_child(_text(tr("start_content_notice"), 22))
 	box.add_child(_text(tr("start_controls"), 18))
-	_continue = _button(box, "start_continue", _on_continue)
-	_play = _button(box, "start_new_game", _on_new_game)
-	_button(box, "options_title", _on_options)
-	_delete = _button(box, "start_delete_data", _on_delete)
+	_main_box = VBoxContainer.new()
+	_main_box.add_theme_constant_override("separation", 16)
+	box.add_child(_main_box)
+	_continue = _button(_main_box, "start_continue", _on_continue)
+	_play = _button(_main_box, "start_new_game", _on_new_game)
+	_button(_main_box, "options_title", _on_options)
+	_delete = _button(_main_box, "start_delete_data", _on_delete)
 	_delete.add_theme_font_size_override("font_size", 20)
+	_build_difficulties(box)
 	_status = _text("", 20)
 	box.add_child(_status)
 	_options = OptionsMenu.new()
 	_menu.add_child(_options)
 	_options.closed.connect(func() -> void: _refresh_menu())
+
+
+## Elección de dificultad: título, un botón por dificultad con su descripción corta y «Volver».
+func _build_difficulties(parent: Control) -> void:
+	_difficulty_box = VBoxContainer.new()
+	_difficulty_box.add_theme_constant_override("separation", 10)
+	_difficulty_box.visible = false
+	parent.add_child(_difficulty_box)
+	_difficulty_box.add_child(_text(tr("start_choose_difficulty"), 28))
+	for difficulty: DifficultyData in GameState.CATALOG.difficulties:
+		_button(_difficulty_box, difficulty.name_key, _on_difficulty.bind(difficulty.id))
+		_difficulty_box.add_child(_text(tr(difficulty.description_key), 18))
+	var back := _button(_difficulty_box, "start_back", _refresh_menu)
+	back.add_theme_font_size_override("font_size", 20)
 
 
 func _text(value: String, font_size: int) -> Label:

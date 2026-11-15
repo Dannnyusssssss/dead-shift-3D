@@ -137,14 +137,17 @@ function Step-Bot {
     # --fixed-fps hace la simulacion determinista y mas rapida que el tiempo real.
     # Escenarios: la partida completa hasta el rescate, el jefe con y sin escopeta, el rescate
     # perdido y la muerte.
-    # La partida completa se juega con varias semillas fijas.
-    $runs = @('full:20261114', 'full:7', 'full:31337', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
+    # La partida completa se juega con varias semillas fijas en Facil y con una en Medio
+    # (escenario:semilla:dificultad; sin dificultad, Facil).
+    $runs = @('full:20261114', 'full:7', 'full:31337', 'full:20261114:medium', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
     foreach ($run in $runs) {
         $parts = $run.Split(':')
         $scenario = $parts[0]
         $seed = $parts[1]
-        Write-Host "  escenario: $scenario (semilla $seed)"
-        $r = Invoke-Tool $script:Godot @('--headless', '--fixed-fps', '60', '--path', $Root, '-s', 'res://tests/bot/run_bot.gd', '--', "--scenario=$scenario", "--seed=$seed")
+        $difficulty = 'easy'
+        if ($parts.Count -gt 2) { $difficulty = $parts[2] }
+        Write-Host "  escenario: $scenario (semilla $seed, dificultad $difficulty)"
+        $r = Invoke-Tool $script:Godot @('--headless', '--fixed-fps', '60', '--path', $Root, '-s', 'res://tests/bot/run_bot.gd', '--', "--scenario=$scenario", "--seed=$seed", "--difficulty=$difficulty")
         Show-Lines @($r.Lines | Where-Object { $_ -match '^\[bot\] (COMPLETADO|FALLO|inicio)' }) 20
         $engine = @(Get-EngineProblems $r.Lines)
         if ($r.Code -ne 0 -or $engine.Count -gt 0) {

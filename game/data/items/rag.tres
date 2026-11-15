@@ -6,4 +6,5 @@
 script = ExtResource("1_g7fl6")
 id = "rag"
 name_key = "item_rag"
-max_stack = 5
+max_stack = 10
+pack_size = 3

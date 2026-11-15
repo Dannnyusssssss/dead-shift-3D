@@ -8,3 +8,4 @@ id = "pipe_grip"
 input_a = "pipe"
 input_b = "rag"
 result_id = "pipe_grip"
+amount_b = 2

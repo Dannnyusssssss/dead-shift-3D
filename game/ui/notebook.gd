@@ -61,17 +61,15 @@ func refresh() -> void:
 			line = tr("notebook_part_unknown") % name
 		_text(line, 18)
 	_heading("notebook_recipes")
+	var crafting := Crafting.new(GameState.CATALOG.recipes, GameState.items)
 	for recipe: RecipeData in GameState.CATALOG.recipes:
+		var wanted := crafting.materials(recipe)
 		if recipe.is_repair():
-			_text(tr("notebook_recipe_repair") % _name(recipe.input_a), 18)
+			_text(tr("notebook_recipe_repair") % _amount_name(recipe.input_a, wanted), 18)
 		else:
-			_text(
-				(
-					"%s + %s → %s"
-					% [_name(recipe.input_a), _name(recipe.input_b), _name(recipe.result_id)]
-				),
-				18
-			)
+			var first := _amount_name(recipe.input_a, wanted)
+			var second := _amount_name(recipe.input_b, wanted)
+			_text("%s + %s → %s" % [first, second, _name(recipe.result_id)], 18)
 	_heading("notebook_controls")
 	_text(tr("notebook_controls_text"), 16)
 
@@ -113,3 +111,9 @@ func _text(text: String, font_size: int) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_box.add_child(label)
 	return label
+
+
+## Nombre con las unidades que gasta la receta si son más de una («Clavos x4»).
+func _amount_name(item_id: String, wanted: Dictionary) -> String:
+	var amount: int = wanted.get(item_id, 1)
+	return _name(item_id) + (" x%d" % amount if amount > 1 else "")

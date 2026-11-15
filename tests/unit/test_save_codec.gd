@@ -110,3 +110,18 @@ func test_version_one_garbage_migrates_without_crashing() -> void:
 	assert_true(result.ok)
 	assert_eq(result.data["floor"], "ground_floor")
 	assert_eq(result.data["infection"]["infected"], false)
+
+
+func test_version_three_save_is_migrated_to_easy() -> void:
+	var old := '{"version": 3, "floor": "level_1", "health": 70, "world": {"flags": ["a"]}}'
+	var result := SaveCodec.decode(old)
+	assert_true(result.ok)
+	assert_eq(result.data.get("version"), SaveCodec.CURRENT_VERSION)
+	assert_eq(result.data.get("difficulty"), Difficulty.EASY, "partida antigua = Fácil")
+	assert_eq(result.data.get("health"), 70.0, "el resto se conserva")
+	assert_eq(result.data["world"]["flags"], ["a"])
+
+
+func test_version_three_migration_overrides_any_difficulty_field() -> void:
+	var result := SaveCodec.decode('{"version": 3, "difficulty": "hard"}')
+	assert_eq(result.data.get("difficulty"), Difficulty.EASY)

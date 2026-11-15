@@ -30,8 +30,11 @@ func _ready() -> void:
 		_build_room(room, room_builder)
 	if not loose.is_empty():
 		add_child(loose.build("extras"))
+	# Botín ajustado a la dificultad; se recorren todas las salas en orden, también lo ya
+	# recogido, para que lo quitado sea siempre lo mismo.
+	var loot := GameState.difficulty.floor_loot()
 	for room: RoomData in floor_data.rooms:
-		_place_loot(room)
+		_place_loot(room, loot)
 	for gate_spec: GateSpec in floor_data.gates:
 		var gate := Gate.new()
 		gate.spec = gate_spec
@@ -240,7 +243,7 @@ func _openings(room: RoomData, side: int, length: float) -> Array[Array]:
 	return result
 
 
-func _place_loot(room: RoomData) -> void:
+func _place_loot(room: RoomData, loot: Difficulty.FloorLoot) -> void:
 	var world := GameState.world
 	var floor_id := floor_data.id
 	var origin := Vector3(room.rect.position.x, 0.0, room.rect.position.y)
@@ -249,11 +252,15 @@ func _place_loot(room: RoomData) -> void:
 		var key := "%s_%d" % [room.id, index]
 		var node: Interactable = null
 		if spot.kind == LootSpot.KIND_PICKUP:
-			if world.is_taken(floor_id, key):
+			var item := GameState.items.get_item(spot.item_id)
+			var count := spot.count
+			if item != null:
+				count = loot.adjust(item.id, item.category, spot.count)
+			if count <= 0 or world.is_taken(floor_id, key):
 				continue
 			var pickup := Pickup.new()
 			pickup.item_id = spot.item_id
-			pickup.count = spot.count
+			pickup.count = count
 			pickup.durability_fraction = spot.durability
 			pickup.spot_key = key
 			pickup.used.connect(func(_by: Player) -> void: world.mark_taken(floor_id, key))
@@ -261,7 +268,7 @@ func _place_loot(room: RoomData) -> void:
 		else:
 			var container := LootContainer.new()
 			container.kind = spot.kind
-			container.contents = spot.contents
+			container.contents = loot.adjust_contents(spot.contents, GameState.items)
 			if world.has_container(floor_id, key):
 				container.contents = world.container_contents(floor_id, key)
 			container.used.connect(

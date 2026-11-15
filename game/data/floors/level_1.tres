@@ -162,7 +162,7 @@ width = 2.4
 script = ExtResource("7_loot_spo")
 kind = 0
 position = Vector3(6.8, 0, 10.8)
-contents = PackedStringArray("tape:1", "nails:2")
+contents = PackedStringArray("nails:6")
 
 [sub_resource type="Resource" id="Resource_room_22"]
 script = ExtResource("6_room_dat")
@@ -185,7 +185,7 @@ width = 3
 script = ExtResource("7_loot_spo")
 kind = 0
 position = Vector3(2, 0, 1.2)
-contents = PackedStringArray("rag:2")
+contents = PackedStringArray("rag:3")
 
 [sub_resource type="Resource" id="Resource_loot_25"]
 script = ExtResource("7_loot_spo")
@@ -258,7 +258,7 @@ contents = PackedStringArray()
 script = ExtResource("7_loot_spo")
 kind = 0
 position = Vector3(1.2, 0, 1.2)
-contents = PackedStringArray("pistol_ammo:4", "tape:1")
+contents = PackedStringArray("pistol_ammo:4", "tape:2")
 
 [sub_resource type="Resource" id="Resource_room_35"]
 script = ExtResource("6_room_dat")
@@ -400,13 +400,7 @@ side = 0
 offset = 12
 width = 3
 
-[sub_resource type="Resource" id="Resource_loot_53"]
-script = ExtResource("7_loot_spo")
-position = Vector3(14, 0, 10)
-item_id = "rag"
-contents = PackedStringArray()
-
-[sub_resource type="Resource" id="Resource_room_54"]
+[sub_resource type="Resource" id="Resource_room_53"]
 script = ExtResource("6_room_dat")
 id = "book_store"
 name_key = "room_books"
@@ -415,11 +409,10 @@ floor_color = Color(0.42, 0.42, 0.44, 1)
 wall_color = Color(0.6, 0.6, 0.62, 1)
 doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_51"), SubResource("Resource_door_52")])
 storefront_side = 0
-loot = Array[ExtResource("7_loot_spo")]([SubResource("Resource_loot_53")])
 light_energy = 0.9
 light_count = 2
 
-[sub_resource type="Resource" id="Resource_exit_55"]
+[sub_resource type="Resource" id="Resource_exit_54"]
 script = ExtResource("8_floor_ex")
 id = "stairs_down"
 position = Vector3(18, 0, 0)
@@ -427,7 +420,7 @@ arrival = Vector3(20, 0, 0)
 arrival_yaw_deg = 90
 label_key = "exit_down_ground"
 
-[sub_resource type="Resource" id="Resource_exit_56"]
+[sub_resource type="Resource" id="Resource_exit_55"]
 script = ExtResource("8_floor_ex")
 id = "stairs_up"
 position = Vector3(-10, 0, 0)
@@ -435,7 +428,7 @@ arrival = Vector3(-8.8, 0, 0)
 arrival_yaw_deg = 90
 label_key = "exit_up_level_2"
 
-[sub_resource type="Resource" id="Resource_exit_57"]
+[sub_resource type="Resource" id="Resource_exit_56"]
 script = ExtResource("8_floor_ex")
 id = "service_stairs"
 position = Vector3(-25, 0, 4)
@@ -443,7 +436,7 @@ arrival = Vector3(-25, 0, 3)
 arrival_yaw_deg = -90
 label_key = "exit_service"
 
-[sub_resource type="Resource" id="Resource_ramp_58"]
+[sub_resource type="Resource" id="Resource_ramp_57"]
 script = ExtResource("9_ramp_spe")
 kind = 1
 start = Vector3(-10, 0, 0)
@@ -453,7 +446,7 @@ rise = 5
 width = 3.6
 lanes = 2
 
-[sub_resource type="Resource" id="Resource_ramp_59"]
+[sub_resource type="Resource" id="Resource_ramp_58"]
 script = ExtResource("9_ramp_spe")
 kind = 0
 start = Vector3(-26, 0, 3)
@@ -462,7 +455,7 @@ run = 4
 rise = 2.5
 width = 1.8
 
-[sub_resource type="Resource" id="Resource_ramp_60"]
+[sub_resource type="Resource" id="Resource_ramp_59"]
 script = ExtResource("9_ramp_spe")
 kind = 0
 start = Vector3(-30, 2.5, 5)
@@ -472,7 +465,7 @@ rise = 2.5
 width = 1.8
 fill_below = false
 
-[sub_resource type="Resource" id="Resource_gate_61"]
+[sub_resource type="Resource" id="Resource_gate_60"]
 script = ExtResource("10_gate_spe")
 id = "security_post_gate"
 position = Vector3(3, 0, 6.45)
@@ -480,7 +473,7 @@ size = Vector3(3.2, 2.4, 0.15)
 required_item = "security_key"
 flag = "security_post_open"
 
-[sub_resource type="Resource" id="Resource_prop_62"]
+[sub_resource type="Resource" id="Resource_prop_61"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-16, 0, -4.6)
@@ -488,7 +481,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_63"]
+[sub_resource type="Resource" id="Resource_prop_62"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-16, 0, 4.6)
@@ -496,7 +489,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_64"]
+[sub_resource type="Resource" id="Resource_prop_63"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(12, 0, -4.6)
@@ -504,7 +497,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_65"]
+[sub_resource type="Resource" id="Resource_prop_64"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(12, 0, 4.6)
@@ -512,7 +505,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_66"]
+[sub_resource type="Resource" id="Resource_prop_65"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-7.6, 0, -3.6)
@@ -520,7 +513,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_67"]
+[sub_resource type="Resource" id="Resource_prop_66"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-7.6, 0, 3.6)
@@ -528,7 +521,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_68"]
+[sub_resource type="Resource" id="Resource_prop_67"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(7.6, 0, -3.6)
@@ -536,7 +529,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_69"]
+[sub_resource type="Resource" id="Resource_prop_68"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(7.6, 0, 3.6)
@@ -544,7 +537,7 @@ rotation_deg = 0
 size = Vector3(0.6, 4.7, 0.6)
 shade = 0.72
 
-[sub_resource type="Resource" id="Resource_prop_70"]
+[sub_resource type="Resource" id="Resource_prop_69"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(23.8, 0, 3)
@@ -552,7 +545,7 @@ rotation_deg = 0
 size = Vector3(0.12, 2.4, 1.9)
 shade = 0.22
 
-[sub_resource type="Resource" id="Resource_prop_71"]
+[sub_resource type="Resource" id="Resource_prop_70"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(23.8, 2.4, 3)
@@ -560,7 +553,7 @@ rotation_deg = 0
 size = Vector3(0.14, 0.12, 2.2)
 shade = 0.6
 
-[sub_resource type="Resource" id="Resource_prop_72"]
+[sub_resource type="Resource" id="Resource_prop_71"]
 script = ExtResource("11_prop_spe")
 kind = 4
 position = Vector3(23.7, 2.85, 3)
@@ -568,7 +561,7 @@ rotation_deg = -90
 size = Vector3(1, 0.006, 1)
 text_key = "sign_out_of_service"
 
-[sub_resource type="Resource" id="Resource_prop_73"]
+[sub_resource type="Resource" id="Resource_prop_72"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-20, 0, 5.2)
@@ -576,7 +569,7 @@ rotation_deg = 0
 size = Vector3(0.5, 0.9, 0.5)
 shade = 0.25
 
-[sub_resource type="Resource" id="Resource_prop_74"]
+[sub_resource type="Resource" id="Resource_prop_73"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(4, 0, -5.2)
@@ -584,7 +577,7 @@ rotation_deg = 0
 size = Vector3(0.5, 0.9, 0.5)
 shade = 0.25
 
-[sub_resource type="Resource" id="Resource_prop_75"]
+[sub_resource type="Resource" id="Resource_prop_74"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(21, 0, -5.2)
@@ -592,35 +585,35 @@ rotation_deg = 0
 size = Vector3(0.5, 0.9, 0.5)
 shade = 0.25
 
-[sub_resource type="Resource" id="Resource_prop_76"]
+[sub_resource type="Resource" id="Resource_prop_75"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(0, 0, -3.06)
 rotation_deg = 0
 size = Vector3(14, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_77"]
+[sub_resource type="Resource" id="Resource_prop_76"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(0, 0, 3.06)
 rotation_deg = 0
 size = Vector3(14, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_78"]
+[sub_resource type="Resource" id="Resource_prop_77"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(-7.06, 0, 0)
 rotation_deg = 90
 size = Vector3(6, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_79"]
+[sub_resource type="Resource" id="Resource_prop_78"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(7.06, 0, 0)
 rotation_deg = 90
 size = Vector3(6, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_80"]
+[sub_resource type="Resource" id="Resource_prop_79"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-31, 2.2, 4)
@@ -628,7 +621,7 @@ rotation_deg = 0
 size = Vector3(2, 0.3, 3.8)
 shade = 0.42
 
-[sub_resource type="Resource" id="Resource_prop_81"]
+[sub_resource type="Resource" id="Resource_prop_80"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-27.6, 0, 4)
@@ -636,28 +629,28 @@ rotation_deg = 0
 size = Vector3(3, 4.7, 0.2)
 shade = 0.5
 
-[sub_resource type="Resource" id="Resource_prop_82"]
+[sub_resource type="Resource" id="Resource_prop_81"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(14, 0, -1.96)
 rotation_deg = 0
 size = Vector3(8, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_83"]
+[sub_resource type="Resource" id="Resource_prop_82"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(14, 0, 1.96)
 rotation_deg = 0
 size = Vector3(8, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_84"]
+[sub_resource type="Resource" id="Resource_prop_83"]
 script = ExtResource("11_prop_spe")
 kind = 5
 position = Vector3(9.94, 0, 0)
 rotation_deg = 90
 size = Vector3(3.8, 1.1, 0.1)
 
-[sub_resource type="Resource" id="Resource_prop_85"]
+[sub_resource type="Resource" id="Resource_prop_84"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-20, 0, 4.6)
@@ -665,7 +658,7 @@ rotation_deg = 0
 size = Vector3(2, 0.45, 0.6)
 shade = 0.32
 
-[sub_resource type="Resource" id="Resource_prop_86"]
+[sub_resource type="Resource" id="Resource_prop_85"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(20, 0, -4.6)
@@ -673,7 +666,7 @@ rotation_deg = 0
 size = Vector3(2, 0.45, 0.6)
 shade = 0.32
 
-[sub_resource type="Resource" id="Resource_prop_87"]
+[sub_resource type="Resource" id="Resource_prop_86"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-20, 0, -4.6)
@@ -681,7 +674,7 @@ rotation_deg = 0
 size = Vector3(1.2, 0.8, 1.2)
 shade = 0.38
 
-[sub_resource type="Resource" id="Resource_prop_88"]
+[sub_resource type="Resource" id="Resource_prop_87"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-20, 0.8, -4.6)
@@ -689,7 +682,7 @@ rotation_deg = 0
 size = Vector3(0.7, 1, 0.7)
 shade = 0.22
 
-[sub_resource type="Resource" id="Resource_prop_89"]
+[sub_resource type="Resource" id="Resource_prop_88"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(20, 0, 4.6)
@@ -697,7 +690,7 @@ rotation_deg = 0
 size = Vector3(1.2, 0.8, 1.2)
 shade = 0.38
 
-[sub_resource type="Resource" id="Resource_prop_90"]
+[sub_resource type="Resource" id="Resource_prop_89"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(20, 0.8, 4.6)
@@ -705,7 +698,7 @@ rotation_deg = 0
 size = Vector3(0.7, 1, 0.7)
 shade = 0.22
 
-[sub_resource type="Resource" id="Resource_prop_91"]
+[sub_resource type="Resource" id="Resource_prop_90"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-21, 0, -14)
@@ -713,7 +706,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_92"]
+[sub_resource type="Resource" id="Resource_prop_91"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-18, 0, -14)
@@ -721,7 +714,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_93"]
+[sub_resource type="Resource" id="Resource_prop_92"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-15, 0, -14)
@@ -729,7 +722,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_94"]
+[sub_resource type="Resource" id="Resource_prop_93"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-12, 0, -14)
@@ -737,7 +730,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_95"]
+[sub_resource type="Resource" id="Resource_prop_94"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-21, 0, -10.5)
@@ -745,7 +738,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_96"]
+[sub_resource type="Resource" id="Resource_prop_95"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-18, 0, -10.5)
@@ -753,7 +746,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_97"]
+[sub_resource type="Resource" id="Resource_prop_96"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-15, 0, -10.5)
@@ -761,7 +754,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_98"]
+[sub_resource type="Resource" id="Resource_prop_97"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-12, 0, -10.5)
@@ -769,7 +762,7 @@ rotation_deg = 0
 size = Vector3(1.6, 1.4, 0.5)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_99"]
+[sub_resource type="Resource" id="Resource_prop_98"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-8, 0, -14)
@@ -777,7 +770,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_100"]
+[sub_resource type="Resource" id="Resource_prop_99"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-4.4, 0, -14)
@@ -785,7 +778,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_101"]
+[sub_resource type="Resource" id="Resource_prop_100"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-0.7999999999999998, 0, -14)
@@ -793,7 +786,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_102"]
+[sub_resource type="Resource" id="Resource_prop_101"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(5.5, 0, -11.5)
@@ -801,7 +794,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_103"]
+[sub_resource type="Resource" id="Resource_prop_102"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(10.5, 0, -11.5)
@@ -809,7 +802,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_104"]
+[sub_resource type="Resource" id="Resource_prop_103"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-21, 0, 9.5)
@@ -817,7 +810,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_105"]
+[sub_resource type="Resource" id="Resource_prop_104"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(-15, 0, 9.5)
@@ -825,7 +818,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_106"]
+[sub_resource type="Resource" id="Resource_prop_105"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(11, 0, 9.5)
@@ -833,7 +826,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_107"]
+[sub_resource type="Resource" id="Resource_prop_106"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(16, 0, 9.5)
@@ -841,7 +834,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_108"]
+[sub_resource type="Resource" id="Resource_prop_107"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(21, 0, 9.5)
@@ -849,7 +842,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_109"]
+[sub_resource type="Resource" id="Resource_prop_108"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(11, 0, 13)
@@ -857,7 +850,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_110"]
+[sub_resource type="Resource" id="Resource_prop_109"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(16, 0, 13)
@@ -865,7 +858,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_111"]
+[sub_resource type="Resource" id="Resource_prop_110"]
 script = ExtResource("11_prop_spe")
 kind = 3
 position = Vector3(21, 0, 13)
@@ -873,7 +866,7 @@ rotation_deg = 0
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 
-[sub_resource type="Resource" id="Resource_prop_112"]
+[sub_resource type="Resource" id="Resource_prop_111"]
 script = ExtResource("11_prop_spe")
 kind = 4
 position = Vector3(-10.5, 3.6, -2.3)
@@ -881,7 +874,7 @@ rotation_deg = 180
 size = Vector3(1, 0.006, 1)
 text_key = "floor_level_2"
 
-[sub_resource type="Resource" id="Resource_prop_113"]
+[sub_resource type="Resource" id="Resource_prop_112"]
 script = ExtResource("11_prop_spe")
 kind = 4
 position = Vector3(0, 3.3, -5.85)
@@ -894,14 +887,14 @@ script = ExtResource("12_floor_da")
 id = "level_1"
 name_key = "floor_level_1"
 level_index = 1
-rooms = Array[ExtResource("6_room_dat")]([SubResource("Resource_room_9"), SubResource("Resource_room_12"), SubResource("Resource_room_15"), SubResource("Resource_room_17"), SubResource("Resource_room_19"), SubResource("Resource_room_22"), SubResource("Resource_room_27"), SubResource("Resource_room_30"), SubResource("Resource_room_35"), SubResource("Resource_room_37"), SubResource("Resource_room_42"), SubResource("Resource_room_44"), SubResource("Resource_room_50"), SubResource("Resource_room_54")])
+rooms = Array[ExtResource("6_room_dat")]([SubResource("Resource_room_9"), SubResource("Resource_room_12"), SubResource("Resource_room_15"), SubResource("Resource_room_17"), SubResource("Resource_room_19"), SubResource("Resource_room_22"), SubResource("Resource_room_27"), SubResource("Resource_room_30"), SubResource("Resource_room_35"), SubResource("Resource_room_37"), SubResource("Resource_room_42"), SubResource("Resource_room_44"), SubResource("Resource_room_50"), SubResource("Resource_room_53")])
 holes = Array[Rect2]([Rect2(-7, -3, 14, 6), Rect2(10, -1.9, 8, 3.8), Rect2(-32, 2, 6, 4)])
-ramps = Array[ExtResource("9_ramp_spe")]([SubResource("Resource_ramp_58"), SubResource("Resource_ramp_59"), SubResource("Resource_ramp_60")])
+ramps = Array[ExtResource("9_ramp_spe")]([SubResource("Resource_ramp_57"), SubResource("Resource_ramp_58"), SubResource("Resource_ramp_59")])
 enemies = Array[ExtResource("2_enemy_sp")]([SubResource("Resource_spawn_1"), SubResource("Resource_spawn_2"), SubResource("Resource_spawn_3"), SubResource("Resource_spawn_4"), SubResource("Resource_spawn_5"), SubResource("Resource_spawn_6")])
 player_spawn = Vector3(20, 0, 0)
 player_yaw_deg = 90
-exits = Array[ExtResource("8_floor_ex")]([SubResource("Resource_exit_55"), SubResource("Resource_exit_56"), SubResource("Resource_exit_57")])
-gates = Array[ExtResource("10_gate_spe")]([SubResource("Resource_gate_61")])
-props = Array[ExtResource("11_prop_spe")]([SubResource("Resource_prop_62"), SubResource("Resource_prop_63"), SubResource("Resource_prop_64"), SubResource("Resource_prop_65"), SubResource("Resource_prop_66"), SubResource("Resource_prop_67"), SubResource("Resource_prop_68"), SubResource("Resource_prop_69"), SubResource("Resource_prop_70"), SubResource("Resource_prop_71"), SubResource("Resource_prop_72"), SubResource("Resource_prop_73"), SubResource("Resource_prop_74"), SubResource("Resource_prop_75"), SubResource("Resource_prop_76"), SubResource("Resource_prop_77"), SubResource("Resource_prop_78"), SubResource("Resource_prop_79"), SubResource("Resource_prop_80"), SubResource("Resource_prop_81"), SubResource("Resource_prop_82"), SubResource("Resource_prop_83"), SubResource("Resource_prop_84"), SubResource("Resource_prop_85"), SubResource("Resource_prop_86"), SubResource("Resource_prop_87"), SubResource("Resource_prop_88"), SubResource("Resource_prop_89"), SubResource("Resource_prop_90"), SubResource("Resource_prop_91"), SubResource("Resource_prop_92"), SubResource("Resource_prop_93"), SubResource("Resource_prop_94"), SubResource("Resource_prop_95"), SubResource("Resource_prop_96"), SubResource("Resource_prop_97"), SubResource("Resource_prop_98"), SubResource("Resource_prop_99"), SubResource("Resource_prop_100"), SubResource("Resource_prop_101"), SubResource("Resource_prop_102"), SubResource("Resource_prop_103"), SubResource("Resource_prop_104"), SubResource("Resource_prop_105"), SubResource("Resource_prop_106"), SubResource("Resource_prop_107"), SubResource("Resource_prop_108"), SubResource("Resource_prop_109"), SubResource("Resource_prop_110"), SubResource("Resource_prop_111"), SubResource("Resource_prop_112"), SubResource("Resource_prop_113")])
+exits = Array[ExtResource("8_floor_ex")]([SubResource("Resource_exit_54"), SubResource("Resource_exit_55"), SubResource("Resource_exit_56")])
+gates = Array[ExtResource("10_gate_spe")]([SubResource("Resource_gate_60")])
+props = Array[ExtResource("11_prop_spe")]([SubResource("Resource_prop_61"), SubResource("Resource_prop_62"), SubResource("Resource_prop_63"), SubResource("Resource_prop_64"), SubResource("Resource_prop_65"), SubResource("Resource_prop_66"), SubResource("Resource_prop_67"), SubResource("Resource_prop_68"), SubResource("Resource_prop_69"), SubResource("Resource_prop_70"), SubResource("Resource_prop_71"), SubResource("Resource_prop_72"), SubResource("Resource_prop_73"), SubResource("Resource_prop_74"), SubResource("Resource_prop_75"), SubResource("Resource_prop_76"), SubResource("Resource_prop_77"), SubResource("Resource_prop_78"), SubResource("Resource_prop_79"), SubResource("Resource_prop_80"), SubResource("Resource_prop_81"), SubResource("Resource_prop_82"), SubResource("Resource_prop_83"), SubResource("Resource_prop_84"), SubResource("Resource_prop_85"), SubResource("Resource_prop_86"), SubResource("Resource_prop_87"), SubResource("Resource_prop_88"), SubResource("Resource_prop_89"), SubResource("Resource_prop_90"), SubResource("Resource_prop_91"), SubResource("Resource_prop_92"), SubResource("Resource_prop_93"), SubResource("Resource_prop_94"), SubResource("Resource_prop_95"), SubResource("Resource_prop_96"), SubResource("Resource_prop_97"), SubResource("Resource_prop_98"), SubResource("Resource_prop_99"), SubResource("Resource_prop_100"), SubResource("Resource_prop_101"), SubResource("Resource_prop_102"), SubResource("Resource_prop_103"), SubResource("Resource_prop_104"), SubResource("Resource_prop_105"), SubResource("Resource_prop_106"), SubResource("Resource_prop_107"), SubResource("Resource_prop_108"), SubResource("Resource_prop_109"), SubResource("Resource_prop_110"), SubResource("Resource_prop_111"), SubResource("Resource_prop_112")])
 ambient_color = Color(0.22, 0.24, 0.3, 1)
 ambient_energy = 0.5

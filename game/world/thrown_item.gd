@@ -2,8 +2,8 @@ class_name ThrownItem
 extends Node3D
 ## Objeto lanzado por el jugador. Vuela con una trayectoria simple (gravedad y rayo por
 ## fotograma, sin física de cuerpos para que sea reproducible) y al chocar hace ruido en ese
-## punto: los oyentes van hacia allí. Si es frágil se rompe; si no, queda en el suelo para
-## recogerlo.
+## punto: los oyentes van hacia allí. Si es frágil se rompe; si es un señuelo sigue haciendo
+## ruido unos segundos; si no, queda en el suelo para recogerlo.
 
 const GRAVITY: float = 9.8
 ## Segundos máximos de vuelo antes de caer donde esté.
@@ -60,7 +60,12 @@ func _physics_process(delta: float) -> void:
 
 func _land(point: Vector3) -> void:
 	set_physics_process(false)
-	if _is_fragile():
+	if stack != null and stack.item.lure_time > 0.0:
+		var lure := Lure.new()
+		lure.time_left = stack.item.lure_time
+		get_parent().add_child(lure)
+		lure.global_position = point
+	elif _is_fragile():
 		NoiseSystem.emit_noise(point, Rules.NOISE_THROW_BREAK)
 		EventBus.sound_cue.emit("cue_glass_break", point)
 	else:

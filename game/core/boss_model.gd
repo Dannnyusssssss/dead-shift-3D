@@ -19,11 +19,14 @@ var _extinguisher_immunity: float = 0.0
 var _charge_cooldown: float = 0.0
 var _cloud_cooldown: float = 0.0
 var _swipe_cooldown: float = 0.0
+## Multiplicador de la vida de ambas fases (dificultad).
+var _health_scale: float = 1.0
 
 
-func _init(boss_data: BossData) -> void:
+func _init(boss_data: BossData, health_multiplier: float = 1.0) -> void:
 	data = boss_data
-	health = data.phase_one_health
+	_health_scale = maxf(health_multiplier, 0.01)
+	health = phase_health(PHASE_ONE)
 	begin_fight()
 
 
@@ -59,7 +62,7 @@ func take_hit(damage: float, on_tank: bool) -> float:
 	health -= applied
 	if health <= 0.0 and phase == PHASE_ONE:
 		phase = PHASE_TWO
-		health = data.phase_two_health
+		health = phase_health(PHASE_TWO)
 		phase_changed = true
 		stun(data.phase_change_stun)
 	return applied
@@ -132,7 +135,13 @@ func cloud_dps() -> float:
 	return data.cloud_dps_phase_one if phase == PHASE_ONE else data.cloud_dps_phase_two
 
 
+## Vida completa de una fase, con la dificultad aplicada.
+func phase_health(which: int) -> float:
+	var base := data.phase_one_health if which == PHASE_ONE else data.phase_two_health
+	return base * _health_scale
+
+
 ## Fracción de vida de la fase actual (para la barra de la interfaz).
 func health_fraction() -> float:
-	var full := data.phase_one_health if phase == PHASE_ONE else data.phase_two_health
+	var full := phase_health(phase)
 	return clampf(health / maxf(full, 1.0), 0.0, 1.0)

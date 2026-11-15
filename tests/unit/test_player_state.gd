@@ -9,7 +9,7 @@ var _items: ItemCatalog
 
 func before_each() -> void:
 	var pistol := Fixtures.pistol(8)
-	var ammo := Fixtures.material("ammo", 60)
+	var ammo := Fixtures.stackable("ammo", 60)
 	_items = (
 		ItemCatalog
 		. new(
@@ -21,6 +21,8 @@ func before_each() -> void:
 				Fixtures.consumable("bandage", ItemData.EFFECT_HEAL, 30.0),
 				Fixtures.consumable("antibiotics", ItemData.EFFECT_DELAY_INFECTION),
 				Fixtures.consumable("neutrax", ItemData.EFFECT_CURE_INFECTION),
+				Fixtures.material("rock", 5),
+				_lure(),
 			]
 		)
 	)
@@ -110,12 +112,31 @@ func test_throwing_equipped_weapon_equips_another() -> void:
 	assert_eq(state.equipped().id(), "pipe")
 
 
-func test_quick_throw_prefers_materials() -> void:
+func test_quick_throw_uses_bag_materials_lures_last() -> void:
 	var state := PlayerState.new(_items)
 	state.inventory.add_stack(ItemStack.new(_items.get_item("pipe")))
-	assert_eq(state.quick_throw_slot(), -1, "las armas no se lanzan con la acción rápida")
-	state.inventory.add_item(_items.get_item("ammo"), 2)
-	assert_eq(state.quick_throw_slot(), state.inventory.find_slot("ammo"))
+	assert_eq(state.quick_throw_item(), "", "las armas no se lanzan con la acción rápida")
+	state.inventory.add_item(_items.get_item("lure"), 1)
+	assert_eq(state.quick_throw_item(), "lure", "el señuelo si no hay otra cosa")
+	state.inventory.add_item(_items.get_item("rock"), 2)
+	assert_eq(state.quick_throw_item(), "rock", "primero lo que no es señuelo")
+
+
+func test_take_material_from_bag() -> void:
+	var state := PlayerState.new(_items)
+	state.inventory.add_item(_items.get_item("rock"), 2)
+	var one := state.take_material("rock")
+	assert_eq(one.count, 1)
+	assert_eq(state.inventory.bag.count("rock"), 1)
+	assert_not_null(state.take_material("rock"))
+	assert_null(state.take_material("rock"), "ya no queda")
+	assert_null(state.take_material("nada"))
+
+
+static func _lure() -> ItemData:
+	var data := Fixtures.material("lure", 3)
+	data.lure_time = 6.0
+	return data
 
 
 func _with(item_id: String, amount: int = 1) -> PlayerState:

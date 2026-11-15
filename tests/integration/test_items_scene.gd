@@ -93,11 +93,10 @@ func test_vest_swap_leaves_old_vest_on_floor() -> void:
 func test_crafting_takes_time_blocks_and_makes_noise() -> void:
 	var inventory := GameState.player.inventory
 	inventory.add_stack(ItemStack.new(GameState.items.get_item("bat")))
-	inventory.add_item(GameState.items.get_item("nails"), 2)
+	inventory.add_item(GameState.items.get_item("nails"), 5)
 	var bat_slot := inventory.find_slot("bat")
-	var nails_slot := inventory.find_slot("nails")
 	NoiseSystem.last_level = -1
-	assert_eq(_player.crafting.start(bat_slot, nails_slot), Crafting.ERROR_NONE)
+	assert_eq(_player.crafting.start(_recipe("bat_nails"), bat_slot), Crafting.ERROR_NONE)
 	await wait_physics_frames(3)
 	assert_true(_player.crafting.active)
 	assert_true(_player.hands_busy, "manos ocupadas mientras combina")
@@ -111,17 +110,62 @@ func test_crafting_takes_time_blocks_and_makes_noise() -> void:
 	assert_false(_player.crafting.active)
 	assert_true(_player.controls_enabled)
 	assert_eq(inventory.count_of("bat_nails"), 1)
-	assert_eq(inventory.count_of("nails"), 1)
+	assert_eq(inventory.count_of("nails"), 1, "gasta 4 clavos de la bolsa")
 	assert_eq(GameState.player.items_crafted, 1)
 
 
-func test_crafting_rejects_invalid_pair() -> void:
+func test_crafting_rejects_missing_material_and_wrong_slot() -> void:
 	var inventory := GameState.player.inventory
-	inventory.add_item(GameState.items.get_item("nails"), 1)
 	inventory.add_item(GameState.items.get_item("rag"), 1)
-	var problem := _player.crafting.start(inventory.find_slot("nails"), inventory.find_slot("rag"))
-	assert_eq(problem, Crafting.ERROR_NO_RECIPE)
+	inventory.add_item(GameState.items.get_item("tape"), 1)
+	var problem := _player.crafting.start(_recipe("improvised_bandage"), -1)
+	assert_eq(problem, Crafting.ERROR_MISSING, "la venda improvisada pide 2 trapos")
+	var pistol_slot := inventory.find_slot("pistol")
+	assert_eq(_player.crafting.start(_recipe("bat_nails"), pistol_slot), Crafting.ERROR_NO_RECIPE)
+	assert_false(_player.crafting.active)
 	assert_true(_player.controls_enabled)
+
+
+func test_crafting_the_weapon_in_hand_equips_the_result() -> void:
+	var inventory := GameState.player.inventory
+	inventory.add_stack(ItemStack.new(GameState.items.get_item("pipe")))
+	inventory.add_item(GameState.items.get_item("nails"), 4)
+	var pipe_slot := inventory.find_slot("pipe")
+	assert_true(GameState.player.select_slot(pipe_slot))
+	assert_eq(_player.crafting.start(_recipe("pipe_nails"), pipe_slot), Crafting.ERROR_NONE)
+	for _step: int in 60:
+		await wait_physics_frames(10)
+		if not _player.crafting.active:
+			break
+	assert_eq(GameState.player.equipped().id(), "pipe_nails")
+	assert_eq(inventory.count_of("nails"), 0)
+
+
+func test_noise_bottle_is_made_from_materials_and_lures() -> void:
+	var inventory := GameState.player.inventory
+	inventory.add_item(GameState.items.get_item("bottle"), 1)
+	inventory.add_item(GameState.items.get_item("rag"), 1)
+	assert_eq(_player.crafting.start(_recipe("noise_bottle"), -1), Crafting.ERROR_NONE)
+	for _step: int in 60:
+		await wait_physics_frames(10)
+		if not _player.crafting.active:
+			break
+	assert_eq(inventory.bag.count("noise_bottle"), 1, "la botella ruidosa va a la bolsa")
+	assert_true(_player.throw_material("noise_bottle"))
+	var heard := 0
+	for _step: int in 40:
+		NoiseSystem.last_level = -1
+		await wait_physics_frames(15)
+		if NoiseSystem.last_level == Rules.NOISE_HIGH:
+			heard += 1
+	assert_gt(heard, 2, "sigue sonando unos segundos donde cae")
+
+
+func _recipe(recipe_id: String) -> RecipeData:
+	for recipe: RecipeData in GameState.CATALOG.recipes:
+		if recipe.id == recipe_id:
+			return recipe
+	return null
 
 
 func test_open_inventory_blocks_pointer_capture() -> void:
@@ -144,7 +188,7 @@ func test_open_inventory_blocks_pointer_capture() -> void:
 func test_combine_tab_lists_ready_recipes_and_starts_with_one_tap() -> void:
 	var inventory := GameState.player.inventory
 	inventory.add_stack(ItemStack.new(GameState.items.get_item("bat")))
-	inventory.add_item(GameState.items.get_item("nails"), 2)
+	inventory.add_item(GameState.items.get_item("nails"), 4)
 	inventory.add_item(GameState.items.get_item("rag"), 1)
 	var panel := InventoryPanel.new()
 	add_child_autofree(panel)
@@ -164,6 +208,8 @@ func test_combine_tab_lists_ready_recipes_and_starts_with_one_tap() -> void:
 				buttons.append(button)
 	assert_string_contains(texts, tr("item_bat_nails"), "lo que se puede hacer ya")
 	assert_string_contains(texts, tr("combine_missing") % tr("item_pipe"), "y lo que falta")
+	var partial := tr("combine_missing") % (tr("item_rag") + " (1/2), " + tr("item_tape"))
+	assert_string_contains(texts, partial, "con las cantidades que faltan")
 	assert_eq(buttons.size(), 1, "un botón por combinación posible")
 	buttons[0].pressed.emit()
 	assert_true(_player.crafting.active, "un toque empieza a combinar")
@@ -240,13 +286,13 @@ func test_throw_readies_with_an_arc_then_throws_without_firing() -> void:
 	GameState.player.inventory.add_item(GameState.items.get_item("bottle"), 2)
 	var loaded := GameState.player.equipped().ammo_loaded
 	await _tap("throw")
-	assert_gt(_player.throw.ready_slot, -1, "la G deja el objeto listo")
+	assert_eq(_player.throw.ready_item, "bottle", "la G deja el objeto listo")
 	assert_eq(GameState.player.inventory.count_of("bottle"), 2, "todavía no lo lanza")
 	await _tap("aim")
-	assert_eq(_player.throw.ready_slot, -1, "clic derecho cancela")
+	assert_eq(_player.throw.ready_item, "", "clic derecho cancela")
 	await _tap("throw")
 	await _tap("attack")
-	assert_eq(_player.throw.ready_slot, -1)
+	assert_eq(_player.throw.ready_item, "")
 	assert_eq(GameState.player.inventory.count_of("bottle"), 1, "el clic lo lanza")
 	assert_eq(GameState.player.equipped().ammo_loaded, loaded, "y no dispara la pistola")
 

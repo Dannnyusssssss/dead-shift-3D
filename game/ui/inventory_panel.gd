@@ -1,9 +1,9 @@
 class_name InventoryPanel
 extends Control
 ## Mochila tipo maletín, usable con ratón, teclado (flechas, Intro, Tab o I para cerrar) y toque.
-## Tres pestañas: «Mochila» (casillas con icono, detalle del objeto elegido y sus acciones,
-## chaleco y objetos clave), «Combinar» (lo que se puede hacer ahora con lo que se lleva, a un
-## toque, y lo que falta para otras combinaciones) y «Cuaderno» (objetivo y pistas).
+## Tres pestañas: «Mochila» (casillas con icono, bolsa de materiales, detalle del objeto elegido
+## y sus acciones, chaleco y objetos clave), «Combinar» (CombineList: lo que se puede hacer ahora,
+## a un toque, y lo que falta para otras combinaciones) y «Cuaderno» (objetivo y pistas).
 ## Abrirla no pausa el mundo: el jugador queda quieto y expuesto mientras la usa.
 
 const TAB_BAG: int = 0
@@ -18,6 +18,9 @@ var _player: Player = null
 var _crafting: Crafting = null
 var _tab: int = TAB_BAG
 var _selected: int = -1
+## Material de la bolsa elegido ("" si se eligió una casilla o nada).
+var _selected_material: String = ""
+var _bag_view: MaterialBagView = null
 var _call_armed: bool = false
 var _tab_buttons: Array[TapButton] = []
 var _pages: Array[Control] = []
@@ -34,7 +37,7 @@ var _vest_label: Label = null
 var _keys_row: HBoxContainer = null
 var _keys_label: Label = null
 var _call_button: TapButton = null
-var _combine_list: VBoxContainer = null
+var _combine_list: CombineList = null
 var _notebook: Notebook = null
 
 
@@ -63,6 +66,7 @@ func open(tab: int = TAB_BAG) -> void:
 		return
 	visible = true
 	_selected = -1
+	_selected_material = ""
 	_call_armed = false
 	_player.set_blocked("inventory", true)
 	# Con la mochila abierta el cursor queda visible: un clic en sus botones no lo captura.
@@ -118,6 +122,7 @@ func _show_tab(tab: int) -> void:
 func _on_tile_pressed(index: int) -> void:
 	var stack := GameState.player.inventory.get_slot(index)
 	_selected = index if stack != null else -1
+	_selected_material = ""
 	_call_armed = false
 	_refresh()
 
@@ -140,8 +145,26 @@ func _on_wear() -> void:
 	EventBus.inventory_changed.emit()
 
 
+func _on_material_selected(item_id: String) -> void:
+	_selected_material = item_id
+	_selected = -1
+	_call_armed = false
+	_refresh()
+
+
 func _on_drop() -> void:
 	var state := GameState.player
+	if not _selected_material.is_empty():
+		# Suelta todas las unidades de ese material juntas.
+		var data := GameState.items.get_item(_selected_material)
+		var amount := state.inventory.bag.remove(
+			_selected_material, state.inventory.bag.count(_selected_material)
+		)
+		if data != null and amount > 0:
+			_player.drop_stack(ItemStack.new(data, amount))
+		_selected_material = ""
+		EventBus.inventory_changed.emit()
+		return
 	var stack := state.inventory.take_slot(_selected)
 	if stack == null:
 		return
@@ -166,11 +189,11 @@ func _on_use() -> void:
 
 ## Cierra la mochila y deja el objeto listo en la mano, con su trayectoria, para lanzarlo.
 func _on_throw() -> void:
-	var index := _selected
-	if GameState.player.inventory.get_slot(index) == null:
+	var item_id := _selected_material
+	if GameState.player.inventory.bag.count(item_id) <= 0:
 		return
 	close()
-	_player.throw.prepare(index)
+	_player.throw.prepare(item_id)
 
 
 ## Llamar es irreversible: el primer toque pide confirmación y el segundo llama.
@@ -197,7 +220,13 @@ func _refresh_bag() -> void:
 	_vest_icon.item_id = state.vest.id() if state.vest != null else ""
 	_vest_label.text = "%s\n%s" % [tr("inventory_vest"), _wear_text(state.vest)]
 	_refresh_keys()
-	_refresh_detail(state.inventory.get_slot(_selected))
+	if state.inventory.bag.count(_selected_material) <= 0:
+		_selected_material = ""
+	_bag_view.refresh(_selected_material)
+	if not _selected_material.is_empty():
+		_refresh_material_detail(_selected_material)
+	else:
+		_refresh_detail(state.inventory.get_slot(_selected))
 
 
 func _tile_text(stack: ItemStack, equipped: bool) -> String:
@@ -252,6 +281,27 @@ func _refresh_keys() -> void:
 	_call_button.text = tr("inventory_call_confirm") if _call_armed else tr("inventory_call")
 
 
+## Detalle de un material de la bolsa: descripción, unidades sobre el tope, con qué se combina y
+## sus acciones (combinar, lanzar, soltar).
+func _refresh_material_detail(item_id: String) -> void:
+	for child: Node in _actions.get_children():
+		child.queue_free()
+	var item := GameState.items.get_item(item_id)
+	var bag := GameState.player.inventory.bag
+	_detail_icon.item_id = item_id
+	_detail_name.text = tr(item.name_key)
+	var lines: Array[String] = [tr("desc_" + item_id)]
+	lines.append(tr("stat_bag_units") % [bag.count(item_id), MaterialBag.cap_of(item)])
+	var partners := _partners(item_id)
+	if not partners.is_empty():
+		lines.append(tr("stat_combines_with") % ", ".join(partners))
+	_detail_text.text = "\n".join(lines)
+	if not partners.is_empty():
+		_action(_actions, "inventory_combine", func() -> void: _show_tab(TAB_COMBINE))
+	_action(_actions, "inventory_throw", _on_throw)
+	_action(_actions, "inventory_drop", _on_drop)
+
+
 func _refresh_detail(stack: ItemStack) -> void:
 	for child: Node in _actions.get_children():
 		child.queue_free()
@@ -288,15 +338,13 @@ func _refresh_detail(stack: ItemStack) -> void:
 		_action(_actions, "inventory_wear", _on_wear)
 	if not partners.is_empty():
 		_action(_actions, "inventory_combine", func() -> void: _show_tab(TAB_COMBINE))
-	if item.category == ItemData.CATEGORY_MATERIAL:
-		_action(_actions, "inventory_throw", _on_throw)
 	_action(_actions, "inventory_drop", _on_drop)
 
 
 ## Nombres de los objetos con los que se combina (según las recetas).
 func _partners(item_id: String) -> Array[String]:
 	var names: Array[String] = []
-	for recipe: RecipeData in GameState.CATALOG.recipes:
+	for recipe: RecipeData in _crafting.recipes_with(item_id):
 		var other := ""
 		if recipe.is_repair():
 			if recipe.input_a == item_id:
@@ -313,99 +361,8 @@ func _partners(item_id: String) -> Array[String]:
 # --- Pestaña Combinar -----------------------------------------------------------------------
 
 
-func _refresh_combine() -> void:
-	for child: Node in _combine_list.get_children():
-		child.queue_free()
-	var state := GameState.player
-	var options := _crafting.options(state.inventory)
-	var any := false
-	if state.keys.can_assemble_phone():
-		any = true
-		_combine_list.add_child(_phone_row())
-	if not options.is_empty():
-		any = true
-		_combine_list.add_child(_heading("combine_ready"))
-		for option: Dictionary in options:
-			_combine_list.add_child(_option_row(option))
-	var hints := _crafting.hints(state.inventory)
-	if not hints.is_empty():
-		_combine_list.add_child(_heading("combine_missing_title"))
-		for hint: Dictionary in hints:
-			_combine_list.add_child(_hint_row(hint))
-	if not any:
-		var empty := Label.new()
-		empty.text = tr("combine_none")
-		empty.add_theme_font_size_override("font_size", 20)
-		_combine_list.add_child(empty)
-		_combine_list.move_child(empty, 0)
-	var note := Label.new()
-	note.text = tr("combine_hint")
-	note.add_theme_font_size_override("font_size", 16)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_combine_list.add_child(note)
-
-
-func _option_row(option: Dictionary) -> Control:
-	var recipe: RecipeData = option["recipe"]
-	var slot_a: int = option["slot_a"]
-	var slot_b: int = option["slot_b"]
-	var problem: String = option["problem"]
-	var inventory := GameState.player.inventory
-	var first := inventory.get_slot(slot_a)
-	var second := inventory.get_slot(slot_b)
-	var row := _row()
-	_row_icon(row, first.id())
-	_row_text(row, "+", 28)
-	_row_icon(row, second.id())
-	_row_text(row, "→", 28)
-	var title := ""
-	if recipe.is_repair():
-		var weapon := first if first.is_weapon() else second
-		_row_icon(row, weapon.id())
-		title = tr("combine_repair") % tr(weapon.item.name_key)
-	else:
-		_row_icon(row, recipe.result_id)
-		title = _item_name(recipe.result_id) + "\n" + tr("desc_" + recipe.result_id)
-	var label := _row_text(row, title, 18)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var button := _action(row, "", _on_combine.bind(slot_a, slot_b))
-	button.text = tr("combine_do") % ceili(recipe.craft_time)
-	if problem != Crafting.ERROR_NONE:
-		button.disabled = true
-		button.tooltip_text = tr("combine_no_space")
-	return row
-
-
-func _hint_row(hint: Dictionary) -> Control:
-	var recipe: RecipeData = hint["recipe"]
-	var have: String = hint["have"]
-	var missing: String = hint["missing"]
-	var row := _row()
-	_row_icon(row, have)
-	_row_text(row, "+", 28)
-	_row_icon(row, "?")
-	_row_text(row, "→", 28)
-	_row_icon(row, recipe.result_id)
-	var text := _item_name(recipe.result_id) + "\n" + tr("combine_missing") % _item_name(missing)
-	var label := _row_text(row, text, 18)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return row
-
-
-func _phone_row() -> Control:
-	var row := _row()
-	for part: String in Rules.PHONE_PARTS:
-		_row_icon(row, part)
-	_row_text(row, "→", 28)
-	_row_icon(row, "phone")
-	var label := _row_text(row, tr("phone_assemble_row"), 18)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_action(row, "inventory_assemble_phone", _on_assemble)
-	return row
-
-
-func _on_combine(slot_a: int, slot_b: int) -> void:
-	var problem := _player.crafting.start(slot_a, slot_b)
+func _on_combine(recipe: RecipeData, slot: int) -> void:
+	var problem := _player.crafting.start(recipe, slot)
 	if problem == Crafting.ERROR_NONE:
 		close()
 	else:
@@ -425,9 +382,7 @@ func _on_assemble() -> void:
 func _refresh() -> void:
 	if not visible or GameState.player == null:
 		return
-	var count := _crafting.options(GameState.player.inventory).size()
-	if GameState.player.keys.can_assemble_phone():
-		count += 1
+	var count := _combine_list.available_count()
 	_tab_buttons[TAB_COMBINE].text = (
 		tr("tab_combine_count") % count if count > 0 else tr("tab_combine")
 	)
@@ -435,14 +390,13 @@ func _refresh() -> void:
 		TAB_BAG:
 			_refresh_bag()
 		TAB_COMBINE:
-			_refresh_combine()
+			_combine_list.refresh()
 		TAB_NOTEBOOK:
 			_notebook.refresh()
 
 
 func _item_name(item_id: String) -> String:
-	var item := GameState.items.get_item(item_id)
-	return tr(item.name_key) if item != null else item_id
+	return InventoryRows.item_name(item_id)
 
 
 func _build() -> void:
@@ -472,7 +426,10 @@ func _build() -> void:
 	header.add_child(spacer)
 	_action(header, "inventory_close_hint", close)
 	_pages.append(_build_bag())
-	_pages.append(_build_combine())
+	_combine_list = CombineList.new()
+	_combine_list.combine_requested.connect(_on_combine)
+	_combine_list.assemble_requested.connect(_on_assemble)
+	_pages.append(_combine_list)
 	_notebook = Notebook.new()
 	_pages.append(_notebook)
 	for page: Control in _pages:
@@ -518,6 +475,9 @@ func _build_bag() -> Control:
 		_tiles.append(tile)
 		_tile_icons.append(icon)
 		_tile_labels.append(label)
+	_bag_view = MaterialBagView.new()
+	_bag_view.material_selected.connect(_on_material_selected)
+	left.add_child(_bag_view)
 	var equipment := HBoxContainer.new()
 	equipment.add_theme_constant_override("separation", 10)
 	left.add_child(equipment)
@@ -561,54 +521,7 @@ func _build_bag() -> Control:
 	return page
 
 
-func _build_combine() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_combine_list = VBoxContainer.new()
-	_combine_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_combine_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(_combine_list)
-	return scroll
-
-
-func _heading(key: String) -> Label:
-	var label := Label.new()
-	label.text = tr(key)
-	label.add_theme_font_size_override("font_size", 22)
-	return label
-
-
-func _row() -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	return row
-
-
-func _row_icon(row: Control, item_id: String) -> void:
-	var icon := ItemIcon.new()
-	icon.custom_minimum_size = Vector2(64.0, 64.0)
-	icon.item_id = item_id
-	row.add_child(icon)
-
-
-func _row_text(row: Control, text: String, font_size: int) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", font_size)
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	row.add_child(label)
-	return label
-
-
 func _action(
 	parent: Control, text_key: String, callback: Callable, disabled: bool = false
 ) -> TapButton:
-	var button := TapButton.new()
-	button.text = tr(text_key) if not text_key.is_empty() else ""
-	button.custom_minimum_size = Vector2(140.0, 56.0)
-	button.add_theme_font_size_override("font_size", 20)
-	button.disabled = disabled
-	button.pressed.connect(callback)
-	parent.add_child(button)
-	return button
+	return InventoryRows.action(parent, text_key, callback, disabled)

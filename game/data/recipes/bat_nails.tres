@@ -9,3 +9,4 @@ input_a = "bat"
 input_b = "nails"
 result_id = "bat_nails"
 craft_time = 4.0
+amount_b = 4

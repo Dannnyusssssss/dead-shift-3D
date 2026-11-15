@@ -9,7 +9,8 @@ extends RefCounted
 ##
 ## El contexto lo arma GameCatalog.save_context() (o una prueba):
 ##   {"items": {id: {"category", "max_stack", "magazine"}}, "floors": {id: {"exits": [...],
-##    "safe_rooms": [...]}}, "start_floor": id, "capacity": int, "phone_parts": [...]}
+##    "safe_rooms": [...]}}, "start_floor": id, "capacity": int, "phone_parts": [...],
+##    "difficulties": [id, ...]}
 
 const SPAWN_START: String = "start"
 const SPAWN_EXIT: String = "exit"
@@ -35,8 +36,10 @@ static func sanitize(source: Dictionary, context: Dictionary) -> Dictionary:
 		source, "health", 1.0, Rules.PLAYER_MAX_HEALTH, Rules.PLAYER_MAX_HEALTH
 	)
 	result["infection"] = _read_infection(source)
-	var inventory := _read_inventory(source, items, capacity)
+	var bag := _read_bag(source, items)
+	var inventory := _read_inventory(source, items, capacity, bag)
 	result["inventory"] = inventory
+	result["bag"] = bag
 	result["vest"] = _read_vest(source, items)
 	result["equipped"] = _read_equipped(source, inventory, items, capacity)
 	var keys := _read_keys(source, items)
@@ -51,6 +54,7 @@ static func sanitize(source: Dictionary, context: Dictionary) -> Dictionary:
 	result["rescue"] = _read_rescue(source, assembled)
 	result["world"] = _read_world(source, items, floors)
 	result["seed"] = Validation.read_int(source, "seed", 0, Validation.SEED_MAX, 0)
+	result["difficulty"] = _read_difficulty(source, context)
 	result["stats"] = _read_stats(source)
 	return result
 
@@ -117,8 +121,36 @@ static func _read_stack(entry: Dictionary, items: Dictionary, allow_keys: bool) 
 	}
 
 
+## Bolsa de materiales: solo materiales conocidos, cantidades enteras de 1 al tope de cada uno.
+static func _read_bag(source: Dictionary, items: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	var raw := Validation.read_dict(source, "bag")
+	for key: Variant in raw:
+		if not Validation.is_valid_id(key) or not items.has(key):
+			continue
+		var item_id: String = key
+		var info: Dictionary = items[item_id]
+		if info.get("category", -1) != ItemData.CATEGORY_MATERIAL:
+			continue
+		var cap: int = info.get("max_stack", 1)
+		var amount := Validation.read_int(raw, item_id, 0, maxi(cap, 1), 0)
+		if amount > 0:
+			result[item_id] = amount
+	return result
+
+
+## Suma unidades de un material a la bolsa sin pasar de su tope.
+static func _add_to_bag(bag: Dictionary, item_id: String, amount: int, items: Dictionary) -> void:
+	var info: Dictionary = items.get(item_id, {})
+	var cap: int = info.get("max_stack", 1)
+	var current: int = bag.get(item_id, 0)
+	bag[item_id] = mini(current + amount, maxi(cap, 1))
+
+
+## Casillas de la mochila. Un material en una casilla (partidas anteriores a la bolsa) pasa a
+## la bolsa.
 static func _read_inventory(
-	source: Dictionary, items: Dictionary, capacity: int
+	source: Dictionary, items: Dictionary, capacity: int, bag: Dictionary
 ) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var raw: Variant = source.get("inventory")
@@ -137,6 +169,12 @@ static func _read_inventory(
 			continue
 		var stack := _read_stack(data, items, false)
 		if stack.is_empty():
+			continue
+		var stack_id: String = stack["id"]
+		var info: Dictionary = items[stack_id]
+		if info.get("category", -1) == ItemData.CATEGORY_MATERIAL:
+			var units: int = stack["count"]
+			_add_to_bag(bag, stack_id, units, items)
 			continue
 		used.append(slot)
 		stack["slot"] = slot
@@ -273,6 +311,13 @@ static func _read_drops(record: Dictionary, items: Dictionary) -> Array[Dictiona
 		stack["z"] = Validation.read_float(data, "z", -limit, limit, 0.0)
 		result.append(stack)
 	return result
+
+
+## Dificultad conocida; si falta o no se reconoce, Fácil (la de las partidas antiguas).
+static func _read_difficulty(source: Dictionary, context: Dictionary) -> String:
+	var known: Array = context.get("difficulties", Difficulty.IDS)
+	var difficulty_id := Validation.read_id(source, "difficulty")
+	return difficulty_id if known.has(difficulty_id) else Difficulty.EASY
 
 
 static func _read_stats(source: Dictionary) -> Dictionary:

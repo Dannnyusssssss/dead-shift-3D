@@ -13,7 +13,8 @@ static func capture(
 	spawn_kind: String,
 	spawn_id: String,
 	seed_value: int,
-	elapsed: float
+	elapsed: float,
+	difficulty_id: String = Difficulty.EASY
 ) -> Dictionary:
 	var vest: Dictionary = {}
 	if state.vest != null:
@@ -32,6 +33,7 @@ static func capture(
 			"time_left": state.infection.time_left,
 		},
 		"inventory": state.inventory.to_data(),
+		"bag": state.inventory.bag.to_data(),
 		"vest": vest,
 		"equipped": state.equipped_slot,
 		"keys": keys,
@@ -39,6 +41,7 @@ static func capture(
 		"rescue": rescue.to_data(),
 		"world": world.to_data(),
 		"seed": seed_value,
+		"difficulty": difficulty_id,
 		"stats":
 		{
 			"time": elapsed,
@@ -57,6 +60,8 @@ static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
 	var infection: Dictionary = data.get("infection", {})
 	state.infection.infected = infection.get("infected", false)
 	state.infection.time_left = infection.get("time_left", 0.0)
+	var bag: Dictionary = data.get("bag", {})
+	state.inventory.bag.load_data(bag, items)
 	var entries: Array[Dictionary] = []
 	var raw_inventory: Array = data.get("inventory", [])
 	for entry: Variant in raw_inventory:
@@ -95,8 +100,11 @@ static func restore_world(data: Dictionary) -> WorldState:
 	return world
 
 
-static func restore_rescue(data: Dictionary) -> RescueClock:
-	var clock := RescueClock.new()
+## Reloj del rescate con la espera del helicóptero de la dificultad de la partida.
+static func restore_rescue(
+	data: Dictionary, wait_time: float = Rules.HELICOPTER_WAIT_TIME
+) -> RescueClock:
+	var clock := RescueClock.new(Rules.HELICOPTER_ARRIVAL_TIME, wait_time)
 	var rescue: Dictionary = data.get("rescue", {})
 	var state_value: int = rescue.get("state", RescueClock.STATE_IDLE)
 	var seconds: float = rescue.get("time_left", 0.0)

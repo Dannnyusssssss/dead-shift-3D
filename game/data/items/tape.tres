@@ -6,4 +6,5 @@
 script = ExtResource("1_a3yht")
 id = "tape"
 name_key = "item_tape"
-max_stack = 5
+max_stack = 6
+pack_size = 2

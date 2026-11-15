@@ -44,13 +44,18 @@ func _ready() -> void:
 	_button.pressed.connect(func() -> void: restart_requested.emit())
 
 
-## Muestra el desenlace. can_continue habilita volver al último autoguardado.
-func show_result(stats: RunStats, can_continue: bool) -> void:
+## Muestra el desenlace con la dificultad jugada. can_continue habilita volver al último
+## autoguardado.
+func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = null) -> void:
 	var outcome := clampi(stats.outcome, 0, TITLE_KEYS.size() - 1)
 	_title.text = tr(TITLE_KEYS[outcome])
 	_story.text = tr(TEXT_KEYS[outcome])
 	var seconds := int(stats.seconds)
+	var difficulty_key := "difficulty_easy"
+	if difficulty != null and difficulty.data != null:
+		difficulty_key = difficulty.data.name_key
 	var lines: Array[String] = [
+		"%s %s" % [tr("end_difficulty"), tr(difficulty_key)],
 		"%s %d:%02d" % [tr("end_time"), seconds / 60, seconds % 60],
 		"%s %d" % [tr("end_damage"), roundi(stats.damage_taken)],
 		"%s %d" % [tr("end_weapons_broken"), stats.weapons_broken],

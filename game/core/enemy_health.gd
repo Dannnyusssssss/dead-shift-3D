@@ -12,11 +12,16 @@ var vest_durability: Durability = null
 
 ## Crea la salud de un enemigo. Si puede llevar chaleco, el azar inyectado decide si lo lleva,
 ## salvo que el nivel lo fije con vest_override (0 = sin chaleco, 1 = con chaleco).
+## health_multiplier ajusta la vida a la dificultad.
 func _init(
-	enemy: EnemyData, rng: RandomNumberGenerator, vest_max: float = 100.0, vest_override: int = -1
+	enemy: EnemyData,
+	rng: RandomNumberGenerator,
+	vest_max: float = 100.0,
+	vest_override: int = -1,
+	health_multiplier: float = 1.0
 ) -> void:
 	data = enemy
-	health = enemy.max_health
+	health = enemy.max_health * maxf(health_multiplier, 0.01)
 	if vest_override >= 0:
 		has_vest = vest_override == 1 and enemy.vest_chance > 0.0
 	else:

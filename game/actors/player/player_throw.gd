@@ -9,11 +9,10 @@ const ARC_POINTS: int = 26
 const ARC_STEP: float = 0.06
 const ARC_COLOR: Color = Color(1.0, 0.92, 0.55)
 
-## Casilla del objeto listo para lanzar (-1 = ninguno).
-var ready_slot: int = -1
+## Material de la bolsa listo para lanzar ("" = ninguno).
+var ready_item: String = ""
 
 var _player: Player = null
-var _item_id: String = ""
 var _threw_frame: int = -1
 var _dots: MultiMeshInstance3D = null
 var _marker: MeshInstance3D = null
@@ -30,26 +29,23 @@ func _ready() -> void:
 ## Verdadero mientras hay un objeto listo o se acaba de lanzar en este fotograma (el combate
 ## no debe disparar con la misma pulsación).
 func is_aiming() -> bool:
-	return ready_slot >= 0 or _threw_frame == Engine.get_physics_frames()
+	return not ready_item.is_empty() or _threw_frame == Engine.get_physics_frames()
 
 
-## Deja listo para lanzar el objeto de la casilla. Devuelve falso si no se puede lanzar.
-func prepare(slot: int) -> bool:
-	var stack := GameState.player.inventory.get_slot(slot) if GameState.player != null else null
-	if stack == null or stack.item.category != ItemData.CATEGORY_MATERIAL:
+## Deja listo para lanzar un material de la bolsa. Devuelve falso si no se puede lanzar.
+func prepare(item_id: String) -> bool:
+	if GameState.player == null or GameState.player.inventory.bag.count(item_id) <= 0:
 		return false
-	ready_slot = slot
-	_item_id = stack.id()
-	_player.arms.hold_for_throw(_item_id)
+	ready_item = item_id
+	_player.arms.hold_for_throw(ready_item)
 	_set_arc_visible(true)
 	return true
 
 
 func cancel() -> void:
-	if ready_slot < 0:
+	if ready_item.is_empty():
 		return
-	ready_slot = -1
-	_item_id = ""
+	ready_item = ""
 	# Si las manos pasan a otra cosa (curarse, combinar), esa acción ya puso lo suyo en ellas.
 	if not _player.hands_busy:
 		_player.arms.release_hands()
@@ -57,25 +53,24 @@ func cancel() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if ready_slot < 0:
+	if ready_item.is_empty():
 		if _can_act() and InputRouter.just_pressed("throw") and not _player.combat.is_busy():
-			var slot := GameState.player.quick_throw_slot()
-			if slot < 0:
+			var item_id := GameState.player.quick_throw_item()
+			if item_id.is_empty():
 				EventBus.user_message.emit("msg_nothing_to_throw")
 			else:
-				prepare(slot)
+				prepare(item_id)
 		return
-	var stack := GameState.player.inventory.get_slot(ready_slot)
-	if not _can_act() or stack == null or stack.id() != _item_id:
+	if not _can_act() or GameState.player.inventory.bag.count(ready_item) <= 0:
 		cancel()
 		return
 	if InputRouter.just_pressed("aim"):
 		cancel()
 		return
 	if InputRouter.just_pressed("throw") or InputRouter.just_pressed("attack"):
-		var slot := ready_slot
+		var item_id := ready_item
 		cancel()
-		if _player.throw_from_slot(slot):
+		if _player.throw_material(item_id):
 			_threw_frame = Engine.get_physics_frames()
 		return
 	_update_arc()

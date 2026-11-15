@@ -40,6 +40,28 @@ static func parse_settings(text: String) -> Dictionary:
 	return result
 
 
+## Mejores notas por dificultad. Versión 1: una sola nota (se jugaba en Fácil); versión 2:
+## {"grades": {dificultad: letra}}. Solo dificultades conocidas y letras válidas; nunca falla.
+static func parse_best(text: String, difficulties: Array[String], version: int) -> Dictionary:
+	var result: Dictionary = {}
+	var decoded: DataResult = SaveCodec.decode(text, version)
+	if not decoded.ok:
+		return result
+	var source: Dictionary = decoded.data
+	var raw_version: float = source.get("version", 1.0)
+	if int(raw_version) == 1:
+		var grade: Variant = source.get("grade")
+		if grade is String and RunStats.GRADES.has(grade) and difficulties.has(Difficulty.EASY):
+			result[Difficulty.EASY] = grade
+		return result
+	var grades := read_dict(source, "grades")
+	for difficulty_id: String in difficulties:
+		var grade: Variant = grades.get(difficulty_id)
+		if grade is String and RunStats.GRADES.has(grade):
+			result[difficulty_id] = grade
+	return result
+
+
 ## Teclas reasignadas: solo acciones reasignables y teclas permitidas, y ninguna tecla usada
 ## por dos acciones (contando las de fábrica de las acciones no reasignadas). Ante un conflicto
 ## gana la acción que va antes en SettingsSchema.REBINDABLE; la otra vuelve a su tecla de fábrica.

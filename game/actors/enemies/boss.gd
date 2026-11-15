@@ -38,7 +38,7 @@ var _tank_mesh: MeshInstance3D = null
 
 func _ready() -> void:
 	super._ready()
-	model = BossModel.new(data.boss)
+	model = BossModel.new(data.boss, GameState.difficulty.boss_health_multiplier())
 	add_to_group("boss")
 
 

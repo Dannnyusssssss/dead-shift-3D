@@ -7,7 +7,7 @@ const Fixtures = preload("res://tests/helpers/fixtures.gd")
 
 func test_stackable_items_merge_until_max() -> void:
 	var inventory := Inventory.new(3)
-	var nails := Fixtures.material("nails", 5)
+	var nails := Fixtures.stackable("nails", 5)
 	assert_eq(inventory.add_item(nails, 7), 0)
 	assert_eq(inventory.used_slots(), 2)
 	assert_eq(inventory.count_of("nails"), 7)
@@ -17,7 +17,7 @@ func test_stackable_items_merge_until_max() -> void:
 
 func test_full_inventory_returns_leftover() -> void:
 	var inventory := Inventory.new(2)
-	var nails := Fixtures.material("nails", 5)
+	var nails := Fixtures.stackable("nails", 5)
 	assert_eq(inventory.add_item(nails, 12), 2)
 	assert_true(inventory.is_full())
 
@@ -31,7 +31,7 @@ func test_weapons_take_one_slot_each() -> void:
 
 func test_remove_count_spans_slots() -> void:
 	var inventory := Inventory.new(3)
-	inventory.add_item(Fixtures.material("ammo", 5), 8)
+	inventory.add_item(Fixtures.stackable("ammo", 5), 8)
 	assert_eq(inventory.remove_count("ammo", 6), 6)
 	assert_eq(inventory.count_of("ammo"), 2)
 	assert_eq(inventory.remove_count("ammo", 10), 2, "solo quita lo que hay")
@@ -66,7 +66,7 @@ func test_remove_broken_weapons() -> void:
 func test_save_round_trip_keeps_wear_and_ammo() -> void:
 	var pipe := Fixtures.melee("pipe")
 	var pistol := Fixtures.pistol()
-	var nails := Fixtures.material("nails", 20)
+	var nails := Fixtures.stackable("nails", 20)
 	var catalog := ItemCatalog.new([pipe, pistol, nails])
 	var inventory := Inventory.new(4)
 	inventory.add_stack(ItemStack.new(pipe, 1, 0.4))
@@ -82,7 +82,7 @@ func test_save_round_trip_keeps_wear_and_ammo() -> void:
 
 
 func test_load_ignores_unknown_items() -> void:
-	var catalog := ItemCatalog.new([Fixtures.material("nails")])
+	var catalog := ItemCatalog.new([Fixtures.stackable("nails")])
 	var inventory := Inventory.new(2)
 	var entries: Array[Dictionary] = [{"slot": 0, "id": "rocket", "count": 1}]
 	inventory.load_data(entries, catalog)

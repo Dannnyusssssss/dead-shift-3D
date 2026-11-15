@@ -104,11 +104,11 @@ func drop_stack(stack: ItemStack) -> void:
 	EventBus.item_dropped.emit(spot, stack)
 
 
-## Lanza una unidad de la casilla dada hacia donde mira. Devuelve falso si no se pudo.
-func throw_from_slot(index: int) -> bool:
+## Lanza una unidad de un material de la bolsa hacia donde mira. Devuelve falso si no se pudo.
+func throw_material(item_id: String) -> bool:
 	if _throw_cooldown > 0.0 or is_dead() or GameState.player == null:
 		return false
-	var stack := GameState.player.take_one(index)
+	var stack := GameState.player.take_material(item_id)
 	if stack == null:
 		return false
 	_throw_cooldown = Rules.THROW_COOLDOWN

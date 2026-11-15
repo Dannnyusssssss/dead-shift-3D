@@ -33,6 +33,11 @@ const EFFECT_CURE_INFECTION: int = 3
 @export var use_time: float = 0.0
 ## Se rompe al caer cuando se lanza (más ruido y no se puede recoger).
 @export var fragile: bool = false
+## Señuelo: segundos que sigue haciendo ruido donde cae al lanzarlo (0 = no es señuelo).
+@export var lure_time: float = 0.0
+## Materiales: unidades que trae cada punto de botín (bote, paquete, rollo) si no se indica otra
+## cantidad; solo lo usa el generador de pisos y la descripción.
+@export var pack_size: int = 1
 
 
 ## Durabilidad máxima del objeto (0 si no se desgasta).

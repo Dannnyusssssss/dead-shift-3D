@@ -122,7 +122,7 @@ contents = PackedStringArray("pistol_ammo:4")
 script = ExtResource("6_loot_spo")
 kind = 0
 position = Vector3(1.2, 0, 6.6)
-contents = PackedStringArray("tape:1", "bandage:1", "neutrax:1")
+contents = PackedStringArray("tape:2", "bandage:1", "neutrax:1")
 
 [sub_resource type="Resource" id="Resource_loot_17"]
 script = ExtResource("6_loot_spo")
@@ -168,7 +168,7 @@ width = 2.4
 script = ExtResource("6_loot_spo")
 kind = 2
 position = Vector3(7.2, 0, 1.2)
-contents = PackedStringArray("rag:1", "bandage:1")
+contents = PackedStringArray("bandage:1")
 
 [sub_resource type="Resource" id="Resource_room_23"]
 script = ExtResource("5_room_dat")
@@ -197,7 +197,7 @@ contents = PackedStringArray()
 script = ExtResource("6_loot_spo")
 kind = 0
 position = Vector3(10.6, 0, 1.2)
-contents = PackedStringArray("nails:6", "tape:1")
+contents = PackedStringArray("nails:6")
 
 [sub_resource type="Resource" id="Resource_loot_27"]
 script = ExtResource("6_loot_spo")
@@ -271,7 +271,7 @@ contents = PackedStringArray()
 script = ExtResource("6_loot_spo")
 kind = 0
 position = Vector3(8.6, 0, 1.2)
-contents = PackedStringArray("rag:2", "tape:1")
+contents = PackedStringArray("rag:3")
 
 [sub_resource type="Resource" id="Resource_room_37"]
 script = ExtResource("5_room_dat")
@@ -341,7 +341,7 @@ contents = PackedStringArray("pistol_ammo:3")
 script = ExtResource("6_loot_spo")
 kind = 2
 position = Vector3(11.3, 0, 9.5)
-contents = PackedStringArray("rag:1", "bandage:1")
+contents = PackedStringArray("bandage:1")
 
 [sub_resource type="Resource" id="Resource_room_46"]
 script = ExtResource("5_room_dat")

@@ -75,7 +75,7 @@ func test_grade_rank_orders_letters() -> void:
 
 func test_from_state_collects_player_numbers() -> void:
 	var pistol := Fixtures.pistol(8)
-	var ammo := Fixtures.material("ammo", 60)
+	var ammo := Fixtures.stackable("ammo", 60)
 	ammo.category = ItemData.CATEGORY_AMMO
 	var state := PlayerState.new(ItemCatalog.new([pistol, ammo]))
 	state.give_starting_kit()
