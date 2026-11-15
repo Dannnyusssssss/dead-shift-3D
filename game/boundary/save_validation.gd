@@ -87,14 +87,12 @@ static func _read_infection(source: Dictionary) -> Dictionary:
 	var raw := Validation.read_dict(source, "infection")
 	var infected := Validation.read_bool(raw, "infected", false)
 	if not infected:
-		return {"infected": false, "time_left": 0.0, "slowed_left": 0.0}
+		return {"infected": false, "time_left": 0.0}
 	# Nunca a cero: cargar no debe convertir al jugador en el acto.
 	return {
 		"infected": true,
 		"time_left":
 		Validation.read_float(raw, "time_left", 1.0, Rules.INFECTION_TIME, Rules.INFECTION_TIME),
-		"slowed_left":
-		Validation.read_float(raw, "slowed_left", 0.0, Rules.ANTIBIOTIC_DURATION, 0.0),
 	}
 
 

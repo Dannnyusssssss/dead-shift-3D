@@ -47,7 +47,7 @@ func test_valid_save_survives() -> void:
 			"spawn_kind": "exit",
 			"spawn_id": "stairs_up",
 			"health": 75.0,
-			"infection": {"infected": true, "time_left": 100.0, "slowed_left": 10.0},
+			"infection": {"infected": true, "time_left": 100.0},
 			"inventory": [{"slot": 0, "id": "pistol", "count": 1, "durability": 1.0, "ammo": 5}],
 			"vest": {"id": "vest", "durability": 0.8},
 			"equipped": 0,

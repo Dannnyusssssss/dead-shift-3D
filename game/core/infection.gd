@@ -1,13 +1,11 @@
 class_name Infection
 extends RefCounted
 ## Infección por mordida: una cuenta regresiva que, al llegar a cero, convierte al guardia.
-## Los antibióticos frenan la cuenta un tiempo; Neutrax la cura. El azar se inyecta.
+## Los antibióticos suman tiempo a la cuenta; Neutrax la cura. El azar se inyecta.
 
 var infected: bool = false
-## Segundos que quedan antes de la conversión (a ritmo normal).
+## Segundos que quedan antes de la conversión.
 var time_left: float = 0.0
-## Segundos que quedan del efecto de los antibióticos.
-var slowed_left: float = 0.0
 
 
 ## Tira el azar de una mordida. Devuelve verdadero si contagia ahora (no si ya lo estaba).
@@ -18,26 +16,14 @@ func try_infect(chance: float, rng: RandomNumberGenerator) -> bool:
 		return false
 	infected = true
 	time_left = Rules.INFECTION_TIME
-	slowed_left = 0.0
 	return true
-
-
-## Ritmo actual de la cuenta (1 normal, menor con antibióticos).
-func rate() -> float:
-	return Rules.ANTIBIOTIC_RATE if slowed_left > 0.0 else 1.0
-
-
-func is_slowed() -> bool:
-	return infected and slowed_left > 0.0
 
 
 ## Avanza la cuenta. Devuelve verdadero en el momento en que llega a cero (conversión).
 func tick(delta: float) -> bool:
 	if not infected or time_left <= 0.0:
 		return false
-	var step := maxf(delta, 0.0)
-	time_left = maxf(time_left - step * rate(), 0.0)
-	slowed_left = maxf(slowed_left - step, 0.0)
+	time_left = maxf(time_left - maxf(delta, 0.0), 0.0)
 	return time_left <= 0.0
 
 
@@ -45,12 +31,19 @@ func is_converted() -> bool:
 	return infected and time_left <= 0.0
 
 
-## Antibióticos: frenan la cuenta durante un tiempo. Solo sirven si hay infección.
-func slow() -> bool:
+## Antibióticos: suman tiempo a la cuenta sin pasar de la cuenta inicial. Devuelve los segundos
+## ganados (0 si no hay infección o la cuenta ya está completa).
+func add_time(seconds: float) -> float:
 	if not infected or is_converted():
-		return false
-	slowed_left = Rules.ANTIBIOTIC_DURATION
-	return true
+		return 0.0
+	var before := time_left
+	time_left = minf(time_left + maxf(seconds, 0.0), Rules.INFECTION_TIME)
+	return time_left - before
+
+
+## Verdadero si unos antibióticos ahora sumarían algo.
+func can_add_time() -> bool:
+	return infected and not is_converted() and time_left < Rules.INFECTION_TIME - 0.5
 
 
 ## Neutrax: cura la infección. Solo sirve si hay infección.
@@ -59,5 +52,4 @@ func cure() -> bool:
 		return false
 	infected = false
 	time_left = 0.0
-	slowed_left = 0.0
 	return true

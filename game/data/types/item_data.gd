@@ -13,7 +13,7 @@ const CATEGORY_KEY: int = 5
 ## Efecto al usar un consumible.
 const EFFECT_NONE: int = 0
 const EFFECT_HEAL: int = 1
-const EFFECT_SLOW_INFECTION: int = 2
+const EFFECT_DELAY_INFECTION: int = 2
 const EFFECT_CURE_INFECTION: int = 3
 
 ## Identificador interno (minúsculas, dígitos y guion bajo).

@@ -19,7 +19,7 @@ func before_each() -> void:
 				Fixtures.melee("pipe", 2.0, 1.0),
 				Fixtures.vest(),
 				Fixtures.consumable("bandage", ItemData.EFFECT_HEAL, 30.0),
-				Fixtures.consumable("antibiotics", ItemData.EFFECT_SLOW_INFECTION),
+				Fixtures.consumable("antibiotics", ItemData.EFFECT_DELAY_INFECTION),
 				Fixtures.consumable("neutrax", ItemData.EFFECT_CURE_INFECTION),
 			]
 		)
@@ -152,8 +152,10 @@ func test_antibiotics_and_neutrax_need_infection() -> void:
 	assert_eq(state.use_item(neutrax), PlayerState.USE_NOT_INFECTED)
 	assert_eq(state.inventory.count_of("neutrax"), 1, "no se gasta")
 	state.infection.try_infect(1.0, Fixtures.rng())
+	assert_eq(state.use_item(antibiotics), PlayerState.USE_COUNTDOWN_FULL, "cuenta completa")
+	state.infection.tick(100.0)
 	assert_eq(state.use_item(antibiotics), PlayerState.USE_OK)
-	assert_true(state.infection.is_slowed())
+	assert_almost_eq(state.infection.time_left, Rules.INFECTION_TIME - 10.0, 0.001, "+90 s")
 	assert_eq(state.use_item(neutrax), PlayerState.USE_OK)
 	assert_false(state.infection.infected)
 

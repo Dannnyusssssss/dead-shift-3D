@@ -51,29 +51,32 @@ func test_countdown_reaches_zero_and_converts_once() -> void:
 	assert_false(infection.tick(1.0), "solo avisa una vez")
 
 
-func test_antibiotics_slow_the_countdown_for_a_while() -> void:
+func test_antibiotics_add_time_without_passing_the_full_countdown() -> void:
 	var infection := _infected()
-	assert_true(infection.slow())
+	assert_false(infection.can_add_time(), "recién contagiado no hay nada que sumar")
+	assert_eq(infection.add_time(Rules.ANTIBIOTIC_BONUS), 0.0)
+	infection.tick(150.0)
+	assert_true(infection.can_add_time())
+	var gained := infection.add_time(Rules.ANTIBIOTIC_BONUS)
+	assert_almost_eq(gained, Rules.ANTIBIOTIC_BONUS, 0.001, "suma todo")
+	assert_almost_eq(infection.time_left, Rules.INFECTION_TIME - 60.0, 0.001)
+	gained = infection.add_time(Rules.ANTIBIOTIC_BONUS)
+	assert_almost_eq(gained, 60.0, 0.001, "solo hasta la cuenta inicial")
+	assert_almost_eq(infection.time_left, Rules.INFECTION_TIME, 0.001)
 	infection.tick(10.0)
-	assert_almost_eq(
-		infection.time_left, Rules.INFECTION_TIME - 10.0 * Rules.ANTIBIOTIC_RATE, 0.001
-	)
-	infection.tick(Rules.ANTIBIOTIC_DURATION)
-	assert_false(infection.is_slowed(), "el efecto se acaba")
-	var before := infection.time_left
-	infection.tick(10.0)
-	assert_almost_eq(infection.time_left, before - 10.0, 0.001, "vuelve al ritmo normal")
+	assert_almost_eq(infection.time_left, Rules.INFECTION_TIME - 10.0, 0.001, "ritmo normal")
 
 
 func test_antibiotics_and_cure_need_an_infection() -> void:
 	var healthy := Infection.new()
-	assert_false(healthy.slow())
+	assert_eq(healthy.add_time(Rules.ANTIBIOTIC_BONUS), 0.0)
 	assert_false(healthy.cure())
 
 
 func test_neutrax_cures() -> void:
 	var infection := _infected()
-	infection.slow()
+	infection.tick(100.0)
+	infection.add_time(Rules.ANTIBIOTIC_BONUS)
 	assert_true(infection.cure())
 	assert_false(infection.infected)
 	assert_false(infection.tick(Rules.INFECTION_TIME * 2.0), "ya no hay cuenta")

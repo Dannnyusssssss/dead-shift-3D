@@ -15,6 +15,7 @@ const USE_OK: String = ""
 const USE_NOT_USABLE: String = "not_usable"
 const USE_FULL_HEALTH: String = "full_health"
 const USE_NOT_INFECTED: String = "not_infected"
+const USE_COUNTDOWN_FULL: String = "countdown_full"
 
 var health: float = Rules.PLAYER_MAX_HEALTH
 var inventory: Inventory = null
@@ -114,7 +115,11 @@ func check_use(index: int) -> String:
 	match stack.item.use_effect:
 		ItemData.EFFECT_HEAL:
 			return USE_FULL_HEALTH if health >= Rules.PLAYER_MAX_HEALTH else USE_OK
-		ItemData.EFFECT_SLOW_INFECTION, ItemData.EFFECT_CURE_INFECTION:
+		ItemData.EFFECT_DELAY_INFECTION:
+			if not infection.infected:
+				return USE_NOT_INFECTED
+			return USE_OK if infection.can_add_time() else USE_COUNTDOWN_FULL
+		ItemData.EFFECT_CURE_INFECTION:
 			return USE_OK if infection.infected else USE_NOT_INFECTED
 	return USE_NOT_USABLE
 
@@ -128,8 +133,8 @@ func use_item(index: int) -> String:
 	match item.use_effect:
 		ItemData.EFFECT_HEAL:
 			health = minf(health + item.heal_amount, Rules.PLAYER_MAX_HEALTH)
-		ItemData.EFFECT_SLOW_INFECTION:
-			infection.slow()
+		ItemData.EFFECT_DELAY_INFECTION:
+			infection.add_time(Rules.ANTIBIOTIC_BONUS)
 		ItemData.EFFECT_CURE_INFECTION:
 			infection.cure()
 	inventory.consume_one(index)
