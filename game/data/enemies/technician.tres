@@ -5,6 +5,8 @@
 
 [sub_resource type="Resource" id="Resource_bossdata"]
 script = ExtResource("2_boss")
+swipe_damage = 18.0
+swipe_cooldown = 2.2
 
 [resource]
 script = ExtResource("1_tech")
@@ -12,7 +14,7 @@ id = "technician"
 name_key = "enemy_technician"
 max_health = 750.0
 move_speed = 1.8
-attack_damage = 22.0
+attack_damage = 18.0
 attack_range = 2.2
 sight_range = 22.0
 body_color = Color(0.78, 0.48, 0.16, 1)

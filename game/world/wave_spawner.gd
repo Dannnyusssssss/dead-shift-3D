@@ -1,23 +1,30 @@
 class_name WaveSpawner
 extends Node3D
-## Oleadas del rescate perdido en la azotea: cada oleada trae más enemigos de comportamiento
-## simple (persiguen directo), que aparecen por los bordes. Nunca hay más de un tope de enemigos
-## vivos a la vez (menor en celular, por rendimiento). Al limpiar la última oleada, avisa.
+## Oleadas en la azotea: enemigos de comportamiento simple (persiguen directo) que aparecen
+## por los bordes. Dos usos: la espera del helicóptero tras llamarlo (oleadas cortas: el ruido
+## de la llamada los atrae) y el rescate perdido (oleadas crecientes hasta el final). Nunca hay
+## más de un tope de enemigos vivos a la vez (menor en celular). Al limpiar la última, avisa.
 
 signal waves_cleared
 
 const ENEMY_SCENE: PackedScene = preload("res://game/actors/enemies/enemy.tscn")
 const WAVE_ENEMY: EnemyData = preload("res://game/data/enemies/wave_walker.tres")
-## Enemigos de cada oleada.
-const WAVES: Array[int] = [4, 7, 10, 14, 18]
-## Tope de enemigos vivos a la vez en PC y en celular.
+## Enemigos de cada oleada del rescate perdido y de la espera del helicóptero.
+const LOST_WAVES: Array[int] = [4, 7, 10, 14, 18]
+const CALL_WAVES: Array[int] = [2, 2, 3, 3, 4, 4]
+## Tope de enemigos vivos a la vez en PC y en celular (la espera del helicóptero, menos).
 const CAP_DESKTOP: int = 20
 const CAP_TOUCH: int = 12
-## Segundos entre apariciones y de respiro entre oleadas.
+const CALL_CAP: int = 6
+## Segundos entre apariciones y de respiro entre oleadas (más respiro durante la espera).
 const SPAWN_INTERVAL: float = 0.8
 const WAVE_PAUSE: float = 6.0
+const CALL_WAVE_PAUSE: float = 20.0
 
 var spawn_points: Array[Vector3] = []
+## Oleadas de este generador y respiro entre ellas.
+var waves: Array[int] = LOST_WAVES
+var wave_pause: float = WAVE_PAUSE
 var wave: int = 0
 var cap: int = CAP_DESKTOP
 
@@ -29,8 +36,15 @@ var _finished: bool = false
 
 
 func _ready() -> void:
-	cap = CAP_TOUCH if Config.is_touch else CAP_DESKTOP
+	cap = mini(cap, CAP_TOUCH if Config.is_touch else CAP_DESKTOP)
 	_start_wave()
+
+
+## Prepara el generador para la espera del helicóptero.
+func use_call_waves() -> void:
+	waves = CALL_WAVES
+	wave_pause = CALL_WAVE_PAUSE
+	cap = CALL_CAP
 
 
 ## Enemigos de las oleadas que siguen vivos.
@@ -51,16 +65,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if not _alive.is_empty():
 		return
-	if wave >= WAVES.size():
+	if wave >= waves.size():
 		_finished = true
 		waves_cleared.emit()
 		return
-	if _timer <= -WAVE_PAUSE:
+	if _timer <= -wave_pause:
 		_start_wave()
 
 
 func _start_wave() -> void:
-	_pending = WAVES[wave]
+	_pending = waves[wave]
 	wave += 1
 	_timer = 0.0
 	EventBus.user_message.emit("msg_wave_incoming")

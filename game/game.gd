@@ -1,8 +1,8 @@
 class_name Game
 extends Node
-## Partida en curso: carga el piso actual y monta la interfaz (HUD, táctil, inventario, pausa,
-## fin, carga y rendimiento). Cambia de piso con una pantalla de carga conservando el estado
-## del jugador y del mundo. Termina al morir o al llegar a la meta final.
+## Partida en curso: construye el edificio entero y monta la interfaz (HUD, táctil, inventario,
+## pausa, fin y rendimiento). El jugador pasa de un piso a otro caminando por las escaleras; al
+## cambiar de piso se autoguarda. Termina con un desenlace.
 
 signal restart_requested
 ## Volver al último autoguardado (desde la pantalla de muerte).
@@ -13,43 +13,41 @@ const CAMERA_RANGE: float = 10.0
 
 ## Partida guardada ya validada con la que empezar (vacío = partida nueva).
 var start_data: Dictionary = {}
-var level: FloorLevel = null
+var level: Building = null
 var elapsed: float = 0.0
 var finished: bool = false
 var won: bool = false
-## Verdadero mientras se carga otro piso.
-var changing_floor: bool = false
 
 var _hud: Hud = null
 var _inventory: InventoryPanel = null
 var _end_screen: EndScreen = null
-var _loading: LoadingScreen = null
 var _map: MapView = null
 var _camera_timer: float = 0.0
 var _camera_alert: bool = false
 var _waves: WaveSpawner = null
+## Oleadas de la espera del helicóptero (atraídas por la llamada).
+var _call_waves: WaveSpawner = null
 var _safe_room: String = ""
+var _started: bool = false
 
 
 func _ready() -> void:
-	var start := GameState.CATALOG.find_floor(GameState.CATALOG.start_floor)
+	level = Building.new()
+	level.name = "Level"
 	if start_data.is_empty():
 		GameState.start_new_run()
-		_build_level(start, "")
+		level.start_floor = GameState.CATALOG.start_floor
 	else:
 		GameState.load_run(start_data)
-		var saved_floor: String = start_data.get("floor", "")
-		var saved := GameState.CATALOG.find_floor(saved_floor)
-		start = saved if saved != null else start
+		level.start_floor = start_data.get("floor", "")
 		var stats: Dictionary = start_data.get("stats", {})
 		elapsed = stats.get("time", 0.0)
 		var kind: String = start_data.get("spawn_kind", "")
 		var spawn_id: String = start_data.get("spawn_id", "")
-		_build_level(
-			start,
-			spawn_id if kind == SaveValidation.SPAWN_EXIT else "",
-			spawn_id if kind == SaveValidation.SPAWN_SAFE else ""
-		)
+		level.arrival_exit = spawn_id if kind == SaveValidation.SPAWN_EXIT else ""
+		level.arrival_safe_room = spawn_id if kind == SaveValidation.SPAWN_SAFE else ""
+	add_child(level)
+	move_child(level, 0)
 	var ui := CanvasLayer.new()
 	ui.name = "UI"
 	add_child(ui)
@@ -65,24 +63,23 @@ func _ready() -> void:
 	ui.add_child(_end_screen)
 	_end_screen.restart_requested.connect(func() -> void: restart_requested.emit())
 	_end_screen.continue_requested.connect(func() -> void: continue_requested.emit())
-	_loading = LoadingScreen.new()
-	ui.add_child(_loading)
 	ui.add_child(PerfOverlay.new())
 	_bind_player()
 	EventBus.player_died.connect(_on_player_died)
 	EventBus.goal_reached.connect(_on_goal_reached)
-	EventBus.floor_change_requested.connect(change_floor)
 	EventBus.rescue_lost.connect(_maybe_start_waves)
-	EventBus.floor_changed.connect(func(_floor_id: String) -> void: _maybe_start_waves())
+	EventBus.rescue_changed.connect(_maybe_start_waves)
+	EventBus.floor_changed.connect(_on_floor_changed)
 	EventBus.surrender_requested.connect(_on_surrender)
 	EventBus.enemy_died.connect(_on_enemy_died)
 	EventBus.save_requested.connect(_on_save_requested)
 	InputRouter.gameplay_active = true
-	EventBus.floor_changed.emit(start.id)
+	EventBus.floor_changed.emit(level.floor_data.id)
+	_started = true
 
 
 func _process(delta: float) -> void:
-	if finished or GameState.paused or changing_floor:
+	if finished or GameState.paused:
 		return
 	elapsed += delta
 	_tick_rescue(delta)
@@ -92,6 +89,8 @@ func _process(delta: float) -> void:
 ## Avanza el reloj del rescate y reacciona a sus momentos.
 func _tick_rescue(delta: float) -> void:
 	var player := level.player
+	if _call_waves == null and _waves == null and _is_waiting_for_rescue():
+		_maybe_start_waves()
 	var on_pad := level.on_helipad(player.global_position) and not player.is_dead()
 	match GameState.rescue.tick(delta, on_pad):
 		RescueClock.EVENT_ARRIVED:
@@ -123,56 +122,27 @@ func _tick_cameras(delta: float) -> void:
 		if not room_id.is_empty() and not player.is_dead():
 			save_game(SaveValidation.SPAWN_SAFE, room_id, false)
 	if room != null:
-		for node: Node in get_tree().get_nodes_in_group("enemy"):
-			var enemy := node as Enemy
-			if enemy != null and not enemy.is_dead():
-				if enemy.global_position.distance_to(player.global_position) <= CAMERA_RANGE:
-					alert = true
-					break
+		for enemy: Enemy in level.active_enemies():
+			if enemy.is_dead() or absf(enemy.global_position.y - player.global_position.y) > 2.5:
+				continue
+			if enemy.global_position.distance_to(player.global_position) <= CAMERA_RANGE:
+				alert = true
+				break
 	if alert != _camera_alert:
 		_camera_alert = alert
 		EventBus.camera_alert.emit(alert)
 
 
-## Carga otro piso y coloca al jugador en la salida indicada. El estado del jugador y del
-## mundo se conserva; los objetos que quedaron en el suelo se recuerdan.
-func change_floor(floor_id: String, exit_id: String) -> void:
-	if changing_floor or finished:
+## El jugador pasó a otro piso: autoguardado en el descansillo más cercano y, en la azotea
+## tras perder el rescate, oleadas.
+func _on_floor_changed(_floor_id: String) -> void:
+	_maybe_start_waves()
+	if not _started or finished or level.player.is_dead():
 		return
-	var data := GameState.CATALOG.find_floor(floor_id)
-	if data == null or data.find_exit(exit_id) == null:
-		ErrorLog.report("unknown_floor", "%s/%s" % [floor_id, exit_id])
-		EventBus.user_message.emit("msg_generic_error")
-		return
-	changing_floor = true
-	_inventory.close()
-	_map.close()
-	level.player.set_blocked("loading", true)
-	_loading.show_floor(data.name_key)
-	# Dos fotogramas para que la pantalla de carga se dibuje antes del trabajo pesado.
-	await get_tree().process_frame
-	await get_tree().process_frame
-	level.store_world_state()
-	remove_child(level)
-	level.queue_free()
-	_build_level(data, exit_id)
-	_bind_player()
-	await get_tree().process_frame
-	_loading.visible = false
-	changing_floor = false
-	EventBus.floor_changed.emit(floor_id)
 	_safe_room = ""
-	save_game(SaveValidation.SPAWN_EXIT, exit_id, false)
-
-
-func _build_level(data: FloorData, exit_id: String, safe_room: String = "") -> void:
-	level = FloorLevel.new()
-	level.name = "Level"
-	level.floor_data = data
-	level.arrival_exit = exit_id
-	level.arrival_safe_room = safe_room
-	add_child(level)
-	move_child(level, 0)
+	var exit_id := level.nearest_exit_id()
+	if not exit_id.is_empty():
+		save_game(SaveValidation.SPAWN_EXIT, exit_id, false)
 
 
 func _bind_player() -> void:
@@ -181,23 +151,42 @@ func _bind_player() -> void:
 	_map.bind_player(level.player)
 
 
-## Si el helicóptero ya se fue y el jugador está en la azotea, empiezan las oleadas.
+## Oleadas en la azotea (con el jugador en ella): durante la espera del helicóptero, las que
+## atrae la llamada; si el helicóptero se fue, las del rescate perdido hasta el final.
 func _maybe_start_waves() -> void:
-	if _waves != null or finished or GameState.rescue.state != RescueClock.STATE_DEPARTED:
+	if finished or not level.floor_data.has_helipad:
 		return
-	if not level.floor_data.has_helipad:
-		return
-	_waves = WaveSpawner.new()
-	_waves.name = "Waves"
+	var state := GameState.rescue.state
+	if state == RescueClock.STATE_DEPARTED and _waves == null:
+		if _call_waves != null:
+			_call_waves.queue_free()
+			_call_waves = null
+		_waves = _make_spawner("Waves")
+		_waves.waves_cleared.connect(func() -> void: _finish(RunStats.OUTCOME_LOST))
+	elif _is_waiting_for_rescue() and _call_waves == null and _waves == null:
+		_call_waves = _make_spawner("CallWaves", true)
+
+
+func _is_waiting_for_rescue() -> bool:
+	var state := GameState.rescue.state
+	return state == RescueClock.STATE_INBOUND or state == RescueClock.STATE_WAITING
+
+
+func _make_spawner(spawner_name: String, call_waves: bool = false) -> WaveSpawner:
+	var spawner := WaveSpawner.new()
+	spawner.name = spawner_name
+	if call_waves:
+		spawner.use_call_waves()
+	var lift := Vector3.UP * level.floor_data.elevation()
 	for point: Vector3 in level.floor_data.wave_spawn_points:
-		_waves.spawn_points.append(point)
-	level.add_child(_waves)
-	_waves.waves_cleared.connect(func() -> void: _finish(RunStats.OUTCOME_LOST))
+		spawner.spawn_points.append(point + lift)
+	level.add_actor(spawner)
+	return spawner
 
 
 ## Guarda la partida (una sola ranura). Devuelve verdadero si se pudo.
 func save_game(spawn_kind: String, spawn_id: String, manual: bool) -> bool:
-	if finished or changing_floor or level.player.is_dead():
+	if finished or level.player.is_dead():
 		return false
 	level.store_world_state()
 	var data := SaveGame.capture(
