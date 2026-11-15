@@ -118,24 +118,64 @@ func test_floor_loot_points_to_existing_items() -> void:
 			assert_true(items.has(item_id), "%s: %s" % [floor_data.id, item_id])
 
 
-func test_exits_link_both_ways_and_arrival_is_outside_the_zone() -> void:
+func _in_any(rects: Array[Rect2], point: Vector3) -> bool:
+	for rect: Rect2 in rects:
+		if rect.has_point(Vector2(point.x, point.z)):
+			return true
+	return false
+
+
+func _on_floor(floor_data: FloorData, point: Vector3) -> bool:
+	var rooms: Array[Rect2] = []
+	for room: RoomData in floor_data.rooms:
+		if room.has_floor or room.outdoor:
+			rooms.append(room.rect)
+	return _in_any(rooms, point) and not _in_any(floor_data.holes, point)
+
+
+func _floor_at_level(index: int) -> FloorData:
 	for floor_data: FloorData in _catalog.floors:
+		if floor_data.level_index == index:
+			return floor_data
+	return null
+
+
+func test_floors_stack_without_gaps() -> void:
+	var seen: Array[int] = []
+	for floor_data: FloorData in _catalog.floors:
+		assert_false(seen.has(floor_data.level_index), floor_data.id + ": índice repetido")
+		seen.append(floor_data.level_index)
+	for index: int in seen.size():
+		assert_true(seen.has(index), "falta el piso %d" % index)
+
+
+func test_landings_and_spawn_stand_on_solid_floor() -> void:
+	for floor_data: FloorData in _catalog.floors:
+		assert_true(_on_floor(floor_data, floor_data.player_spawn), floor_data.id + ": inicio")
 		for floor_exit: FloorExit in floor_data.exits:
 			var where := "%s/%s" % [floor_data.id, floor_exit.id]
-			var zone := AABB(
-				floor_exit.position - Vector3(floor_exit.size.x, 0.0, floor_exit.size.z) * 0.5,
-				floor_exit.size
-			)
-			assert_false(zone.grow(0.4).has_point(floor_exit.arrival + Vector3.UP), where)
-			var target := _catalog.find_floor(floor_exit.target_floor)
-			assert_not_null(target, where + ": destino")
-			if target == null:
+			assert_true(_on_floor(floor_data, floor_exit.arrival), where)
+
+
+func test_ramps_have_headroom_and_land_on_the_floor_above() -> void:
+	for floor_data: FloorData in _catalog.floors:
+		var above := _floor_at_level(floor_data.level_index + 1)
+		for index: int in floor_data.ramps.size():
+			var ramp: RampSpec = floor_data.ramps[index]
+			var where := "%s/rampa %d" % [floor_data.id, index]
+			assert_not_null(above, where + ": no hay piso arriba")
+			if above == null:
 				continue
-			var back := target.find_exit(floor_exit.target_exit)
-			assert_not_null(back, where + ": salida enlazada")
-			if back != null:
-				assert_eq(back.target_floor, floor_data.id, where + ": vuelve")
-				assert_eq(back.target_exit, floor_exit.id, where + ": misma salida")
+			for step: int in range(1, 20):
+				var t := float(step) / 20.0
+				var point := ramp.start + ramp.forward() * (ramp.run * t)
+				var height := ramp.start.y + ramp.rise * t
+				if height + Rules.PLAYER_EYE_HEIGHT + 0.3 > Rules.ROOM_HEIGHT:
+					assert_true(_in_any(above.holes, point), where + ": sin hueco encima")
+			var top := ramp.start.y + ramp.rise
+			if is_equal_approx(top, Rules.FLOOR_HEIGHT):
+				var landing := ramp.start + ramp.forward() * (ramp.run + 0.4)
+				assert_true(_on_floor(above, landing), where + ": no llega a un suelo")
 
 
 func test_neutrax_has_exactly_two_doses_in_the_whole_game() -> void:

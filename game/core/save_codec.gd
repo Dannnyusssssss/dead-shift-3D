@@ -6,7 +6,7 @@ extends RefCounted
 ## Nunca usa recursos del motor (.tres, .res, escenas): solo tipos JSON, que no ejecutan código.
 ## Solo decodifica y migra; el esquema campo por campo lo comprueba boundary/validation.gd.
 
-const CURRENT_VERSION: int = 2
+const CURRENT_VERSION: int = 3
 ## Tamaño máximo aceptado del texto guardado (bytes UTF-8).
 const MAX_BYTES: int = 262144
 ## Profundidad máxima de anidación aceptada.
@@ -60,6 +60,8 @@ static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	while version < CURRENT_VERSION:
 		if version == 1:
 			current = _migrate_1_to_2(current)
+		elif version == 2:
+			current = _migrate_2_to_3(current)
 		version += 1
 	current["version"] = CURRENT_VERSION
 	return current
@@ -88,7 +90,7 @@ static func _migrate_1_to_2(old: Dictionary) -> Dictionary:
 			result[key] = old[key]
 	var left: Variant = old.get("infection_left")
 	var seconds: float = left if (left is float or left is int) else 0.0
-	result["infection"] = {"infected": seconds > 0.0, "time_left": seconds, "slowed_left": 0.0}
+	result["infection"] = {"infected": seconds > 0.0, "time_left": seconds}
 	result["keys"] = old.get("phone_pieces", [])
 	var called: Variant = old.get("phone_called")
 	var clock: Variant = old.get("rescue_clock", 0.0)
@@ -103,6 +105,21 @@ static func _migrate_1_to_2(old: Dictionary) -> Dictionary:
 			"weapons_broken": old_stats.get("weapons_broken", 0),
 			"crafted": old_stats.get("crafted", 0),
 		}
+	return result
+
+
+## Versión 2 (pisos separados) a 3 (edificio continuo): la planta cambió, así que lo anotado
+## por piso (enemigos muertos, objetos recogidos, contenedores y objetos en el suelo) ya no
+## corresponde a nada y se descarta. Se conservan el jugador, las marcas (rejas y atajos
+## abiertos), el rescate y las estadísticas.
+static func _migrate_2_to_3(old: Dictionary) -> Dictionary:
+	var result := old.duplicate(true)
+	var world: Variant = old.get("world")
+	var flags: Variant = []
+	if world is Dictionary:
+		var old_world: Dictionary = world
+		flags = old_world.get("flags", [])
+	result["world"] = {"flags": flags, "floors": {}}
 	return result
 
 

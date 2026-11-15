@@ -83,6 +83,26 @@ func test_version_one_save_is_migrated() -> void:
 	assert_eq(data["world"]["flags"], ["shortcut_l1"])
 
 
+func test_version_two_save_drops_the_old_floor_records() -> void:
+	var old := '{"version": 2, "floor": "level_1", "spawn_kind": "exit", "spawn_id": "stairs_down",'
+	old += ' "health": 70, "world": {"flags": ["shortcut_l1"], "floors": {"level_1":'
+	old += ' {"killed": ["enemy_0"], "taken": ["corridor_0"]}}}}'
+	var result := SaveCodec.decode(old)
+	assert_true(result.ok)
+	var data := result.data
+	assert_eq(data["version"], SaveCodec.CURRENT_VERSION)
+	assert_eq(data["floor"], "level_1")
+	assert_eq(data["health"], 70.0)
+	assert_eq(data["world"]["flags"], ["shortcut_l1"], "las rejas abiertas siguen abiertas")
+	assert_eq(data["world"]["floors"], {}, "la planta antigua ya no existe")
+
+
+func test_version_two_with_garbage_world_migrates_without_crashing() -> void:
+	var result := SaveCodec.decode('{"version": 2, "world": 7}')
+	assert_true(result.ok)
+	assert_eq(result.data["world"]["floors"], {})
+
+
 func test_version_one_garbage_migrates_without_crashing() -> void:
 	var result := SaveCodec.decode(
 		'{"version": 1, "floor": "x", "infection_left": "y", "stats": 5}'

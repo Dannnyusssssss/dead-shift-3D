@@ -1,13 +1,19 @@
 class_name RoomData
 extends Resource
 ## Una sala de un piso: rectángulo en el plano, puertas, escaparate y botín.
-## El pasillo, las tiendas y la sala de seguridad son salas.
+## El pasillo central, las tiendas y la sala de seguridad son salas.
+
+## Lados (bits) para open_sides.
+const OPEN_NORTH: int = 1
+const OPEN_SOUTH: int = 2
+const OPEN_WEST: int = 4
+const OPEN_EAST: int = 8
 
 @export var id: String = ""
 @export var name_key: String = ""
 ## Esquina (x, z) y tamaño (ancho en x, fondo en z), en metros.
 @export var rect: Rect2 = Rect2(0.0, 0.0, 8.0, 8.0)
-@export var height: float = 3.5
+@export var height: float = 4.7
 @export var floor_color: Color = Color(0.45, 0.45, 0.45)
 @export var wall_color: Color = Color(0.6, 0.6, 0.6)
 @export var doors: Array[DoorSpec] = []
@@ -21,3 +27,9 @@ extends Resource
 @export var light_count: int = 1
 ## Exterior (azotea): sin techo; las paredes son un pretil bajo.
 @export var outdoor: bool = false
+## Lados sin pared (bits OPEN_*): el pasillo central lo cierran las fachadas de las tiendas.
+@export var open_sides: int = 0
+## Falso para salas que se apoyan en el suelo de otra (la caseta de la azotea).
+@export var has_floor: bool = true
+## Persiana metálica sobre la puerta principal (0 = subida, 1 = bajada hasta el suelo).
+@export var shutter: float = 0.0

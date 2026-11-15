@@ -1,8 +1,8 @@
 class_name Gate
 extends Interactable
-## Reja que bloquea el paso hasta abrirla. Si pide una llave, solo se abre con ese objeto clave.
-## Al abrirse pone su marca en el estado del mundo: así sigue abierta al volver al piso y puede
-## habilitar un atajo en otro piso. Se arma desde un GateSpec del piso.
+## Reja que bloquea el paso hasta abrirla. Si pide una llave, solo se abre con ese objeto clave;
+## si es un atajo, solo desde un lado. Al abrirse pone su marca en el estado del mundo, así sigue
+## abierta en una partida continuada. Se arma desde un GateSpec del piso.
 
 const BAR_COLOR: Color = Color(0.32, 0.33, 0.36)
 const BAR_SPACING: float = 0.25
@@ -25,6 +25,9 @@ func _ready() -> void:
 func get_prompt_key() -> String:
 	if is_open or not enabled:
 		return ""
+	var viewer := get_tree().get_first_node_in_group("player") as Node3D
+	if viewer != null and not _reachable_from(viewer.global_position):
+		return "prompt_gate_other_side"
 	if not spec.required_item.is_empty() and not GameState.player.keys.has(spec.required_item):
 		return "prompt_gate_locked"
 	return "prompt_open_gate"
@@ -32,6 +35,9 @@ func get_prompt_key() -> String:
 
 func interact(player: Player) -> void:
 	if is_open:
+		return
+	if not _reachable_from(player.global_position):
+		EventBus.user_message.emit("msg_locked_other_side")
 		return
 	if not spec.required_item.is_empty() and not GameState.player.keys.has(spec.required_item):
 		EventBus.user_message.emit("msg_need_key")
@@ -41,6 +47,14 @@ func interact(player: Player) -> void:
 	EventBus.sound_cue.emit("cue_gate_open", global_position)
 	_set_open(true)
 	used.emit(player)
+
+
+## Verdadero si la reja se puede abrir desde ese punto del mundo (atajos de un solo lado).
+func _reachable_from(point: Vector3) -> bool:
+	if spec.open_side == GateSpec.SIDE_BOTH:
+		return true
+	var local_z := to_local(point).z
+	return local_z * float(spec.open_side) > 0.0
 
 
 func _set_open(animated: bool) -> void:

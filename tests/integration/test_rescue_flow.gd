@@ -60,13 +60,9 @@ func test_rescue_clock_stops_while_paused() -> void:
 func test_cameras_warn_when_an_enemy_nears_the_safe_room() -> void:
 	watch_signals(EventBus)
 	var player := _game.level.player
-	player.global_position = Vector3(-4.0, 0.0, 0.0)
-	var enemy: Enemy = null
-	for node: Node in _game.level.get_children():
-		if node is Enemy:
-			enemy = node
-			break
-	enemy.global_position = Vector3(2.0, 0.0, 0.0)
+	player.global_position = Vector3(-28.0, 0.0, -2.0)
+	var enemy: Enemy = _game.level.enemies_on_floor("ground_floor")[0]
+	enemy.global_position = Vector3(-21.0, 0.0, -2.0)
 	await wait_frames(45)
 	assert_signal_emitted_with_parameters(EventBus, "camera_alert", [true])
 

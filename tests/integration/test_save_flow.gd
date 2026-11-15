@@ -37,13 +37,10 @@ func _start(data: Dictionary = {}) -> void:
 	await wait_physics_frames(3)
 
 
+## Lleva al jugador a un descansillo y espera a que el edificio note el cambio de piso.
 func _travel(floor_id: String, exit_id: String) -> void:
-	_game.change_floor(floor_id, exit_id)
-	for _step: int in 60:
-		await wait_frames(2)
-		if not _game.changing_floor:
-			break
-	await wait_physics_frames(2)
+	assert_true(_game.level.place_player_at_exit(floor_id, exit_id), floor_id + "/" + exit_id)
+	await wait_physics_frames(24)
 
 
 func _load_saved() -> Dictionary:
@@ -63,10 +60,7 @@ func test_entering_the_safe_room_autosaves() -> void:
 
 func test_floor_change_autosaves_and_continue_restores_the_run() -> void:
 	await _start()
-	var enemies: Array[Enemy] = []
-	for node: Node in _game.level.get_children():
-		if node is Enemy:
-			enemies.append(node)
+	var enemies := _game.level.enemies_on_floor("ground_floor")
 	var victim := enemies[0]
 	while not victim.is_dead():
 		victim.take_hit(50.0, victim.global_position + Vector3.UP * 0.5, true)
@@ -82,15 +76,12 @@ func test_floor_change_autosaves_and_continue_restores_the_run() -> void:
 	await wait_frames(2)
 	await _start(data)
 	assert_eq(_game.level.floor_data.id, "level_1", "continúa en el mismo piso")
-	var arrival := _game.level.floor_data.find_exit("stairs_down").arrival
-	assert_lt(_game.level.player.global_position.distance_to(arrival), 0.5)
+	var arrival := _game.level.floor_data.find_exit("stairs_down").arrival + Vector3.UP * 5.0
+	assert_lt(_game.level.player.global_position.distance_to(arrival), 0.6)
 	assert_eq(GameState.player.health, health)
 	assert_true(GameState.player.keys.has("security_key"))
 	await _travel("ground_floor", "stairs_up")
-	var alive := 0
-	for node: Node in _game.level.get_children():
-		if node is Enemy:
-			alive += 1
+	var alive := _game.level.enemies_on_floor("ground_floor").size()
 	assert_eq(alive, enemies.size() - 1, "el enemigo muerto sigue muerto tras continuar")
 
 
@@ -100,7 +91,7 @@ func test_manual_save_only_in_safe_zone() -> void:
 	await wait_frames(2)
 	EventBus.save_requested.emit()
 	assert_true(_messages.has("msg_save_safe_only"))
-	_game.level.player.global_position = Vector3(-4.0, 0.0, 0.0)
+	_game.level.player.global_position = Vector3(-28.0, 0.0, -2.0)
 	await wait_frames(2)
 	EventBus.save_requested.emit()
 	assert_true(_messages.has("msg_saved"))

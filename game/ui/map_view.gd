@@ -103,7 +103,7 @@ func _refresh() -> void:
 
 
 func _floor() -> FloorData:
-	var level := _player.get_parent() as FloorLevel if _player != null else null
+	var level := _player.get_parent() as Building if _player != null else null
 	return level.floor_data if level != null else null
 
 
@@ -153,6 +153,10 @@ func _draw_map() -> void:
 				rect.size.x - 8.0,
 				16
 			)
+	for hole: Rect2 in floor_data.holes:
+		var hole_corner: Vector2 = to_screen.call(hole.position)
+		var hole_rect := Rect2(hole_corner, hole.size * scale_factor)
+		_canvas.draw_rect(hole_rect, Color(0.05, 0.05, 0.07))
 	for floor_exit: FloorExit in floor_data.exits:
 		var spot: Vector2 = to_screen.call(Vector2(floor_exit.position.x, floor_exit.position.z))
 		_canvas.draw_rect(

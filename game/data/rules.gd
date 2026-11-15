@@ -35,11 +35,11 @@ const THROW_SPEED: float = 11.0
 const THROW_LIFT: float = 2.5
 const THROW_COOLDOWN: float = 0.6
 
-## Infección: segundos hasta la conversión, cuánto duran los antibióticos y a qué ritmo
-## avanza la cuenta mientras actúan.
+## Infección: segundos hasta la conversión.
 const INFECTION_TIME: float = 240.0
-const ANTIBIOTIC_DURATION: float = 120.0
-const ANTIBIOTIC_RATE: float = 0.25
+## Segundos que suman los antibióticos a la cuenta de la infección (sin pasar de la cuenta
+## inicial: tomarlos pronto desperdicia parte).
+const ANTIBIOTIC_BONUS: float = 90.0
 
 ## Teléfono y helicóptero: piezas necesarias, segundos de llegada tras la llamada y de espera en
 ## la azotea.
@@ -60,6 +60,8 @@ const INVENTORY_SLOTS: int = 8
 const PLAYER_WALK_SPEED: float = 3.5
 const PLAYER_SPRINT_SPEED: float = 5.5
 const PLAYER_CROUCH_SPEED: float = 1.8
+## Velocidad mientras combina o se cura: puede caminar despacio y mirar, pero no atacar.
+const PLAYER_BUSY_SPEED: float = 1.5
 const PLAYER_EYE_HEIGHT: float = 1.6
 const PLAYER_CROUCH_EYE_HEIGHT: float = 1.0
 const PLAYER_INTERACT_RANGE: float = 2.5
@@ -79,6 +81,14 @@ const LAYER_ENEMY: int = 4
 const LAYER_INTERACTABLE: int = 8
 ## Rejas y puertas que se abren: bloquean al jugador y a los enemigos, pero no la navegación.
 const LAYER_DOOR: int = 16
+
+## Edificio: distancia vertical entre pisos y altura libre de las salas interiores (el resto es
+## el forjado). Un punto pertenece al piso cuyo suelo tiene debajo, con margen para las escaleras.
+const FLOOR_HEIGHT: float = 5.0
+const ROOM_HEIGHT: float = 4.7
+const FLOOR_SWITCH_MARGIN: float = 1.5
+## Pisos por encima y por debajo del jugador cuyos enemigos y geometría siguen activos.
+const ACTIVE_FLOOR_RANGE: int = 1
 
 ## Niveles de calidad (índice = SettingsSchema.QUALITY_*): escala de resolución interna 3D,
 ## antialiasing (Viewport.MSAA_*) y niebla. La interfaz siempre se dibuja a resolución completa.
