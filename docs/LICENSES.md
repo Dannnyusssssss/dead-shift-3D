@@ -26,5 +26,14 @@ Cada pack vive en `assets/third_party/<pack>/` con su archivo de licencia, una t
 | Pack (carpeta) | Licencia | Origen | Contenido y cambios |
 |---|---|---|---|
 | ambientCG (`ambientcg`) | CC0 1.0 Universal | https://ambientcg.com · licencia en https://docs.ambientcg.com/license/ | 11 materiales: Tiles078, Tiles074, WoodFloor051, Concrete031, Concrete034, PaintedPlaster017, OfficeCeiling001, CorrugatedSteel005, DiamondPlate008A, Metal064 y Asphalt031. Mapas de color, normales y rugosidad reducidos de 1024 a 512 px; página y huella del archivo original de cada uno en `SOURCES.md`. |
+| Quaternius: Universal Animation Library (`quaternius-ual1`) | CC0 1.0 Universal | https://quaternius.com/packs/universalanimationlibrary.html | Biblioteca de animaciones humanoides (GLB, sin root motion). |
+| Quaternius: Universal Animation Library 2 (`quaternius-ual2`) | CC0 1.0 Universal | https://quaternius.com/packs/universalanimationlibrary2.html | Segunda biblioteca de animaciones (GLB) y maniquí femenino. |
+| Quaternius: Universal Base Characters, versión gratuita (`quaternius-ubc`) | CC0 1.0 Universal | https://quaternius.com/packs/universalbasecharacters.html | Dos cuerpos con esqueleto humanoide (glTF), peinados y cejas; texturas reducidas a 1024 px. |
+| Kenney: Impact Sounds 1.0 (`kenney-impact-sounds`) | CC0 1.0 Universal | https://kenney.nl/assets/impact-sounds | Pasos por superficie y golpes (OGG). |
+| Kenney: Interface Sounds 1.0 (`kenney-interface-sounds`) | CC0 1.0 Universal | https://kenney.nl/assets/interface-sounds | Sonidos de interfaz (OGG). |
+| Kenney: RPG Audio (`kenney-rpg-audio`) | CC0 1.0 Universal | https://kenney.nl/assets/rpg-audio | Pasos, objetos y armas (OGG). |
+| Kenney: Sci-Fi Sounds 1.0 (`kenney-sci-fi-sounds`) | CC0 1.0 Universal | https://kenney.nl/assets/sci-fi-sounds | Ruidos eléctricos y de máquinas (OGG). |
+
+Los packs se guardan como fuente: el juego solo incluye lo que se usa, ya procesado (atlas de texturas, modelos y sonidos elegidos).
 
 El resto del arte (escenario, mobiliario, rótulos con marcas inventadas y armas) se genera con scripts propios de Blender y forma parte del juego.
