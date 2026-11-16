@@ -1,0 +1,16 @@
+{
+ "layer_size": 512,
+ "layers": [
+  "plaster",
+  "concrete_light",
+  "concrete_dark",
+  "tiles_marble",
+  "tiles_checker",
+  "wood_floor",
+  "ceiling_tiles",
+  "corrugated",
+  "diamond_plate",
+  "rust",
+  "asphalt"
+ ]
+}
