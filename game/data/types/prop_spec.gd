@@ -22,6 +22,10 @@ const KIND_NOTE: int = 7
 ## Cámara de seguridad: position = lente, rotation_deg = hacia dónde mira, text_key = nombre.
 ## Se ve en los monitores de la sala de seguridad.
 const KIND_CAMERA: int = 8
+## Modelo de decorado generado en Blender (text_key = nombre del modelo en
+## assets/generated/props/); solo visual: su colisión son los bloques collision_only que lo
+## acompañan. Se funde con la malla de la sala que lo contiene.
+const KIND_MODEL: int = 9
 
 @export var kind: int = KIND_SHELF
 ## Centro de la base (en coordenadas del piso; y > 0 para lo que no apoya en el suelo),
@@ -33,3 +37,5 @@ const KIND_CAMERA: int = 8
 @export var shade: float = 0.55
 ## Clave de texto del rótulo.
 @export var text_key: String = ""
+## Bloque solo de colisión (invisible): la forma la pone un modelo KIND_MODEL.
+@export var collision_only: bool = false

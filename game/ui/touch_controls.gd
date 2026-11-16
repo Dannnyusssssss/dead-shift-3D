@@ -14,6 +14,7 @@ const BUTTONS: Array = [
 	["crouch", "touch_crouch", Vector2(0.94, 0.86)],
 	["weapon_next", "touch_weapon", Vector2(0.66, 0.86)],
 	["throw", "touch_throw", Vector2(0.64, 0.62)],
+	["throw_next", "touch_throw_next", Vector2(0.53, 0.68)],
 	["heal", "touch_heal", Vector2(0.66, 0.34)],
 	["inventory", "touch_inventory", Vector2(0.4, 0.1)],
 	["map", "touch_map", Vector2(0.54, 0.1)],

@@ -171,6 +171,9 @@ func _on_drop() -> void:
 		_selected_material = ""
 		EventBus.inventory_changed.emit()
 		return
+	var held := state.inventory.get_slot(_selected)
+	if held == null or held.item.bound:
+		return
 	var stack := state.inventory.take_slot(_selected)
 	if stack == null:
 		return
@@ -368,7 +371,9 @@ func _refresh_detail(stack: ItemStack) -> void:
 		_action(_actions, "inventory_wear", _on_wear)
 	if not partners.is_empty():
 		_action(_actions, "inventory_combine", func() -> void: _show_tab(TAB_COMBINE))
-	_action(_actions, "inventory_drop", _on_drop)
+	# La porra va siempre con el guardia: no se suelta.
+	if not item.bound:
+		_action(_actions, "inventory_drop", _on_drop)
 
 
 ## Nombres de los objetos con los que se combina (según las recetas).

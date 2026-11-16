@@ -88,6 +88,10 @@ throw={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"device":-1,"physical_keycode":71)]
 }
+throw_next={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":86)]
+}
 flashlight={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"device":-1,"physical_keycode":70)]
@@ -150,3 +154,10 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=0
+limits/opengl/max_renderable_lights=64
+
+[importer_defaults]
+
+wav={
+"compress/mode": 2
+}

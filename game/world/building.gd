@@ -7,6 +7,10 @@ extends Node3D
 
 ## Cada cuánto se revisa el piso del jugador y qué enemigos siguen activos.
 const TRACK_INTERVAL: float = 0.25
+## Exposición del tono de película y ganancia de la luz ambiente de cada piso (ajustados al ver
+## las capturas con las texturas del Hito 3; los valores de cada piso son relativos entre sí).
+const EXPOSURE: float = 1.15
+const AMBIENT_GAIN: float = 1.3
 const PLAYER_SCENE: PackedScene = preload("res://game/actors/player/player.tscn")
 const ENEMY_SCENE: PackedScene = preload("res://game/actors/enemies/enemy.tscn")
 const BOSS_SCENE: PackedScene = preload("res://game/actors/enemies/boss.tscn")
@@ -32,6 +36,10 @@ var _track_timer: float = 0.0
 
 func _ready() -> void:
 	_build_environment()
+	# Sangre, polvo, chispas, marcas de bala y escombros (tres llamadas de dibujo en total).
+	var effects := ImpactEffects.new()
+	effects.name = "ImpactEffects"
+	add_child(effects)
 	EventBus.blackout_changed.connect(_on_blackout_changed)
 	navigation = NavigationRegion3D.new()
 	navigation.name = "Navigation"
@@ -91,7 +99,7 @@ func floor_index_at(height: float) -> int:
 
 ## Luz ambiente de un piso: la suya, o una fracción si está en apagón.
 func _ambient_energy(section: FloorSection) -> float:
-	var energy := section.floor_data.ambient_energy
+	var energy := section.floor_data.ambient_energy * AMBIENT_GAIN
 	return energy * Rules.BLACKOUT_AMBIENT_FACTOR if not section.powered else energy
 
 
@@ -130,6 +138,14 @@ func safe_room_at(point: Vector3) -> RoomData:
 
 
 ## Verdadero si el punto del mundo está en el helipuerto.
+## Centro del helipuerto en el mundo (el piso que lo tenga; si ninguno, el origen).
+func helipad_point() -> Vector3:
+	for section: FloorSection in sections:
+		if section.floor_data.has_helipad:
+			return section.floor_data.helipad_position + Vector3.UP * section.floor_data.elevation()
+	return Vector3.ZERO
+
+
 func on_helipad(point: Vector3) -> bool:
 	return section_at(point).on_helipad(to_floor_local(point))
 
@@ -291,6 +307,14 @@ func _build_environment() -> void:
 	environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
 	environment.fog_light_color = Color(0.05, 0.05, 0.07)
 	environment.fog_density = 0.02
+	# Tono de película: las zonas claras no se queman y las oscuras conservan detalle.
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.tonemap_exposure = EXPOSURE
+	# Halo suave de los paneles y carteles que brillan (desde calidad Media).
+	environment.glow_enabled = Settings.get_int("quality") >= 1
+	environment.glow_intensity = 0.5
+	environment.glow_bloom = 0.0
+	environment.glow_hdr_threshold = 1.0
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
@@ -301,6 +325,7 @@ func _build_environment() -> void:
 func _on_settings_changed(key: String) -> void:
 	if key == "quality":
 		_environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
+		_environment.glow_enabled = Settings.get_int("quality") >= 1
 
 
 func _bake_navigation() -> void:

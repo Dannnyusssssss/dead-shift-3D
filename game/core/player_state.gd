@@ -6,6 +6,8 @@ extends RefCounted
 ## Equipo inicial: la pistola con el cargador lleno y poca munición de reserva.
 const STARTING_WEAPON: String = "pistol"
 const STARTING_RESERVE_AMMO: int = 4
+## Arma de reserva que el guardia lleva siempre (no se rompe ni se suelta).
+const BOUND_WEAPON: String = "baton"
 ## Causa de la muerte.
 const CAUSE_NONE: int = 0
 const CAUSE_DAMAGE: int = 1
@@ -21,6 +23,8 @@ var health: float = Rules.PLAYER_MAX_HEALTH
 var inventory: Inventory = null
 var vest: ItemStack = null
 var equipped_slot: int = -1
+## Material elegido para la tecla rápida de lanzar ("" = el de siempre: el primero de la bolsa).
+var quick_throw_choice: String = ""
 var weapons_broken: int = 0
 var items_crafted: int = 0
 var damage_taken: float = 0.0
@@ -50,7 +54,19 @@ func give_starting_kit() -> void:
 	var ammo := _items.get_item(pistol_data.weapon.ammo_item_id)
 	if ammo != null:
 		inventory.add_item(ammo, STARTING_RESERVE_AMMO)
+	ensure_bound_items()
 	equipped_slot = inventory.find_slot(STARTING_WEAPON)
+
+
+## Pone la porra en la mochila si no está (partidas nuevas y guardadas antes de que existiera).
+## Devuelve falso si no cabe.
+func ensure_bound_items() -> bool:
+	if inventory.find_slot(BOUND_WEAPON) >= 0:
+		return true
+	var data := _items.get_item(BOUND_WEAPON)
+	if data == null:
+		return false
+	return inventory.add_stack(ItemStack.new(data))
 
 
 func is_dead() -> bool:
@@ -193,6 +209,8 @@ func ammo_left() -> int:
 ## Material que se lanza con la acción rápida: el primero de la bolsa en el orden del catálogo
 ## (los señuelos solo si no hay otro), o "".
 func quick_throw_item() -> String:
+	if not quick_throw_choice.is_empty() and inventory.bag.count(quick_throw_choice) > 0:
+		return quick_throw_choice
 	var lure := ""
 	for item_id: String in inventory.bag.ids(_items):
 		var data := _items.get_item(item_id)
@@ -201,6 +219,18 @@ func quick_throw_item() -> String:
 		if lure.is_empty():
 			lure = item_id
 	return lure
+
+
+## Pasa la tecla rápida de lanzar al siguiente material de la bolsa (en el orden del catálogo,
+## dando la vuelta). Devuelve el elegido ("" si la bolsa está vacía).
+func cycle_quick_throw() -> String:
+	var options := inventory.bag.ids(_items)
+	if options.is_empty():
+		quick_throw_choice = ""
+		return ""
+	var current := options.find(quick_throw_item())
+	quick_throw_choice = options[(current + 1) % options.size()]
+	return quick_throw_choice
 
 
 ## Saca una unidad de un material de la bolsa (para lanzarla). Devuelve null si no hay.

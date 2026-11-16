@@ -71,6 +71,7 @@ static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
 		if entry is Dictionary:
 			entries.append(entry)
 	state.inventory.load_data(entries, items)
+	state.ensure_bound_items()
 	var vest: Dictionary = data.get("vest", {})
 	var vest_id: String = vest.get("id", "")
 	var vest_fraction: float = vest.get("durability", 1.0)

@@ -14,6 +14,12 @@ const B_CHARGING: int = 4
 const B_STUNNED: int = 5
 const B_RETURN: int = 6
 const B_DEAD: int = 7
+## Lanzamiento de la nube: gesto quieto mirando al punto marcado; después el bote vuela.
+const B_THROW: int = 8
+const THROW_WINDUP: float = 0.9
+const THROW_FLIGHT: float = 0.9
+## Altura de la mano desde la que sale el bote.
+const THROW_HAND_HEIGHT: float = 2.2
 
 ## Distancia a la que empieza el combate si ve al jugador, y a la que deja de perseguirlo.
 const ENGAGE_DISTANCE: float = 16.0
@@ -28,6 +34,8 @@ var model: BossModel = null
 var boss_state: int = B_IDLE
 ## Dirección fija de la embestida en curso.
 var charge_direction: Vector3 = Vector3.ZERO
+## Punto (en el suelo) al que lanza la nube en curso; se fija al empezar el gesto.
+var throw_target: Vector3 = Vector3.ZERO
 
 var _boss_timer: float = 0.0
 var _proximity: int = -1
@@ -71,6 +79,8 @@ func _physics_process(delta: float) -> void:
 			velocity.z = 0.0
 			if not model.is_stunned():
 				boss_state = B_CHASE
+		B_THROW:
+			_boss_throw(delta)
 		B_RETURN:
 			if _move_to(_home, model.speed()):
 				boss_state = B_IDLE
@@ -84,6 +94,21 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if boss_state == B_CHARGING:
 		_check_charge_collisions()
+	if _model != null:
+		_model.update(_visual_state(), Vector2(velocity.x, velocity.z).length())
+
+
+## Animación del modelo según lo que hace: golpe y gesto de lanzar como ataque, aturdido, y el
+## resto andar o quieto según la velocidad.
+func _visual_state() -> int:
+	match boss_state:
+		B_SWIPE, B_THROW:
+			return STATE_ATTACK
+		B_STUNNED:
+			return STATE_STUNNED
+		B_IDLE, B_CHARGE_WINDUP:
+			return STATE_IDLE
+	return STATE_CHASE
 
 
 ## Recibe un impacto. Llega al tanque si el golpe viene desde atrás; si está aturdido, todo
@@ -124,7 +149,7 @@ func _boss_think() -> void:
 	if boss_state == B_CHASE:
 		_agent.target_position = _player.global_position
 		if model.can_cloud():
-			_spawn_cloud()
+			_begin_throw()
 
 
 func _engage() -> void:
@@ -233,17 +258,36 @@ func _check_charge_collisions() -> void:
 			return
 
 
-func _spawn_cloud() -> void:
+## Empieza a lanzar la nube: fija el punto (donde está el jugador ahora), lo marca en el suelo y
+## hace el gesto quieto; el bote sale al terminar el gesto y vuela hasta la marca. Hay tiempo
+## para apartarse: gesto, vuelo y el aviso de la nube antes de que haga daño.
+func _begin_throw() -> void:
 	if _player == null:
 		return
 	model.start_cloud()
+	boss_state = B_THROW
+	_boss_timer = THROW_WINDUP
+	throw_target = Vector3(_player.global_position.x, global_position.y, _player.global_position.z)
 	var cloud := ToxicCloud.new()
 	cloud.radius = data.boss.cloud_radius
 	cloud.warning = data.boss.cloud_warning
 	cloud.duration = data.boss.cloud_duration
 	cloud.dps = model.cloud_dps()
+	cloud.lead_time = THROW_WINDUP
+	cloud.flight_time = THROW_FLIGHT
+	cloud.launch_origin = global_position + Vector3.UP * THROW_HAND_HEIGHT
 	get_parent().add_child(cloud)
-	cloud.global_position = Vector3(_player.global_position.x, 0.0, _player.global_position.z)
+	cloud.global_position = throw_target
+
+
+## Gesto de lanzar: quieto, de cara al punto marcado.
+func _boss_throw(delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_face(throw_target)
+	_boss_timer -= delta
+	if _boss_timer <= 0.0:
+		boss_state = B_CHASE
 
 
 func _on_phase_two() -> void:
@@ -303,6 +347,9 @@ func _boss_die() -> void:
 	if _announced:
 		EventBus.blackout_changed.emit(false, global_position)
 	died.emit()
+	if _model != null:
+		_model.play_death()
+		return
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -PI * 0.5, 0.8)
 	tween.parallel().tween_property(_visual, "position:y", 0.35, 0.8)
@@ -323,5 +370,12 @@ func _build_visual() -> void:
 	mesh.material = material
 	_tank_mesh = MeshInstance3D.new()
 	_tank_mesh.mesh = mesh
+	if _model != null:
+		# Colgado de la espalda: sigue al cuerpo encorvado de las animaciones.
+		mesh.height = 0.6
+		mesh.top_radius = 0.17
+		mesh.bottom_radius = 0.17
+		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 1.3, 0.24))
+		return
 	_tank_mesh.position = Vector3(0.0, 1.25, 0.38)
 	_visual.add_child(_tank_mesh)

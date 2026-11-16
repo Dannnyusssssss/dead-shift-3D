@@ -104,6 +104,8 @@ func close() -> void:
 	if _player != null:
 		_player.set_blocked("map", false)
 	InputRouter.menu_open = false
+	# Con un clic o con la tecla del mapa (gestos) se recupera el puntero sin pedir otro clic.
+	InputRouter.request_capture()
 
 
 func _process(_delta: float) -> void:
@@ -132,7 +134,9 @@ func _refresh() -> void:
 func list_text(floor_data: FloorData, markers: Array[Dictionary]) -> String:
 	var here: Array[String] = []
 	var elsewhere: Array[String] = []
-	for entry: Dictionary in MapMarkers.missing(GameState.CATALOG.floors, GameState.player.keys):
+	for entry: Dictionary in MapMarkers.missing(
+		GameState.CATALOG.floors, GameState.player.keys, GameState.loot_plan
+	):
 		var item_id: String = entry["item_id"]
 		var floor_key: String = entry["floor_key"]
 		var item_name := InventoryRows.item_name(item_id)

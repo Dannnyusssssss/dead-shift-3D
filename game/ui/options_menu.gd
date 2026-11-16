@@ -19,6 +19,7 @@ const NUMBERS: Array = [
 	["volume_ambience", "option_volume_ambience", 0.1, true],
 	["touch_button_scale", "option_touch_button_scale", 0.05, true],
 	["touch_opacity", "option_touch_opacity", 0.1, true],
+	["ui_scale", "option_ui_scale", 0.1, true],
 ]
 ## Ajustes de sí/no: clave y texto.
 const TOGGLES: Array = [
@@ -40,7 +41,7 @@ const SECTIONS: Array = [
 	["options_touch", ["touch_sensitivity", "touch_button_scale", "touch_opacity", "aim_assist"]],
 	[
 		"options_accessibility",
-		["reduce_motion", "reduce_flashes", "reduce_gore", "subtitles", "tips"]
+		["ui_scale", "reduce_motion", "reduce_flashes", "reduce_gore", "subtitles", "tips"]
 	],
 ]
 

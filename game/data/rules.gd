@@ -52,10 +52,13 @@ const HELICOPTER_WAIT_TIME: float = 75.0
 ## Linterna: segundos de luz de una carga completa (pilas nuevas).
 const FLASHLIGHT_SECONDS: float = 180.0
 ## Apagón del jefe: segundos que tarda la luz en bajar o volver (siempre suave, sin parpadeos),
-## fracción de la luz de cada sala que queda como emergencia y fracción de la luz ambiente.
+## fracción de la luz de cada sala que queda (ninguna: oscuridad total, hace falta la linterna)
+## y fracción de la luz ambiente.
 const BLACKOUT_FADE: float = 2.5
-const BLACKOUT_LIGHT_FACTOR: float = 0.1
-const BLACKOUT_AMBIENT_FACTOR: float = 0.3
+const BLACKOUT_LIGHT_FACTOR: float = 0.0
+const BLACKOUT_AMBIENT_FACTOR: float = 0.06
+## Brillo de los paneles y carteles durante el apagón (los carteles de salida se intuyen).
+const BLACKOUT_EMISSION_FACTOR: float = 0.12
 
 ## Resolución de la imagen de las cámaras de seguridad (baja: se renderiza aparte).
 const CAMERA_RESOLUTION: Vector2i = Vector2i(426, 240)

@@ -57,6 +57,7 @@ func _start_game(data: Dictionary) -> void:
 	_game.start_data = data
 	_game.restart_requested.connect(_restart)
 	_game.continue_requested.connect(_continue_from_save)
+	_game.menu_requested.connect(_quit_to_menu)
 	add_child(_game)
 	InputRouter.request_capture()
 
@@ -82,7 +83,19 @@ func _on_new_game() -> void:
 
 func _on_difficulty(difficulty_id: String) -> void:
 	GameState.next_difficulty = difficulty_id
-	_start_game({})
+	_play_intro()
+
+
+## Intro de la historia antes de una partida nueva (se puede saltar); después, la partida.
+func _play_intro() -> void:
+	_menu.visible = false
+	var intro := Intro.new()
+	intro.finished.connect(
+		func() -> void:
+			intro.queue_free()
+			_start_game({})
+	)
+	add_child(intro)
 
 
 ## Cambia entre el menú principal y la elección de dificultad.
@@ -122,24 +135,41 @@ func _on_options() -> void:
 
 
 func _restart() -> void:
-	_close_game()
-	_start_game.call_deferred({})
+	await _close_game()
+	_start_game({})
 
 
 func _continue_from_save() -> void:
 	var saved := _saved_run()
-	_close_game()
+	await _close_game()
 	if saved.is_empty():
-		_show_menu.call_deferred()
+		_show_menu()
 		return
-	_start_game.call_deferred(saved)
+	_start_game(saved)
 
 
+## Sale de la partida al menú principal (lo no guardado se pierde; la pausa ya lo confirmó).
+func _quit_to_menu() -> void:
+	InputRouter.gameplay_active = false
+	InputRouter.release_capture()
+	await _close_game()
+	_show_menu()
+
+
+## Cierra la partida en curso y espera a que se libere de verdad antes de volver. La partida
+## nueva no puede convivir con la vieja ni un cuadro: sus nodos (el jefe, el jugador) seguirían
+## en los grupos y conectados a las señales globales, y la interfaz nueva mostraba al jefe herido
+## de la partida anterior.
 func _close_game() -> void:
-	if _game != null:
-		_game.queue_free()
-		_game = null
 	GameState.set_paused(false)
+	if _game == null:
+		return
+	var old := _game
+	_game = null
+	old.queue_free()
+	await old.tree_exited
+	# La liberación termina al final de este cuadro: se sigue en el siguiente.
+	await get_tree().process_frame
 
 
 func _show_menu() -> void:

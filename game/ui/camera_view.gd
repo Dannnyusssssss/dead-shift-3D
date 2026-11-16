@@ -11,6 +11,8 @@ const PITCH_DEG: float = -24.0
 const FOV: float = 70.0
 
 var _player: Player = null
+## Cuadro en que se abrió (la pulsación de E que lo abre no lo cierra).
+var _opened_frame: int = -1
 var _viewport: SubViewport = null
 var _camera: Camera3D = null
 var _name: Label = null
@@ -58,6 +60,7 @@ func open() -> void:
 	if _spots.is_empty():
 		return
 	visible = true
+	_opened_frame = Engine.get_process_frames()
 	_player.set_blocked("cameras", true)
 	InputRouter.menu_open = true
 	InputRouter.release_capture()
@@ -75,6 +78,8 @@ func close() -> void:
 	if _player != null:
 		_player.set_blocked("cameras", false)
 	InputRouter.menu_open = false
+	# Con un clic o con E (gestos) se recupera el puntero sin pedir otro clic.
+	InputRouter.request_capture()
 
 
 ## Cambia a la cámara siguiente (1) o anterior (-1).
@@ -90,7 +95,8 @@ func current_name_key() -> String:
 func _process(_delta: float) -> void:
 	if not visible or GameState.paused:
 		return
-	if InputRouter.just_pressed("pause"):
+	var reopened := Engine.get_process_frames() == _opened_frame
+	if InputRouter.just_pressed("pause") or (InputRouter.just_pressed("interact") and not reopened):
 		close()
 	elif InputRouter.just_pressed("ui_left"):
 		cycle(-1)

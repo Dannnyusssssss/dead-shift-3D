@@ -5,6 +5,8 @@ extends Control
 ## tiene. Se cierra con «Cerrar» o con pausa. Mientras está abierta el jugador queda quieto.
 
 var _player: Player = null
+## Cuadro en que se abrió (la pulsación de E que la abre no la cierra).
+var _opened_frame: int = -1
 var _title: Label = null
 var _body: Label = null
 var _close_button: TapButton = null
@@ -64,6 +66,7 @@ func open(note_id: String) -> void:
 	_title.text = tr("note_%s_title" % note_id)
 	_body.text = body_text(note_id)
 	visible = true
+	_opened_frame = Engine.get_process_frames()
 	_player.set_blocked("note", true)
 	InputRouter.menu_open = true
 	InputRouter.release_capture()
@@ -77,10 +80,17 @@ func close() -> void:
 	if _player != null:
 		_player.set_blocked("note", false)
 	InputRouter.menu_open = false
+	# Si se cierra con un clic o con E (gestos), el navegador deja capturar el puntero en el
+	# acto. Con Esc no: el navegador no cuenta esa tecla como gesto y pedirá un clic.
+	InputRouter.request_capture()
 
 
 func _process(_delta: float) -> void:
-	if visible and not GameState.paused and InputRouter.just_pressed("pause"):
+	if not visible or GameState.paused:
+		return
+	# Se cierra con Esc o con la misma tecla que la abrió (la pulsación que la abrió no cuenta).
+	var reopened := Engine.get_process_frames() == _opened_frame
+	if InputRouter.just_pressed("pause") or (InputRouter.just_pressed("interact") and not reopened):
 		close()
 
 
@@ -88,7 +98,9 @@ func _process(_delta: float) -> void:
 static func body_text(note_id: String) -> String:
 	var lines: Array[String] = [tr_text("note_%s_body" % note_id), ""]
 	var keys := GameState.player.keys
-	var places := MapMarkers.locations(GameState.CATALOG.floors, Rules.PHONE_PARTS)
+	var places := MapMarkers.locations(
+		GameState.CATALOG.floors, Rules.PHONE_PARTS, GameState.loot_plan
+	)
 	for part: String in Rules.PHONE_PARTS:
 		var mark := "[x]" if keys.has(part) or keys.phone_assembled else "[ ]"
 		var line := "%s %s" % [mark, InventoryRows.item_name(part)]

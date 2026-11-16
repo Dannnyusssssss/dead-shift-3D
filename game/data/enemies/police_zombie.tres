@@ -18,3 +18,4 @@ ammo_max = 8
 vest_chance = 0.7
 vest_item_id = "vest"
 body_color = Color(0.18, 0.22, 0.35, 1)
+model_id = "police"

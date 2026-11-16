@@ -18,6 +18,7 @@ attack_damage = 18.0
 attack_range = 2.2
 sight_range = 22.0
 body_color = Color(0.78, 0.48, 0.16, 1)
+model_id = "technician"
 body_scale = 1.25
 boss = SubResource("Resource_bossdata")
 behavior = "walker"

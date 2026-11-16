@@ -47,6 +47,8 @@ rect = Rect2(-32, -17, 64, 34)
 height = 1.1
 floor_color = Color(0.3, 0.3, 0.32, 1)
 wall_color = Color(0.45, 0.45, 0.47, 1)
+floor_surface = "asphalt"
+wall_surface = "concrete_light"
 loot = Array[ExtResource("3_loot_spo")]([SubResource("Resource_loot_4"), SubResource("Resource_loot_5")])
 light_energy = 0.45
 light_count = 4
@@ -66,6 +68,9 @@ rect = Rect2(24, -6, 8, 4)
 height = 3
 floor_color = Color(0.3, 0.3, 0.32, 1)
 wall_color = Color(0.46, 0.46, 0.5, 1)
+floor_surface = "concrete_dark"
+wall_surface = "concrete_light"
+ceiling_surface = "ceiling_tiles"
 doors = Array[ExtResource("5_door_spe")]([SubResource("Resource_door_7")])
 light_energy = 0.6
 has_floor = false
@@ -130,6 +135,7 @@ position = Vector3(6, 0, -12)
 rotation_deg = 0
 size = Vector3(3, 1.6, 2)
 shade = 0.42
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_17"]
 script = ExtResource("7_prop_spe")
@@ -138,6 +144,7 @@ position = Vector3(10, 0, -12)
 rotation_deg = 0
 size = Vector3(3, 1.6, 2)
 shade = 0.42
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_18"]
 script = ExtResource("7_prop_spe")
@@ -146,6 +153,7 @@ position = Vector3(14, 0, -12)
 rotation_deg = 0
 size = Vector3(3, 1.6, 2)
 shade = 0.42
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_19"]
 script = ExtResource("7_prop_spe")
@@ -154,6 +162,7 @@ position = Vector3(-4, 0, 12)
 rotation_deg = 0
 size = Vector3(2.2, 2.6, 2.2)
 shade = 0.5
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_20"]
 script = ExtResource("7_prop_spe")
@@ -162,6 +171,7 @@ position = Vector3(0, 0, 12)
 rotation_deg = 0
 size = Vector3(2.2, 2.6, 2.2)
 shade = 0.5
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_21"]
 script = ExtResource("7_prop_spe")
@@ -170,6 +180,7 @@ position = Vector3(18, 0, 10)
 rotation_deg = 0
 size = Vector3(0.35, 7, 0.35)
 shade = 0.3
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_22"]
 script = ExtResource("7_prop_spe")
@@ -178,6 +189,7 @@ position = Vector3(-28, 0, -14)
 rotation_deg = 0
 size = Vector3(2.5, 1.2, 1.5)
 shade = 0.35
+collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_23"]
 script = ExtResource("7_prop_spe")
@@ -185,6 +197,55 @@ kind = 8
 position = Vector3(-29, 4.5, 7.5)
 rotation_deg = -51
 text_key = "cam_roof"
+
+[sub_resource type="Resource" id="Resource_prop_24"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(6, 0, -12)
+rotation_deg = 0
+text_key = "roof_hvac"
+
+[sub_resource type="Resource" id="Resource_prop_25"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(10, 0, -12)
+rotation_deg = 0
+text_key = "roof_hvac"
+
+[sub_resource type="Resource" id="Resource_prop_26"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(14, 0, -12)
+rotation_deg = 0
+text_key = "roof_hvac"
+
+[sub_resource type="Resource" id="Resource_prop_27"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(-4, 0, 12)
+rotation_deg = 0
+text_key = "water_tank"
+
+[sub_resource type="Resource" id="Resource_prop_28"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(0, 0, 12)
+rotation_deg = 0
+text_key = "water_tank"
+
+[sub_resource type="Resource" id="Resource_prop_29"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(18, 0, 10)
+rotation_deg = 0
+text_key = "antenna"
+
+[sub_resource type="Resource" id="Resource_prop_30"]
+script = ExtResource("7_prop_spe")
+kind = 9
+position = Vector3(-28, 0, -14)
+rotation_deg = 0
+text_key = "generator"
 
 [resource]
 script = ExtResource("8_floor_da")
@@ -197,7 +258,7 @@ enemies = Array[ExtResource("2_enemy_sp")]([SubResource("Resource_spawn_1"), Sub
 player_spawn = Vector3(22, 0, -4)
 player_yaw_deg = 90
 exits = Array[ExtResource("6_floor_ex")]([SubResource("Resource_exit_9")])
-props = Array[ExtResource("7_prop_spe")]([SubResource("Resource_prop_10"), SubResource("Resource_prop_11"), SubResource("Resource_prop_12"), SubResource("Resource_prop_13"), SubResource("Resource_prop_14"), SubResource("Resource_prop_15"), SubResource("Resource_prop_16"), SubResource("Resource_prop_17"), SubResource("Resource_prop_18"), SubResource("Resource_prop_19"), SubResource("Resource_prop_20"), SubResource("Resource_prop_21"), SubResource("Resource_prop_22"), SubResource("Resource_prop_23")])
+props = Array[ExtResource("7_prop_spe")]([SubResource("Resource_prop_10"), SubResource("Resource_prop_11"), SubResource("Resource_prop_12"), SubResource("Resource_prop_13"), SubResource("Resource_prop_14"), SubResource("Resource_prop_15"), SubResource("Resource_prop_16"), SubResource("Resource_prop_17"), SubResource("Resource_prop_18"), SubResource("Resource_prop_19"), SubResource("Resource_prop_20"), SubResource("Resource_prop_21"), SubResource("Resource_prop_22"), SubResource("Resource_prop_23"), SubResource("Resource_prop_24"), SubResource("Resource_prop_25"), SubResource("Resource_prop_26"), SubResource("Resource_prop_27"), SubResource("Resource_prop_28"), SubResource("Resource_prop_29"), SubResource("Resource_prop_30")])
 has_helipad = true
 helipad_position = Vector3(-20, 0, 0)
 helipad_radius = 3.5

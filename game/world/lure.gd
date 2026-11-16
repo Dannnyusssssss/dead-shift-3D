@@ -1,10 +1,14 @@
 class_name Lure
 extends Node3D
 ## Señuelo en el suelo (botella ruidosa): hace ruido alto cada segundo durante un tiempo y atrae
-## a los enemigos que oyen hacia ese punto. Después se apaga y desaparece.
+## hacia ese punto a todos los enemigos cercanos de su piso (también a los que no oyen el resto
+## de ruidos): se ve cómo van hacia él, así sirve para apartarlos de una puerta o de una pieza.
+## Después se apaga y desaparece.
 
 ## Segundos entre ruidos.
 const INTERVAL: float = 1.0
+## Radio (m) dentro del que llama a los enemigos.
+const PULL_RADIUS: float = 14.0
 
 var time_left: float = 0.0
 
@@ -30,6 +34,7 @@ func _physics_process(delta: float) -> void:
 	if _timer <= 0.0:
 		_timer = INTERVAL
 		NoiseSystem.emit_noise(global_position, Rules.NOISE_HIGH)
+		EventBus.lure_pulled.emit(global_position, PULL_RADIUS)
 		EventBus.sound_cue.emit("cue_lure", global_position)
 	time_left -= delta
 	if time_left <= 0.0:

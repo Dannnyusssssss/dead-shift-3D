@@ -16,6 +16,10 @@ const OPEN_EAST: int = 8
 @export var height: float = 4.7
 @export var floor_color: Color = Color(0.45, 0.45, 0.45)
 @export var wall_color: Color = Color(0.6, 0.6, 0.6)
+## Superficies con textura (ids de Surfaces.IDS); vacío = la de por defecto de Surfaces.
+@export var floor_surface: String = ""
+@export var wall_surface: String = ""
+@export var ceiling_surface: String = ""
 @export var doors: Array[DoorSpec] = []
 ## Lado con escaparate de cristal (-1 = ninguno).
 @export var storefront_side: int = -1
@@ -33,3 +37,9 @@ const OPEN_EAST: int = 8
 @export var has_floor: bool = true
 ## Persiana metálica sobre la puerta principal (0 = subida, 1 = bajada hasta el suelo).
 @export var shutter: float = 0.0
+
+
+## Tienda cerrada: tiene persiana (a medias o bajada). No se puede entrar: bajo la persiana hay
+## una puerta cerrada y detrás del escaparate un fondo; no lleva botín ni enemigos dentro.
+func is_closed() -> bool:
+	return shutter > 0.0

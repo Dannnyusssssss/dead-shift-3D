@@ -19,6 +19,8 @@ const STATE_RETURN: int = 6
 const GRAVITY: float = 9.8
 ## Cada cuánto se comprueba si ve al jugador y se recalcula la ruta (no en cada frame).
 const THINK_INTERVAL: float = 0.25
+## Segundos mínimos entre dos voces del mismo enemigo.
+const VOICE_INTERVAL: float = 4.0
 ## Segundos sin ver al jugador antes de rendirse.
 const LOSE_SIGHT_TIME: float = 6.0
 ## Parte del ataque antes de que el golpe llegue (permite esquivarlo).
@@ -32,8 +34,13 @@ const HEAD_HEIGHT: float = 1.45
 const VEST_BOTTOM: float = 0.85
 ## Segundos que mira alrededor al llegar al punto del ruido.
 const INVESTIGATE_LOOK_TIME: float = 3.0
+## Diferencia de altura máxima para que un señuelo cuente como de su piso.
+const LURE_FLOOR_MARGIN: float = 2.5
 ## Giro (radianes por segundo) mientras mira alrededor.
 const LOOK_AROUND_SPEED: float = 1.6
+## Chaleco puesto (tools/blender/items.py) y su escala para ceñirse al torso sin hundirse en él.
+const VEST_WORN_MODEL: String = "vest_worn"
+const VEST_WORN_SCALE: Vector3 = Vector3(1.1, 1.0, 1.25)
 ## Distancia horizontal a la que se considera que llegó a un punto.
 const ARRIVE_DISTANCE: float = 1.2
 
@@ -62,6 +69,12 @@ var _stagger_push: Vector3 = Vector3.ZERO
 var _sight_query: PhysicsRayQueryParameters3D = null
 var _body_material: StandardMaterial3D = null
 var _vest_mesh: MeshInstance3D = null
+var _vest_base_scale: Vector3 = Vector3.ONE
+## Modelo con animaciones (null: forma simple de respaldo).
+var _model: EnemyModel = null
+## Cuenta atrás hasta la próxima voz (gruñido, chillido, siseo) y cuántas lleva.
+var _voice_timer: float = 2.0
+var _voice_count: int = 0
 var _home: Vector3 = Vector3.ZERO
 var _look_timer: float = 0.0
 var _arrived: bool = false
@@ -86,6 +99,9 @@ func _ready() -> void:
 	_home = global_position
 	if not hearing.is_deaf():
 		EventBus.noise_emitted.connect(_on_noise)
+	# El señuelo llama a todos (también a los que no oyen el resto de ruidos).
+	if data.boss == null:
+		EventBus.lure_pulled.connect(_on_lure)
 	_build_visual()
 	_think_timer = _rng.randf() * THINK_INTERVAL
 
@@ -131,6 +147,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 	move_and_slide()
+	if _model != null:
+		_model.update(state, Vector2(velocity.x, velocity.z).length())
+	_update_voice(delta)
 
 
 ## Recibe un impacto en un punto del mundo. La altura del impacto decide la zona
@@ -139,6 +158,9 @@ func take_hit(damage: float, hit_point: Vector3, is_bullet: bool, stuns: bool = 
 	if state == STATE_DEAD:
 		return 0.0
 	var applied := health.take_hit(damage, _zone_at(hit_point), is_bullet)
+	var away := global_position + Vector3.UP * hit_point.y - hit_point
+	away.y = 0.2
+	EventBus.enemy_hit.emit(hit_point, away.normalized(), is_bullet)
 	_refresh_vest_visual()
 	_flash_hit()
 	if health.is_dead():
@@ -153,6 +175,19 @@ func take_hit(damage: float, hit_point: Vector3, is_bullet: bool, stuns: bool = 
 	return applied
 
 
+## Voz del enemigo de vez en cuando mientras persigue, ataca o investiga. El ritmo sale de su
+## semilla y de cuántas lleva (no gasta números de su azar: no cambia botín ni chaleco).
+func _update_voice(delta: float) -> void:
+	if state != STATE_CHASE and state != STATE_ATTACK and state != STATE_INVESTIGATE:
+		return
+	_voice_timer -= delta
+	if _voice_timer > 0.0:
+		return
+	_voice_count += 1
+	_voice_timer = VOICE_INTERVAL + fposmod(rng_seed * 0.618 + _voice_count * 0.37, 1.0) * 3.0
+	AudioDirector.enemy_voice(data.model_id, global_position + Vector3.UP * 1.5)
+
+
 ## Retrocede un poco desde el punto del golpe e inclina el cuerpo un instante.
 func _stagger(hit_point: Vector3, is_bullet: bool) -> void:
 	var away := global_position - hit_point
@@ -160,6 +195,10 @@ func _stagger(hit_point: Vector3, is_bullet: bool) -> void:
 	away = away.normalized() if away.length() > 0.01 else -global_basis.z
 	_stagger_timer = STAGGER_BULLET if is_bullet else STAGGER_MELEE
 	_stagger_push = away * STAGGER_PUSH * (0.5 if is_bullet else 1.0)
+	if _model != null:
+		# Golpe en la cabeza si llegó por encima de los hombros.
+		_model.play_hit(hit_point.y - global_position.y > 1.45 * data.body_scale)
+		return
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -0.22, 0.07)
 	tween.tween_property(_visual, "rotation:x", 0.0, 0.2)
@@ -217,6 +256,21 @@ func _on_noise(origin: Vector3, level: int) -> void:
 	var ear := global_position + Vector3.UP * HEAD_HEIGHT
 	if not hearing.hear(ear, origin, level, _walls_between(ear, origin)):
 		return
+	if state != STATE_INVESTIGATE:
+		EventBus.sound_cue.emit("cue_listener_alert", global_position)
+	_begin_investigation()
+
+
+## Un señuelo cercano de su piso lo atrae hacia él si no está ya persiguiendo o atacando.
+func _on_lure(origin: Vector3, radius: float) -> void:
+	if state in [STATE_DEAD, STATE_CHASE, STATE_ATTACK, STATE_STUNNED]:
+		return
+	if absf(origin.y - global_position.y) > LURE_FLOOR_MARGIN:
+		return
+	var flat := Vector2(origin.x - global_position.x, origin.z - global_position.z)
+	if flat.length() > radius:
+		return
+	hearing.target = origin
 	if state != STATE_INVESTIGATE:
 		EventBus.sound_cue.emit("cue_listener_alert", global_position)
 	_begin_investigation()
@@ -336,6 +390,9 @@ func _die() -> void:
 	var drops := LootRoller.roll(health, GameState.items, _rng, GameState.difficulty)
 	EventBus.enemy_died.emit(global_position, drops)
 	died.emit()
+	if _model != null:
+		_model.play_death()
+		return
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -PI * 0.5, 0.5)
 	tween.parallel().tween_property(_visual, "position:y", 0.25, 0.5)
@@ -380,9 +437,22 @@ func _vest_max() -> float:
 
 
 func _build_visual() -> void:
+	_visual.scale = Vector3.ONE * data.body_scale
+	_model = EnemyModel.create(data.model_id)
+	if _model != null:
+		_visual.add_child(_model)
+		_body_material = _model.material
+		if health.has_vest:
+			# Chaleco con forma (peto, espaldar, hombreras) ceñido al torso y pegado al hueso.
+			var worn := ItemModels.instance(VEST_WORN_MODEL)
+			_vest_mesh = worn if worn != null else _make_vest(Vector3(0.46, 0.42, 0.34))
+			if worn != null:
+				_vest_base_scale = VEST_WORN_SCALE
+				_vest_mesh.scale = VEST_WORN_SCALE
+			_model.attach_to_bone(_vest_mesh, "spine_02", Vector3(0.0, 1.25, 0.0))
+		return
 	_body_material = StandardMaterial3D.new()
 	_body_material.albedo_color = data.body_color
-	_visual.scale = Vector3.ONE * data.body_scale
 	var body := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.radius = 0.32
@@ -399,27 +469,41 @@ func _build_visual() -> void:
 	head.position.y = 1.65
 	_visual.add_child(head)
 	if health.has_vest:
-		_vest_mesh = MeshInstance3D.new()
-		var vest_mesh := BoxMesh.new()
-		vest_mesh.size = Vector3(0.7, 0.6, 0.72)
-		var vest_material := StandardMaterial3D.new()
-		vest_material.albedo_color = Color(0.12, 0.12, 0.12)
-		vest_mesh.material = vest_material
-		_vest_mesh.mesh = vest_mesh
+		_vest_mesh = _make_vest(Vector3(0.7, 0.6, 0.72))
 		_vest_mesh.position.y = 1.15
 		_visual.add_child(_vest_mesh)
+
+
+## Chaleco antibalas (caja oscura) del tamaño dado.
+func _make_vest(size: Vector3) -> MeshInstance3D:
+	var vest := MeshInstance3D.new()
+	var vest_mesh := BoxMesh.new()
+	vest_mesh.size = size
+	var vest_material := StandardMaterial3D.new()
+	vest_material.albedo_color = Color(0.12, 0.12, 0.12)
+	vest_mesh.material = vest_material
+	vest.mesh = vest_mesh
+	return vest
 
 
 func _refresh_vest_visual() -> void:
 	if _vest_mesh == null:
 		return
 	_vest_mesh.visible = not health.vest_durability.is_broken()
-	_vest_mesh.scale = Vector3.ONE * lerpf(0.9, 1.0, health.vest_durability.fraction())
+	_vest_mesh.scale = _vest_base_scale * lerpf(0.9, 1.0, health.vest_durability.fraction())
 
 
 func _flash_hit() -> void:
 	# Cambio suave de color al recibir un golpe (sin destellos de pantalla).
 	var tween := create_tween()
+	if _model != null:
+		# Con modelo el color va en los vértices: se ilumina un instante con brillo propio.
+		_body_material.emission_enabled = true
+		_body_material.emission = Color(0.35, 0.33, 0.3)
+		_body_material.emission_energy_multiplier = 0.0
+		tween.tween_property(_body_material, "emission_energy_multiplier", 1.0, 0.06)
+		tween.tween_property(_body_material, "emission_energy_multiplier", 0.0, 0.2)
+		return
 	var base := _body_material.albedo_color
 	tween.tween_property(_body_material, "albedo_color", base.lightened(0.35), 0.06)
 	tween.tween_property(_body_material, "albedo_color", base, 0.2)

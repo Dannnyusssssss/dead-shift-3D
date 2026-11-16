@@ -1,22 +1,29 @@
 class_name EndScreen
 extends Control
 ## Pantalla final: rescate, rescate perdido (con su texto propio), muerte o conversión. Muestra
-## las estadísticas y la nota, y ofrece volver al último autoguardado (si existe) o empezar una
-## partida nueva. Funciona con ratón, teclado y toque.
+## las estadísticas y la nota, y ofrece volver al último autoguardado (si existe), empezar una
+## partida nueva o volver al menú principal. Funciona con ratón, teclado y toque.
 
 signal restart_requested
 signal continue_requested
+signal menu_requested
 
-const TITLE_KEYS: Array[String] = ["end_rescued", "end_lost", "end_dead", "end_converted"]
-const TEXT_KEYS: Array[String] = [
-	"end_rescued_text", "end_lost_text", "end_dead_text", "end_converted_text"
+const TITLE_KEYS: Array[String] = [
+	"end_rescued", "end_lost", "end_dead", "end_converted", "end_crashed"
 ]
+const TEXT_KEYS: Array[String] = [
+	"end_rescued_text", "end_lost_text", "end_dead_text", "end_converted_text", "end_crashed_text"
+]
+## Segundos entre línea y línea al mostrar las estadísticas (de arriba abajo).
+const LINE_SECONDS: float = 0.35
 
 var _title: Label = null
 var _story: Label = null
 var _stats: Label = null
 var _continue_button: TapButton = null
 var _button: TapButton = null
+var _credits: CreditsView = null
+var _reveal: Tween = null
 
 
 func _ready() -> void:
@@ -42,6 +49,13 @@ func _ready() -> void:
 	_continue_button.pressed.connect(func() -> void: continue_requested.emit())
 	_button = _button_in(box, "end_play_again")
 	_button.pressed.connect(func() -> void: restart_requested.emit())
+	var menu_button := _button_in(box, "end_main_menu")
+	menu_button.pressed.connect(func() -> void: menu_requested.emit())
+	var credits_button := _button_in(box, "credits_button")
+	_credits = CreditsView.new()
+	add_child(_credits)
+	credits_button.pressed.connect(_credits.open)
+	_credits.closed.connect(func() -> void: credits_button.grab_focus())
 
 
 ## Muestra el desenlace con la dificultad jugada. can_continue habilita volver al último
@@ -53,6 +67,7 @@ func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = n
 	var lines := summary_lines(stats, difficulty)
 	lines.append("%s %s" % [tr("end_grade"), stats.grade()])
 	_stats.text = "\n".join(lines)
+	_reveal_stats(lines.size())
 	var dead := (
 		stats.outcome == RunStats.OUTCOME_DEAD or stats.outcome == RunStats.OUTCOME_CONVERTED
 	)
@@ -64,6 +79,33 @@ func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = n
 		_continue_button.grab_focus()
 	else:
 		_button.grab_focus()
+
+
+## Las estadísticas aparecen una por una de arriba abajo; con «Reducir movimiento», todas a la
+## vez.
+func _reveal_stats(count: int) -> void:
+	if _reveal != null:
+		_reveal.kill()
+	_stats.visible_characters = -1
+	if Settings.get_bool("reduce_motion") or count <= 1:
+		return
+	_show_lines(0)
+	_reveal = create_tween()
+	for line: int in count:
+		_reveal.tween_interval(LINE_SECONDS)
+		_reveal.tween_callback(_show_lines.bind(line + 1))
+
+
+## Muestra solo las primeras count líneas de las estadísticas.
+func _show_lines(count: int) -> void:
+	var lines := _stats.text.split("\n")
+	if count >= lines.size():
+		_stats.visible_characters = -1
+		return
+	var characters := 0
+	for index: int in count:
+		characters += lines[index].length() + 1
+	_stats.visible_characters = characters
 
 
 ## Resumen de la partida (también lo usa la pausa): dificultad, tiempo, daño recibido, armas

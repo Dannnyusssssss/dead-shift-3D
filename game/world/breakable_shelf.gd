@@ -52,6 +52,7 @@ func break_apart() -> void:
 	collision_layer = 0
 	NoiseSystem.emit_noise(global_position, Rules.NOISE_HIGH)
 	EventBus.sound_cue.emit("cue_shelf_break", global_position)
+	EventBus.debris.emit(global_position + Vector3.UP * 1.0)
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:z", 1.3, 0.35)
 	tween.parallel().tween_property(_visual, "position:y", -0.6, 0.35)

@@ -4,19 +4,26 @@ extends Node
 ## que se usa a la vez que se dispara o se golpea. La acción «flashlight» (F o el botón táctil)
 ## la enciende o la apaga. El estado y la carga viven en GameState.player.flashlight; aquí solo
 ## se gasta con el tiempo y el brillo de la luz se acerca poco a poco al que toca (encender,
-## apagar o quedarse sin carga nunca es un parpadeo). Sombras solo en calidad Alta.
+## apagar o quedarse sin carga nunca es un parpadeo). Con poca carga el haz baja un poco y
+## vuelve, despacio y menos de una vez por segundo, para avisar (sin bajadas con «Reducir
+## destellos»), y sale un aviso de texto una vez por pilas. Sombras solo en calidad Alta.
 
 ## Posición respecto a la cabeza: hombro derecho, un poco por debajo de los ojos.
 const MOUNT: Vector3 = Vector3(0.22, -0.32, 0.05)
 const ENERGY: float = 2.4
 const RANGE: float = 20.0
-const ANGLE_DEG: float = 30.0
+const ANGLE_DEG: float = 36.0
+## Caída del haz hacia el borde: por debajo de 1 el borde se difumina (sin círculo de borde duro).
+const ANGLE_ATTENUATION: float = 0.45
 ## Brillo (en fracción de ENERGY) que gana o pierde por segundo: de apagada a encendida en 0,4 s.
 const FADE_PER_SECOND: float = 2.5
 
 var light: SpotLight3D = null
 
 var _player: Player = null
+var _time: float = 0.0
+## Ya se avisó de la carga baja con estas pilas (se repite al cambiarlas).
+var _low_warned: bool = false
 
 
 func _ready() -> void:
@@ -27,6 +34,7 @@ func _ready() -> void:
 	light.spot_range = RANGE
 	light.spot_angle = ANGLE_DEG
 	light.spot_attenuation = 0.8
+	light.spot_angle_attenuation = ANGLE_ATTENUATION
 	light.light_color = Color(1.0, 0.95, 0.85)
 	light.light_energy = 0.0
 	light.visible = false
@@ -44,9 +52,15 @@ func _physics_process(delta: float) -> void:
 		if InputRouter.just_pressed("flashlight"):
 			torch.toggle()
 	if torch.tick(delta, state.inventory.bag):
+		_low_warned = false
 		EventBus.user_message.emit("msg_batteries_swapped")
 		EventBus.inventory_changed.emit()
-	var target := 0.0 if _player.is_dead() else torch.level() * ENERGY
+	if torch.is_low() and not _low_warned:
+		_low_warned = true
+		EventBus.user_message.emit("msg_flashlight_low")
+	_time += delta
+	var flicker := torch.flicker(_time, Settings.get_bool("reduce_flashes"))
+	var target := 0.0 if _player.is_dead() else torch.level() * ENERGY * flicker
 	light.light_energy = move_toward(light.light_energy, target, FADE_PER_SECOND * ENERGY * delta)
 	light.visible = light.light_energy > 0.001
 

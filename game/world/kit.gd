@@ -1,9 +1,10 @@
 class_name Kit
 extends RefCounted
-## Kit modular provisional (gris): forjados con huecos, techos, paredes con puertas y
-## escaparates, cristal, escaleras, barandillas y bloques de decorado. Las piezas de una sala se
-## funden en una sola malla por material para ahorrar llamadas de dibujo; las colisiones van por
-## pieza. El arte final reemplazará estas mallas.
+## Kit modular: forjados con huecos, techos, paredes con puertas y escaparates, cristal,
+## escaleras, barandillas y bloques de decorado. Cada material del kit es una «pintura» (capa de
+## textura y tono): todas las piezas pintadas de una sala se funden en una sola malla con el
+## material de superficies (una llamada de dibujo); el cristal va aparte. Las colisiones van por
+## pieza. La luz es por vértice: las piezas altas se oscurecen hacia el suelo.
 
 const WALL_THICKNESS: float = 0.2
 const DOOR_HEIGHT: float = 2.3
@@ -22,7 +23,23 @@ const BALUSTRADE_HEIGHT: float = 1.0
 ## Hueco libre al pie y a la cabeza de cada pasamanos (para no tropezar al entrar de lado).
 const RAIL_END_GAP: float = 0.4
 
+## Oscurecimiento de las piezas altas al pie (luz por vértice) y altura en la que desaparece.
+const FOOT_SHADE: float = 0.72
+const FOOT_FADE_HEIGHT: float = 1.6
+## Piezas a partir de esta altura reciben el oscurecimiento al pie.
+const TALL_PIECE: float = 0.6
+
+const SURFACE_SHADER: Shader = preload("res://game/world/surfaces.gdshader")
+const SURFACE_LAYERS: TextureLayered = preload(
+	"res://assets/generated/textures/surfaces_albedo.png"
+)
+
 static var _materials: Dictionary = {}
+## Pintura de cada material del kit: color lineal en rgb y capa codificada en el alfa.
+static var _paints: Dictionary = {}
+static var _surface_material: ShaderMaterial = null
+## Mallas de los modelos de decorado ya preparadas (capa PLAIN y luz por vértice), por nombre.
+static var _models: Dictionary = {}
 
 
 ## Material mate compartido por color (se reutiliza entre salas).
@@ -34,7 +51,118 @@ static func material(color: Color) -> StandardMaterial3D:
 	made.albedo_color = color
 	made.roughness = 0.95
 	_materials[key] = made
+	_paints[made] = paint_code(color, Surfaces.PLAIN)
 	return made
+
+
+## Material con textura: superficie de Surfaces.IDS con el tono dado (casi blanco; ver
+## Surfaces.texture_tint). Un id desconocido queda sin textura.
+static func surface(id: String, tint: Color) -> StandardMaterial3D:
+	var key := "surface:" + id + ":" + tint.to_html()
+	if _materials.has(key):
+		return _materials[key]
+	var made := StandardMaterial3D.new()
+	made.albedo_color = tint
+	made.roughness = 0.9
+	_materials[key] = made
+	_paints[made] = paint_code(tint, Surfaces.layer_of(id))
+	return made
+
+
+## Material que brilla con su color (paneles de luz, carteles): misma superficie compartida.
+static func emissive(color: Color) -> StandardMaterial3D:
+	var key := "emissive:" + color.to_html()
+	if _materials.has(key):
+		return _materials[key]
+	var made := StandardMaterial3D.new()
+	made.albedo_color = color
+	made.emission_enabled = true
+	made.emission = color
+	_materials[key] = made
+	_paints[made] = paint_code(color, Surfaces.EMISSIVE)
+	return made
+
+
+## Color de vértice de una pintura: tono en lineal y capa en el alfa (centro del dieciseisavo).
+static func paint_code(color: Color, layer: int) -> Color:
+	var linear := color.srgb_to_linear()
+	return Color(linear.r, linear.g, linear.b, (float(layer) + 0.5) / float(Surfaces.MAX_LAYERS))
+
+
+## Si el material es una pintura del kit (va a la superficie compartida).
+static func is_paint(mat: Material) -> bool:
+	return _paints.has(mat)
+
+
+static func paint_of(mat: Material) -> Color:
+	return _paints[mat]
+
+
+## Ruta del modelo de decorado generado por tools/blender/props.py.
+static func model_path(model_id: String) -> String:
+	return "res://assets/generated/props/%s.glb" % model_id
+
+
+## Malla de un modelo de decorado lista para fundirse con la sala: su color de vértice pasa a
+## pintura sin textura (capa PLAIN) con la luz por vértice. null si el modelo no existe.
+static func model_mesh(model_id: String) -> ArrayMesh:
+	if _models.has(model_id):
+		return _models[model_id]
+	var path := model_path(model_id)
+	var prepared: ArrayMesh = null
+	if ResourceLoader.exists(path):
+		var scene: PackedScene = load(path)
+		var root := scene.instantiate()
+		var source := _first_mesh(root)
+		if source != null:
+			prepared = _prepare_model(source.mesh)
+		root.free()
+	_models[model_id] = prepared
+	return prepared
+
+
+static func _first_mesh(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D:
+		return node
+	for child: Node in node.get_children():
+		var found := _first_mesh(child)
+		if found != null:
+			return found
+	return null
+
+
+static func _prepare_model(source: Mesh) -> ArrayMesh:
+	var prepared := ArrayMesh.new()
+	var alpha := (float(Surfaces.PLAIN) + 0.5) / float(Surfaces.MAX_LAYERS)
+	for surface: int in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		if colors.size() != vertices.size():
+			colors.resize(vertices.size())
+			colors.fill(Color(0.5, 0.5, 0.5))
+		for i: int in vertices.size():
+			var shade := lerpf(FOOT_SHADE, 1.0, clampf(vertices[i].y / FOOT_FADE_HEIGHT, 0.0, 1.0))
+			var c := colors[i]
+			colors[i] = Color(c.r * shade, c.g * shade, c.b * shade, alpha)
+		var clean: Array = []
+		clean.resize(Mesh.ARRAY_MAX)
+		clean[Mesh.ARRAY_VERTEX] = vertices
+		clean[Mesh.ARRAY_NORMAL] = arrays[Mesh.ARRAY_NORMAL]
+		clean[Mesh.ARRAY_COLOR] = colors
+		clean[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX]
+		prepared.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, clean)
+	return prepared
+
+
+## Material compartido de todas las piezas pintadas.
+static func surface_material() -> ShaderMaterial:
+	if _surface_material == null:
+		_surface_material = ShaderMaterial.new()
+		_surface_material.shader = SURFACE_SHADER
+		_surface_material.set_shader_parameter("layers", SURFACE_LAYERS)
+		_surface_material.set_shader_parameter("tile_meters", Surfaces.tile_table())
+	return _surface_material
 
 
 ## Gris de un tono dado (0 = negro, 1 = blanco).
@@ -47,21 +175,6 @@ static func gray(shade: float) -> StandardMaterial3D:
 static func gray_color(shade: float) -> Color:
 	var value := clampf(shade, 0.0, 1.0)
 	return Color(value, value, value * 1.03)
-
-
-## Material único de los bloques de decorado: el gris va en el color de cada vértice, así todos
-## los bloques de una sala son una sola superficie (una llamada de dibujo) sea cual sea su tono.
-static func block_material() -> StandardMaterial3D:
-	var key := "blocks"
-	if _materials.has(key):
-		return _materials[key]
-	var made := StandardMaterial3D.new()
-	made.vertex_color_use_as_albedo = true
-	# El tono se interpreta igual que albedo_color de los demás materiales (sRGB).
-	made.vertex_color_is_srgb = true
-	made.roughness = 0.95
-	_materials[key] = made
-	return made
 
 
 ## Trozos de cristal en el suelo (opacos y claros, para que se vean sin destellos).
@@ -88,11 +201,36 @@ static func glass_material() -> StandardMaterial3D:
 	return made
 
 
-## Acumulador de cajas: una malla por material y colisiones por caja.
+## Acumulador de cajas: una malla por material y colisiones por caja. Las cajas se guardan y se
+## convierten en malla al final (build), después de separar las caras que coinciden: si dos
+## cajas tienen una cara en el mismo plano, mirando al mismo lado y solapada, la más pequeña la
+## retrasa unos milímetros. Sin eso, cuál de las dos se veía dependía del ángulo de la cámara
+## (marcos, barandillas y escaleras que cambiaban entre dos encuadres casi iguales).
 class Builder:
 	extends RefCounted
+	## Cuánto se retrasa la cara de la caja pequeña y área mínima de solape que se corrige (m²).
+	const COPLANAR_RECESS: float = 0.004
+	const MIN_OVERLAP: float = 0.0001
+	## Distancia entre planos que todavía se considera el mismo plano, y pasos de retraso máximos.
+	const PLANE_TOLERANCE: float = 0.0015
+	const MAX_RECESS_STEPS: int = 4
 	var _tools: Dictionary = {}
 	var _shapes: Array[Array] = []
+	## Cajas pendientes: [transform, tamaño, material (null si es pintada), código de pintura].
+	var _boxes: Array[Array] = []
+
+	## Cara de una caja alineada con un eje del mundo (para separar las coincidentes).
+	class Face:
+		extends RefCounted
+		var box: int = 0
+		var local: int = 0
+		var side: int = 1
+		var outline: PackedVector2Array = PackedVector2Array()
+		var plane: float = 0.0
+		var volume: float = 0.0
+		## Pasos de retraso asignados (-1 = sin recorrer todavía).
+		var depth: int = -1
+		var touching: Array[Face] = []
 
 	func add_box(
 		center: Vector3, size: Vector3, mat: StandardMaterial3D, solid: bool = true
@@ -105,15 +243,10 @@ class Builder:
 	) -> void:
 		if size.x <= 0.001 or size.y <= 0.001 or size.z <= 0.001:
 			return
-		var tool: SurfaceTool = _tools.get(mat)
-		if tool == null:
-			tool = SurfaceTool.new()
-			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-			tool.set_material(mat)
-			_tools[mat] = tool
-		var box := BoxMesh.new()
-		box.size = size
-		tool.append_from(box, 0, xform)
+		if Kit.is_paint(mat):
+			_add_painted(xform, size, Kit.paint_of(mat), solid)
+			return
+		_boxes.append([xform, size, mat, Color()])
 		if solid:
 			_shapes.append([xform, size])
 
@@ -123,29 +256,192 @@ class Builder:
 	) -> void:
 		if size.x <= 0.001 or size.y <= 0.001 or size.z <= 0.001:
 			return
-		var box := BoxMesh.new()
-		box.size = size
-		var arrays := box.get_mesh_arrays()
-		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var colors := PackedColorArray()
-		colors.resize(vertices.size())
-		colors.fill(color)
-		arrays[Mesh.ARRAY_COLOR] = colors
-		var colored := ArrayMesh.new()
-		colored.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		var mat := Kit.block_material()
+		_add_painted(xform, size, Kit.paint_code(color, Surfaces.PLAIN), solid)
+
+	## Caja pintada: tono y capa en el color de cada vértice (se convierte en malla en build).
+	func _add_painted(xform: Transform3D, size: Vector3, code: Color, solid: bool) -> void:
+		_boxes.append([xform, size, null, code])
+		if solid:
+			_shapes.append([xform, size])
+
+	func _tool_for(mat: Material) -> SurfaceTool:
 		var tool: SurfaceTool = _tools.get(mat)
 		if tool == null:
 			tool = SurfaceTool.new()
 			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 			tool.set_material(mat)
 			_tools[mat] = tool
-		tool.append_from(colored, 0, xform)
-		if solid:
-			_shapes.append([xform, size])
+		return tool
+
+	## Caja con material propio.
+	func _emit_plain(xform: Transform3D, size: Vector3, mat: Material) -> void:
+		var box := BoxMesh.new()
+		box.size = size
+		_tool_for(mat).append_from(box, 0, xform)
+
+	## Caja pintada con la luz por vértice (las piezas altas se oscurecen hacia el suelo).
+	func _emit_painted(xform: Transform3D, size: Vector3, code: Color) -> void:
+		var box := BoxMesh.new()
+		box.size = size
+		var arrays := box.get_mesh_arrays()
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors := PackedColorArray()
+		colors.resize(vertices.size())
+		var tall := size.y >= TALL_PIECE
+		for i: int in vertices.size():
+			var shade := 1.0
+			if tall:
+				var height := (xform * vertices[i]).y
+				shade = lerpf(FOOT_SHADE, 1.0, clampf(height / FOOT_FADE_HEIGHT, 0.0, 1.0))
+			colors[i] = Color(code.r * shade, code.g * shade, code.b * shade, code.a)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		var painted := ArrayMesh.new()
+		painted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_tool_for(Kit.surface_material()).append_from(painted, 0, xform)
+
+	## Separa las caras coincidentes. Junta las caras alineadas con los ejes por eje y sentido,
+	## las ordena por plano y compara las que distan menos de PLANE_TOLERANCE. Después recorre las
+	## cajas de mayor a menor volumen: cada cara solapada con una ya recorrida se retrasa un paso
+	## más que ella (así una fila de piezas iguales encadenadas tampoco coincide entre sí).
+	func resolve_coplanar() -> void:
+		var groups: Dictionary = {}
+		for index: int in _boxes.size():
+			var xform: Transform3D = _boxes[index][0]
+			var size: Vector3 = _boxes[index][1]
+			for local: int in 3:
+				var direction := xform.basis[local].normalized()
+				var axis := -1
+				for world: int in 3:
+					if absf(direction[world]) > 0.999:
+						axis = world
+				if axis < 0:
+					continue
+				for side: int in [-1, 1]:
+					var normal := direction * float(side)
+					var center := xform.origin + normal * size[local] * 0.5
+					var key := "%d|%d" % [axis, signi(roundi(normal[axis]))]
+					if not groups.has(key):
+						groups[key] = [] as Array[Face]
+					var face := Face.new()
+					face.box = index
+					face.local = local
+					face.side = side
+					face.outline = _face_polygon(xform, size, local, center, axis)
+					face.plane = center[axis]
+					face.volume = size.x * size.y * size.z
+					(groups[key] as Array[Face]).append(face)
+		for key: String in groups:
+			var faces: Array[Face] = groups[key]
+			_resolve_group(faces)
+
+	func _resolve_group(faces: Array[Face]) -> void:
+		faces.sort_custom(func(a: Face, b: Face) -> bool: return a.plane < b.plane)
+		# Parejas solapadas en el mismo plano (con tolerancia).
+		var any := false
+		for i: int in faces.size():
+			var first := faces[i]
+			for j: int in range(i + 1, faces.size()):
+				var second := faces[j]
+				if second.plane - first.plane > PLANE_TOLERANCE:
+					break
+				if first.box == second.box:
+					continue
+				if _overlap_area(first.outline, second.outline) < MIN_OVERLAP:
+					continue
+				first.touching.append(second)
+				second.touching.append(first)
+				any = true
+		if not any:
+			return
+		# De mayor a menor volumen (a igual volumen, por orden de llegada).
+		var order: Array[Face] = []
+		for face: Face in faces:
+			if not face.touching.is_empty():
+				order.append(face)
+		order.sort_custom(
+			func(a: Face, b: Face) -> bool:
+				if not is_equal_approx(a.volume, b.volume):
+					return a.volume > b.volume
+				return a.box < b.box
+		)
+		for face: Face in order:
+			var steps := 0
+			for other: Face in face.touching:
+				if other.depth >= 0:
+					steps = maxi(steps, other.depth + 1)
+			face.depth = mini(steps, MAX_RECESS_STEPS)
+			if face.depth > 0:
+				_recess_face(face, COPLANAR_RECESS * float(face.depth))
+		# Las caras se apuntan entre sí: se rompen los ciclos para que se liberen.
+		for face: Face in order:
+			face.touching.clear()
+
+	## Retrasa una cara (la caja encoge por ese lado) sin dejarla más fina de un tercio.
+	func _recess_face(face: Face, amount: float) -> void:
+		var xform: Transform3D = _boxes[face.box][0]
+		var size: Vector3 = _boxes[face.box][1]
+		var applied := minf(amount, size[face.local] / 3.0)
+		size[face.local] -= applied
+		xform.origin -= xform.basis[face.local].normalized() * float(face.side) * applied * 0.5
+		_boxes[face.box][0] = xform
+		_boxes[face.box][1] = size
+
+	## Contorno de una cara en los dos ejes del mundo distintos de su normal.
+	func _face_polygon(
+		xform: Transform3D, size: Vector3, local: int, center: Vector3, axis: int
+	) -> PackedVector2Array:
+		var first := (local + 1) % 3
+		var second := (local + 2) % 3
+		var edge_a := xform.basis[first].normalized() * size[first] * 0.5
+		var edge_b := xform.basis[second].normalized() * size[second] * 0.5
+		var u := (axis + 1) % 3
+		var w := (axis + 2) % 3
+		var polygon := PackedVector2Array()
+		for corner: Vector3 in [
+			center - edge_a - edge_b,
+			center + edge_a - edge_b,
+			center + edge_a + edge_b,
+			center - edge_a + edge_b
+		]:
+			polygon.append(Vector2(corner[u], corner[w]))
+		return polygon
+
+	static func _overlap_area(first: PackedVector2Array, second: PackedVector2Array) -> float:
+		var box_a := Rect2(first[0], Vector2.ZERO)
+		for point: Vector2 in first:
+			box_a = box_a.expand(point)
+		var box_b := Rect2(second[0], Vector2.ZERO)
+		for point: Vector2 in second:
+			box_b = box_b.expand(point)
+		if not box_a.intersects(box_b):
+			return 0.0
+		var area := 0.0
+		for polygon: PackedVector2Array in Geometry2D.intersect_polygons(first, second):
+			var twice := 0.0
+			for i: int in polygon.size():
+				twice += polygon[i].cross(polygon[(i + 1) % polygon.size()])
+			area += absf(twice) * 0.5
+		return area
+
+	## Colisión de caja sin malla (la forma visible la pone un modelo).
+	func add_collision(xform: Transform3D, size: Vector3) -> void:
+		if size.x <= 0.001 or size.y <= 0.001 or size.z <= 0.001:
+			return
+		_shapes.append([xform, size])
+
+	## Modelo de decorado (sin colisión) fundido con la superficie pintada de la sala.
+	## Devuelve false si el modelo no existe.
+	func add_model(xform: Transform3D, model_id: String) -> bool:
+		var mesh := Kit.model_mesh(model_id)
+		if mesh == null:
+			return false
+		var tool := _tool_for(Kit.surface_material())
+		for surface: int in mesh.get_surface_count():
+			tool.append_from(mesh, surface, xform)
+		return true
 
 	func is_empty() -> bool:
-		return _tools.is_empty()
+		return _tools.is_empty() and _boxes.is_empty()
 
 	## Crea el cuerpo estático con todas las mallas y colisiones acumuladas.
 	func build(name: String) -> StaticBody3D:
@@ -153,7 +449,18 @@ class Builder:
 		body.name = name
 		body.collision_layer = Rules.LAYER_WORLD
 		body.collision_mask = 0
-		for mat: StandardMaterial3D in _tools:
+		resolve_coplanar()
+		for box: Array in _boxes:
+			var xform: Transform3D = box[0]
+			var size: Vector3 = box[1]
+			var mat: Material = box[2]
+			if mat == null:
+				var code: Color = box[3]
+				_emit_painted(xform, size, code)
+			else:
+				_emit_plain(xform, size, mat)
+		_boxes.clear()
+		for mat: Material in _tools:
 			var tool: SurfaceTool = _tools[mat]
 			tool.generate_normals()
 			var instance := MeshInstance3D.new()

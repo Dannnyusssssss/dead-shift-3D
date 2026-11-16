@@ -33,6 +33,7 @@ var _throw_hint: Label = null
 var _click_prompt: Label = null
 var _objective: Label = null
 var _flashlight: Label = null
+var _quick_throw: Label = null
 var _objective_timer: float = 0.0
 var _click_wait: float = 0.0
 ## La partida terminó: el HUD queda oculto bajo la pantalla final.
@@ -97,6 +98,9 @@ func _refresh_flashlight() -> void:
 		else:
 			var bars := ceili(torch.fraction() * 4.0)
 			text = "%s [%s%s]" % [tr("hud_flashlight"), "#".repeat(bars), "-".repeat(4 - bars)]
+			if torch.is_low():
+				# Aviso con texto (no depende del color ni del parpadeo del haz).
+				text += "  " + tr("hud_flashlight_low")
 	if text != _flashlight.text:
 		_flashlight.text = text
 
@@ -177,7 +181,29 @@ func _refresh_infection() -> void:
 	_infection.text = "(!) %s %d:%02d" % [tr("hud_infected"), seconds / 60, seconds % 60]
 
 
+## Línea de lanzamiento rápido: el material que sale con la tecla de lanzar y cuántos quedan.
+func _refresh_quick_throw() -> void:
+	var state := GameState.player
+	var text := ""
+	if state != null:
+		var item_id := state.quick_throw_item()
+		var item := GameState.items.get_item(item_id) if not item_id.is_empty() else null
+		if item != null:
+			# En táctil se nombran los botones; con teclado, las teclas.
+			var throw_key := InputRouter.key_label("throw")
+			var next_key := InputRouter.key_label("throw_next")
+			if InputRouter.touch_mode:
+				throw_key = tr("touch_throw")
+				next_key = tr("touch_throw_next")
+			text = (
+				tr("hud_quick_throw")
+				% [throw_key, tr(item.name_key), state.inventory.bag.count(item_id), next_key]
+			)
+	_quick_throw.text = text
+
+
 func _refresh() -> void:
+	_refresh_quick_throw()
 	var state := GameState.player
 	if state == null:
 		return
@@ -198,6 +224,9 @@ func _refresh() -> void:
 	if weapon.kind == WeaponData.KIND_RANGED:
 		var reserve := state.inventory.count_of(weapon.ammo_item_id)
 		text += "   %d / %d" % [stack.ammo_loaded, reserve]
+		if WeaponUse.uses_butt(stack, state.inventory):
+			# Sin munición, la escopeta golpea con la culata: se dice con texto.
+			text += "  " + tr("hud_butt")
 	elif not stack.durability.is_unbreakable():
 		var wear := stack.durability.state()
 		text += "   %s %s" % [WEAR_ICONS[wear], tr(WEAR_KEYS[wear])]
@@ -257,10 +286,14 @@ func _build() -> void:
 	_flashlight = _label(status, 22)
 	_objective = _label(status, 18)
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_objective.custom_minimum_size = Vector2(440.0, 0.0)
+	# Ancho suficiente para que los objetivos habituales quepan en una línea.
+	_objective.custom_minimum_size = Vector2(560.0, 0.0)
 	_objective.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
 	_weapon = _label(self, 26)
 	_place(_weapon, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -72.0, 640.0, 44.0))
+	# Qué se lanza con la tecla rápida (y con qué tecla se cambia).
+	_quick_throw = _label(self, 20)
+	_place(_quick_throw, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -150.0, 640.0, 34.0))
 	_prompt = _label(self, 26)
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_place(_prompt, Control.PRESET_CENTER, Rect2(-320.0, 50.0, 640.0, 40.0))
@@ -273,6 +306,15 @@ func _build() -> void:
 	_place(_noise, Control.PRESET_BOTTOM_LEFT, Rect2(24.0, -112.0, 520.0, 36.0))
 	_subtitles = Subtitles.new()
 	add_child(_subtitles)
+	# Aviso de conversión inminente (bordes y texto); detrás del resto del HUD.
+	var warning := ConversionWarning.new()
+	add_child(warning)
+	move_child(warning, 0)
+	# Lo recogido: arriba a la derecha, por encima de los botones táctiles (el más alto, recargar,
+	# está al 36 % de la altura).
+	var feed := PickupFeed.new()
+	add_child(feed)
+	_place(feed, Control.PRESET_TOP_RIGHT, Rect2(-420.0, 64.0, 400.0, 150.0))
 	_boss = BossBar.new()
 	add_child(_boss)
 	_place(_boss, Control.PRESET_CENTER_TOP, Rect2(-220.0, 16.0, 440.0, 70.0))

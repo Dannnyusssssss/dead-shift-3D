@@ -7,9 +7,13 @@ extends Node
 signal restart_requested
 ## Volver al último autoguardado (desde la pantalla de muerte).
 signal continue_requested
+## Volver al menú principal (desde la pausa o la pantalla final).
+signal menu_requested
 
 ## Distancia a la que las cámaras de una zona segura avisan de un enemigo.
 const CAMERA_RANGE: float = 10.0
+## Fundido a negro tras morir, antes de la pantalla final.
+const DEATH_FADE_SECONDS: float = 1.2
 
 ## Partida guardada ya validada con la que empezar (vacío = partida nueva).
 var start_data: Dictionary = {}
@@ -70,6 +74,7 @@ func _ready() -> void:
 	ui.add_child(_end_screen)
 	_end_screen.restart_requested.connect(func() -> void: restart_requested.emit())
 	_end_screen.continue_requested.connect(func() -> void: continue_requested.emit())
+	_end_screen.menu_requested.connect(func() -> void: menu_requested.emit())
 	ui.add_child(PerfOverlay.new())
 	_bind_player()
 	EventBus.player_died.connect(_on_player_died)
@@ -80,6 +85,7 @@ func _ready() -> void:
 	EventBus.surrender_requested.connect(_on_surrender)
 	EventBus.enemy_died.connect(_on_enemy_died)
 	EventBus.save_requested.connect(_on_save_requested)
+	EventBus.main_menu_requested.connect(func() -> void: menu_requested.emit())
 	InputRouter.gameplay_active = true
 	EventBus.floor_changed.emit(level.floor_data.id)
 	_started = true
@@ -250,8 +256,9 @@ func _on_player_died() -> void:
 		_finish(RunStats.OUTCOME_DEAD)
 
 
+## Subió al helicóptero: rescate, o caída si sigue infectado.
 func _on_goal_reached() -> void:
-	_finish(RunStats.OUTCOME_RESCUED)
+	_finish(RunStats.boarding_outcome(GameState.player.infection))
 
 
 func _finish(outcome: int) -> void:
@@ -263,8 +270,40 @@ func _finish(outcome: int) -> void:
 	var stats := RunStats.from_state(GameState.player, outcome, elapsed)
 	if outcome == RunStats.OUTCOME_RESCUED:
 		SaveStore.save_best(stats.grade(), GameState.difficulty.id())
-	if outcome == RunStats.OUTCOME_RESCUED or outcome == RunStats.OUTCOME_LOST:
+	var story_over := (
+		outcome in [RunStats.OUTCOME_RESCUED, RunStats.OUTCOME_LOST, RunStats.OUTCOME_CRASHED]
+	)
+	if story_over:
 		# La historia terminó: no queda nada que continuar.
 		SaveStore.delete_game()
-	_end_screen.show_result(stats, SaveStore.has_game(), GameState.difficulty)
 	EventBus.run_finished.emit(outcome)
+	var with_scene := story_over
+	var died := outcome == RunStats.OUTCOME_DEAD or outcome == RunStats.OUTCOME_CONVERTED
+	if died and DisplayServer.get_name() != "headless":
+		await _play_death()
+	if with_scene and DisplayServer.get_name() != "headless":
+		# Escena corta antes de las estadísticas (sin ventana, bot y tests, se omite).
+		_hud.visible = false
+		var outro := Outro.new()
+		outro.setup(level, level.helipad_point(), level.player.global_position, outcome)
+		add_child(outro)
+		await outro.finished
+		outro.queue_free()
+	_end_screen.show_result(stats, SaveStore.has_game(), GameState.difficulty)
+
+
+## Muerte: la cámara cae al suelo y la imagen se funde a negro (sin ventana se omite). Con
+## «Reducir movimiento» solo hay fundido.
+func _play_death() -> void:
+	_hud.visible = false
+	var fall := level.player.play_death_fall()
+	var black := ColorRect.new()
+	black.color = Color(0.0, 0.0, 0.0, 0.0)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hud.get_parent().add_child(black)
+	_hud.get_parent().move_child(black, _end_screen.get_index())
+	var tween := create_tween()
+	tween.tween_interval(fall * 0.5)
+	tween.tween_property(black, "color:a", 1.0, DEATH_FADE_SECONDS)
+	await tween.finished

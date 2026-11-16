@@ -10,6 +10,7 @@ func _ready() -> void:
 	if first_run:
 		_values["quality"] = Config.default_quality()
 	apply_quality()
+	apply_interface()
 
 
 func get_float(key: String) -> float:
@@ -60,6 +61,8 @@ func set_value(key: String, value: Variant) -> void:
 	SaveStore.save_settings(_values)
 	if key == "quality":
 		apply_quality()
+	if key == "ui_scale":
+		apply_interface()
 	EventBus.settings_changed.emit(key)
 
 
@@ -68,8 +71,18 @@ func reset_to_defaults() -> void:
 	_values = SettingsSchema.defaults()
 	_values["quality"] = Config.default_quality()
 	apply_quality()
+	apply_interface()
 	for key: String in _values:
 		EventBus.settings_changed.emit(key)
+
+
+## Tema común y tamaño de toda la interfaz (texto y botones) en la ventana principal; no
+## afecta a la vista 3D.
+func apply_interface() -> void:
+	var window := get_tree().root
+	if window.theme == null:
+		window.theme = UiTheme.build()
+	window.content_scale_factor = clampf(get_float("ui_scale"), 0.8, 1.5)
 
 
 ## Aplica el nivel de calidad a la vista principal: escala de resolución 3D y antialiasing.

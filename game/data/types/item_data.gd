@@ -35,6 +35,8 @@ const EFFECT_CURE_INFECTION: int = 3
 @export var fragile: bool = false
 ## Señuelo: segundos que sigue haciendo ruido donde cae al lanzarlo (0 = no es señuelo).
 @export var lure_time: float = 0.0
+## Va siempre con el guardia: no se suelta (la porra).
+@export var bound: bool = false
 ## Materiales: unidades que trae cada punto de botín (bote, paquete, rollo) si no se indica otra
 ## cantidad; solo lo usa el generador de pisos y la descripción.
 @export var pack_size: int = 1

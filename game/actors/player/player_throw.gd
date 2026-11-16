@@ -54,6 +54,10 @@ func cancel() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if ready_item.is_empty():
+		if _can_act() and InputRouter.just_pressed("throw_next"):
+			# Cambia lo que se lanza con la tecla rápida (lo muestra el HUD).
+			GameState.player.cycle_quick_throw()
+			EventBus.inventory_changed.emit()
 		if _can_act() and InputRouter.just_pressed("throw") and not _player.combat.is_busy():
 			var item_id := GameState.player.quick_throw_item()
 			if item_id.is_empty():

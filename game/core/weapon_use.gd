@@ -6,6 +6,13 @@ const HIT_NONE: int = 0
 const HIT_OK: int = 1
 const HIT_BROKE: int = 2
 
+## Armas de fuego que, vacías y sin munición para recargar, golpean con la culata.
+const BUTT_WEAPONS: Array[String] = ["shotgun"]
+## Culatazo: daño (como la porra), intervalo y alcance. No desgasta el arma.
+const BUTT_DAMAGE: float = 16.0
+const BUTT_INTERVAL: float = 0.8
+const BUTT_RANGE: float = 1.9
+
 
 ## Verdadero si el arma de fuego tiene al menos una bala cargada.
 static func can_fire(stack: ItemStack) -> bool:
@@ -51,3 +58,10 @@ static func melee_hit(stack: ItemStack) -> int:
 	if stack.durability.wear(stack.item.weapon.wear_per_hit):
 		return HIT_BROKE
 	return HIT_OK
+
+
+## Si el ataque con esta arma es un culatazo: está vacía y no queda munición para recargarla.
+static func uses_butt(stack: ItemStack, inventory: Inventory) -> bool:
+	if stack == null or not BUTT_WEAPONS.has(stack.id()):
+		return false
+	return not can_fire(stack) and not can_reload(stack, inventory)

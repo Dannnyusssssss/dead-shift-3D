@@ -4,8 +4,12 @@ extends RefCounted
 ## en orden. Devuelve una clave de texto y sus valores para el cuaderno y el HUD.
 
 
-## Objetivo principal: {"key": String, "args": Array}.
-static func current(state: PlayerState, rescue: RescueClock, roof_open: bool) -> Dictionary:
+## Objetivo principal: {"key": String, "args": Array}. Mientras el jugador no sabe que tiene que
+## armar un teléfono (no leyó la nota del técnico ni encontró ninguna pieza), el objetivo es
+## general: buscar la forma de salir.
+static func current(
+	state: PlayerState, rescue: RescueClock, roof_open: bool, knows_phone: bool = true
+) -> Dictionary:
 	match rescue.state:
 		RescueClock.STATE_DEPARTED:
 			return _make("objective_lost")
@@ -20,6 +24,8 @@ static func current(state: PlayerState, rescue: RescueClock, roof_open: bool) ->
 		return _make("objective_call")
 	if keys.can_assemble_phone():
 		return _make("objective_assemble")
+	if not knows_phone:
+		return _make("objective_explore")
 	return _make("objective_find_parts", [keys.phone_parts_count(), Rules.PHONE_PARTS.size()])
 
 

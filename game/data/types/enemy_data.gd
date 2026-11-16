@@ -17,10 +17,14 @@ extends Resource
 @export var relentless: bool = false
 ## Sensibilidad al ruido (multiplica el radio de los ruidos). 0 = no reacciona al ruido.
 @export var hearing: float = 0.0
-## Color provisional del cuerpo (silueta distinguible por tipo hasta el arte del Hito 3).
+## Color del cuerpo si no hay modelo (respaldo); con modelo, solo lo usa el jefe al romperse
+## el traje.
 @export var body_color: Color = Color(0.35, 0.42, 0.33)
-## Escala provisional de la silueta.
+## Escala del cuerpo.
 @export var body_scale: float = 1.0
+## Modelo con esqueleto y animaciones (assets/generated/enemies/<model_id>.glb); vacío = forma
+## simple de respaldo.
+@export var model_id: String = ""
 ## Solo el jefe: sus parámetros propios (si hay, se crea la escena del jefe).
 @export var boss: BossData = null
 ## Clave del comportamiento registrado en la tabla de comportamientos.

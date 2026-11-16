@@ -13,6 +13,9 @@ var gameplay_active: bool = false
 var touch_mode: bool = false
 ## Verdadero mientras un menú del juego (mochila) necesita el cursor visible: no se captura.
 var menu_open: bool = false
+## Veces que se pidió capturar el puntero con permiso (sin ventana el modo no cambia: lo leen
+## las pruebas).
+var capture_requests: int = 0
 
 var _look_delta: Vector2 = Vector2.ZERO
 var _had_capture: bool = false
@@ -123,6 +126,7 @@ func release_action(action: StringName) -> void:
 ## Pide capturar el puntero (solo PC y durante el juego). Debe llamarse desde un gesto.
 func request_capture() -> void:
 	if can_capture():
+		capture_requests += 1
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://game/data/types/item_data.gd" id="1_baton"]
+[ext_resource type="Script" path="res://game/data/types/weapon_data.gd" id="2_baton"]
+
+[sub_resource type="Resource" id="Resource_baton"]
+script = ExtResource("2_baton")
+damage = 16.0
+attack_interval = 0.75
+attack_range = 2.0
+
+[resource]
+script = ExtResource("1_baton")
+id = "baton"
+name_key = "item_baton"
+category = 2
+weapon = SubResource("Resource_baton")
+bound = true

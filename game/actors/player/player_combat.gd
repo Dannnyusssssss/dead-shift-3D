@@ -25,6 +25,8 @@ var _reload_timer: float = 0.0
 var _reload_stack: ItemStack = null
 var _melee_timer: float = -1.0
 var _melee_stack: ItemStack = null
+## El golpe en curso es un culatazo (no desgasta el arma).
+var _melee_butt: bool = false
 var _muzzle_timer: float = 0.0
 var _muzzle: OmniLight3D = null
 var _ray: PhysicsRayQueryParameters3D = null
@@ -128,6 +130,7 @@ func _start_reload() -> void:
 		return
 	_reload_stack = stack
 	_reload_timer = stack.item.weapon.reload_time
+	AudioDirector.play("reload_click")
 	_player.arms.play_reload(_reload_timer)
 
 
@@ -148,6 +151,8 @@ func _handle_attack() -> void:
 		if InputRouter.just_pressed("attack"):
 			if WeaponUse.can_fire(stack):
 				_shoot(stack)
+			elif WeaponUse.uses_butt(stack, _state().inventory):
+				_butt_strike(stack)
 			else:
 				_start_reload()
 	elif InputRouter.is_pressed("attack"):
@@ -159,6 +164,7 @@ func _shoot(stack: ItemStack) -> void:
 	WeaponUse.fire(stack)
 	_cooldown = weapon.attack_interval
 	_player.arms.play_shoot()
+	AudioDirector.play("gun_shotgun" if stack.id() == "shotgun" else "gun_pistol")
 	if not Settings.get_bool("reduce_flashes"):
 		_muzzle.light_energy = MUZZLE_ENERGY
 		_muzzle_timer = MUZZLE_TIME
@@ -175,6 +181,8 @@ func _shoot(stack: ItemStack) -> void:
 			EventBus.hit_confirmed.emit(enemy.is_dead())
 		elif collider is GlassPane:
 			(collider as GlassPane).shatter()
+		else:
+			EventBus.surface_hit.emit(point, hit.get("normal", Vector3.UP))
 	_player.kick_camera(RECOIL_KICK)
 	EventBus.weapon_changed.emit()
 
@@ -185,26 +193,51 @@ func _swing(stack: ItemStack) -> void:
 	_melee_stack = stack
 	_melee_timer = weapon.attack_interval * MELEE_HIT_MOMENT
 	_player.arms.play_attack(weapon.attack_interval)
+	AudioDirector.play("swing")
 
 
-## El golpe llega: busca un enemigo en el arco frontal, lo daña y desgasta el arma.
+## Culatazo con un arma de fuego vacía y sin munición: golpe cuerpo a cuerpo que no la desgasta.
+func _butt_strike(stack: ItemStack) -> void:
+	_cooldown = WeaponUse.BUTT_INTERVAL
+	_melee_stack = stack
+	_melee_butt = true
+	_melee_timer = WeaponUse.BUTT_INTERVAL * MELEE_HIT_MOMENT
+	_player.arms.play_attack(WeaponUse.BUTT_INTERVAL)
+	AudioDirector.play("swing")
+
+
+## El golpe llega: busca un enemigo en el arco frontal, lo daña y desgasta el arma (el culatazo
+## no desgasta).
 func _resolve_melee() -> void:
 	var stack := _melee_stack
+	var butt := _melee_butt
 	_melee_stack = null
+	_melee_butt = false
 	if stack == null or stack != _state().equipped():
 		return
 	var weapon := stack.item.weapon
-	var target := _melee_target(weapon.attack_range)
+	var reach := WeaponUse.BUTT_RANGE if butt else weapon.attack_range
+	var target := _melee_target(reach)
 	if target == null:
-		_melee_glass(weapon.attack_range)
+		_melee_glass(reach)
 		return
 	var point := target.global_position + Vector3.UP * CHEST_HEIGHT
+	if butt:
+		target.take_hit(WeaponUse.BUTT_DAMAGE, point, false)
+		AudioDirector.melee_impact("pipe", point)
+		EventBus.hit_confirmed.emit(target.is_dead())
+		_player.kick_camera(MELEE_KICK)
+		NoiseSystem.emit_noise(_player.global_position, 1, true)
+		return
 	target.take_hit(weapon.damage, point, false, weapon.stuns)
+	AudioDirector.melee_impact(stack.id(), point)
 	EventBus.hit_confirmed.emit(target.is_dead())
 	_player.kick_camera(MELEE_KICK)
 	NoiseSystem.emit_noise(_player.global_position, weapon.noise_level, true)
 	if WeaponUse.melee_hit(stack) == WeaponUse.HIT_BROKE:
 		EventBus.weapon_broken.emit(stack.id())
+		# El arma se rompe a la vista: saltan trozos delante del jugador.
+		EventBus.debris.emit(_player.aim_origin() + _player.aim_direction() * 0.7)
 		_state().handle_broken_weapons()
 		EventBus.inventory_changed.emit()
 	EventBus.weapon_changed.emit()
@@ -257,9 +290,14 @@ func _assisted_direction(origin: Vector3, direction: Vector3, reach: float) -> V
 		if to_enemy.length() > reach:
 			continue
 		var angle := direction.angle_to(to_enemy)
-		if angle < best_angle:
-			best_angle = angle
-			best = to_enemy.normalized()
+		if angle >= best_angle:
+			continue
+		# Solo enemigos a la vista: con una pared en medio la ayuda no desvía el tiro.
+		var hit := _cast(origin, origin + to_enemy)
+		if not hit.is_empty() and hit.get("collider") != enemy:
+			continue
+		best_angle = angle
+		best = to_enemy.normalized()
 	return best
 
 

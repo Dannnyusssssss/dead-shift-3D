@@ -18,8 +18,13 @@ const COLOR_BY_CATEGORY: Dictionary = {
 	ItemData.CATEGORY_VEST: Color(0.2, 0.25, 0.2),
 	ItemData.CATEGORY_CONSUMABLE: Color(0.85, 0.85, 0.9),
 }
+## Escala de los objetos pequeños en el suelo (curas, materiales, munición, llaves).
+const SMALL_ITEM_SCALE: float = 2.6
+const VEST_SCALE: float = 1.2
 ## Vueltas por segundo (en radianes) del aro que señala el objeto.
 const RING_SPIN: float = 0.8
+## Distancia (m) a la que aparece el nombre del objeto flotando encima (se lee sin apuntarle).
+const NAME_DISTANCE: float = 4.5
 
 @export var item_id: String = ""
 @export var count: int = 1
@@ -31,6 +36,7 @@ var stack: ItemStack = null
 var spot_key: String = ""
 
 var _ring: MeshInstance3D = null
+var _name_label: Label3D = null
 
 
 func _ready() -> void:
@@ -46,6 +52,16 @@ func _ready() -> void:
 		stack = ItemStack.new(data, count, durability_fraction)
 	_build()
 	add_to_group("pickup")
+
+
+## Escala del modelo en el suelo: las armas y el chaleco casi a su tamaño; lo pequeño (curas,
+## materiales, munición, llaves) se agranda para que se vea.
+static func scale_for(category: int) -> float:
+	if category == ItemData.CATEGORY_WEAPON:
+		return 1.0
+	if category == ItemData.CATEGORY_VEST:
+		return VEST_SCALE
+	return SMALL_ITEM_SCALE
 
 
 ## Prepara el objeto con una casilla creada en juego (botín, objeto soltado).
@@ -85,10 +101,13 @@ func interact(player: Player) -> void:
 	if stack == null or not enabled:
 		return
 	var state := GameState.player
+	var item_id := stack.id()
+	var amount := stack.count
 	if stack.item.category == ItemData.CATEGORY_KEY:
-		state.keys.add(stack.id())
+		state.keys.add(item_id)
 		EventBus.key_items_changed.emit()
 		EventBus.user_message.emit("msg_key_item")
+		EventBus.item_obtained.emit(item_id, amount)
 		_consume(player)
 		return
 	if stack.is_vest():
@@ -96,18 +115,24 @@ func interact(player: Player) -> void:
 		EventBus.vest_changed.emit()
 		if old != null:
 			player.drop_stack(old)
+		EventBus.item_obtained.emit(item_id, 1)
 		_consume(player)
 		return
 	if not state.inventory.add_stack(stack):
+		# Puede que entrara una parte (bolsa o casillas casi llenas): se avisa de esa parte.
+		if stack.count < amount:
+			EventBus.item_obtained.emit(item_id, amount - stack.count)
 		EventBus.user_message.emit("msg_inventory_full")
 		EventBus.inventory_changed.emit()
 		return
 	EventBus.inventory_changed.emit()
 	EventBus.weapon_changed.emit()
+	EventBus.item_obtained.emit(item_id, amount)
 	_consume(player)
 
 
 func _consume(player: Player) -> void:
+	AudioDirector.play("pickup")
 	enabled = false
 	used.emit(player)
 	queue_free()
@@ -117,6 +142,21 @@ func _build() -> void:
 	var category := stack.item.category
 	var size: Vector3 = SIZE_BY_CATEGORY.get(category, Vector3(0.25, 0.25, 0.25))
 	var color: Color = COLOR_BY_CATEGORY.get(category, Color.WHITE)
+	var model := ItemModels.instance(stack.id(), stack.durability.state(), true)
+	if model != null:
+		# Modelo del objeto apoyado en el suelo; los pequeños se agrandan para que se vean.
+		var bounds := model.mesh.get_aabb()
+		var scale_up := scale_for(category)
+		model.scale = Vector3.ONE * scale_up
+		model.position.y = -bounds.position.y * scale_up + 0.01
+		add_child(model)
+		size = Vector3(
+			maxf(bounds.size.x * scale_up, 0.2), bounds.size.y, maxf(bounds.size.z * scale_up, 0.2)
+		)
+		_add_ring(color, size)
+		_add_shape(size)
+		_add_name(size.y * scale_up)
+		return
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	var material := StandardMaterial3D.new()
@@ -129,6 +169,12 @@ func _build() -> void:
 	instance.position.y = size.y * 0.5
 	add_child(instance)
 	_add_ring(color, size)
+	_add_shape(size)
+	_add_name(size.y)
+
+
+## Zona para usar el objeto, algo mayor que él.
+func _add_shape(size: Vector3) -> void:
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size + Vector3(0.3, 0.4, 0.3)
@@ -157,6 +203,28 @@ func _add_ring(color: Color, size: Vector3) -> void:
 	add_child(_ring)
 
 
+## Nombre del objeto flotando encima, de cara a la cámara; solo se ve de cerca (y no a través
+## de las paredes).
+func _add_name(height: float) -> void:
+	_name_label = Label3D.new()
+	_name_label.text = get_prompt_detail()
+	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_label.font_size = 40
+	_name_label.outline_size = 12
+	_name_label.pixel_size = 0.004
+	_name_label.modulate = Color(1.0, 0.97, 0.85)
+	_name_label.position.y = height + 0.3
+	_name_label.visible = false
+	add_child(_name_label)
+
+
 func _process(delta: float) -> void:
 	if _ring != null:
 		_ring.rotation.y += delta * RING_SPIN
+	if _name_label != null:
+		var camera := get_viewport().get_camera_3d()
+		_name_label.visible = (
+			enabled
+			and camera != null
+			and camera.global_position.distance_to(global_position) <= NAME_DISTANCE
+		)

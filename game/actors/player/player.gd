@@ -10,6 +10,10 @@ const HEAD_BOB_HEIGHT: float = 0.035
 const CROUCH_LERP: float = 10.0
 ## Cada cuánto suena un paso (emite ruido) al moverse.
 const STEP_INTERVAL: float = 0.45
+## Caída de la cámara al morir: cuánto baja (respecto a la cabeza), cuánto se ladea y cuánto tarda.
+const DEATH_CAMERA_DROP: float = -1.25
+const DEATH_CAMERA_ROLL: float = 1.15
+const DEATH_FALL_SECONDS: float = 1.1
 const THROWN_SCRIPT: GDScript = preload("res://game/world/thrown_item.gd")
 
 ## Falso mientras algo bloquea los controles (combinar, inventario abierto, muerte):
@@ -89,6 +93,19 @@ func kick_camera(amount: float) -> void:
 	_kick = minf(_kick + amount, 0.12)
 
 
+## Caída de la cámara al morir: baja hasta casi el suelo y se ladea. Con «Reducir movimiento»
+## la cámara no se mueve (solo habrá fundido a negro). Devuelve lo que dura, en segundos.
+func play_death_fall() -> float:
+	if Settings.get_bool("reduce_motion") or camera == null:
+		return 0.0
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(camera, "position:y", DEATH_CAMERA_DROP, DEATH_FALL_SECONDS)
+	tween.tween_property(camera, "rotation:z", DEATH_CAMERA_ROLL, DEATH_FALL_SECONDS)
+	tween.tween_property(camera, "rotation:x", camera.rotation.x - 0.35, DEATH_FALL_SECONDS)
+	return DEATH_FALL_SECONDS
+
+
 ## Recupera el retroceso y la sacudida poco a poco.
 func _settle_camera(delta: float) -> void:
 	_kick = move_toward(_kick, 0.0, delta * 0.35)
@@ -123,7 +140,7 @@ func throw_material(item_id: String) -> bool:
 	thrown.setup(stack, start_velocity, exclude)
 	get_parent().add_child(thrown)
 	thrown.global_position = aim_origin() + aim_direction() * 0.4
-	arms.play_attack(Rules.THROW_COOLDOWN)
+	arms.play_throw()
 	EventBus.inventory_changed.emit()
 	EventBus.weapon_changed.emit()
 	return true
@@ -249,6 +266,7 @@ func _update_steps(delta: float) -> void:
 	if _step_timer <= 0.0:
 		_step_timer = STEP_INTERVAL
 		NoiseSystem.emit_noise(global_position, level, true)
+		AudioDirector.footstep(self, sprinting)
 
 
 func _update_interaction() -> void:

@@ -12,6 +12,9 @@ var _summary: Label = null
 var _hint: Label = null
 var _surrender: TapButton = null
 var _save: TapButton = null
+var _main_menu: TapButton = null
+## Volver al menú pide un segundo toque (se pierde lo que no se haya guardado).
+var _menu_armed: bool = false
 var _options: OptionsMenu = null
 
 
@@ -60,6 +63,7 @@ func _ready() -> void:
 	_surrender = _option_button(box, _on_surrender)
 	_surrender.text = tr("pause_surrender")
 	_surrender.visible = false
+	_main_menu = _option_button(box, _on_main_menu)
 	visible = false
 	_options = OptionsMenu.new()
 	add_child(_options)
@@ -100,6 +104,8 @@ func _on_paused_changed(paused: bool) -> void:
 	if paused:
 		var key := "pause_hint_touch" if InputRouter.touch_mode else "pause_hint_mouse"
 		_hint.text = tr(key)
+		_menu_armed = false
+		_main_menu.text = tr("pause_main_menu")
 		_refresh_options()
 		_refresh_summary()
 		_continue.grab_focus()
@@ -142,6 +148,16 @@ func _on_continue() -> void:
 
 func _on_surrender() -> void:
 	EventBus.surrender_requested.emit()
+
+
+## Primer toque: pide confirmación; segundo toque: vuelve al menú principal.
+func _on_main_menu() -> void:
+	if not _menu_armed:
+		_menu_armed = true
+		_main_menu.text = tr("pause_main_menu_confirm")
+		return
+	_menu_armed = false
+	EventBus.main_menu_requested.emit()
 
 
 func _on_save() -> void:

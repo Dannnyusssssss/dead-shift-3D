@@ -15,5 +15,6 @@ sight_range = 16.0
 infect_chance = 0.25
 hearing = 0.6
 body_color = Color(0.2, 0.17, 0.15, 1)
+model_id = "stalker"
 body_scale = 0.9
 behavior = "stalker"

@@ -23,6 +23,15 @@ signal interaction_prompt(text_key: String, detail: String)
 ## Un golpe o disparo del jugador acertó a un enemigo (para el marcador de impacto).
 @warning_ignore("unused_signal")
 signal hit_confirmed(killed: bool)
+
+## Un enemigo recibió un golpe en ese punto; direction = hacia dónde salió despedido.
+signal enemy_hit(point: Vector3, direction: Vector3, is_bullet: bool)
+
+## Una bala dio en una pared o el suelo (punto y normal de la superficie).
+signal surface_hit(point: Vector3, normal: Vector3)
+
+## Algo se rompió en ese punto (arma, estantería): saltan escombros.
+signal debris(origin: Vector3)
 ## Se hizo un ruido en un punto (nivel Rules.NOISE_*).
 @warning_ignore("unused_signal")
 signal noise_emitted(origin: Vector3, level: int)
@@ -102,6 +111,15 @@ signal run_finished(outcome: int)
 ## El jugador se rinde tras perder el rescate (desde la pausa).
 @warning_ignore("unused_signal")
 signal surrender_requested
+## Un señuelo (botella ruidosa) llama a todos los enemigos cercanos de su piso, oigan o no.
+@warning_ignore("unused_signal")
+signal lure_pulled(origin: Vector3, radius: float)
+## Se recogió un objeto (del suelo o de un contenedor), con su cantidad.
+@warning_ignore("unused_signal")
+signal item_obtained(item_id: String, count: int)
+## El jugador pide volver al menú principal (desde la pausa).
+@warning_ignore("unused_signal")
+signal main_menu_requested
 ## El jugador pide guardar a mano (desde la pausa).
 @warning_ignore("unused_signal")
 signal save_requested

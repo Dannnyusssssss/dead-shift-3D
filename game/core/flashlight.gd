@@ -12,6 +12,10 @@ const EMERGENCY_LEVEL: float = 0.2
 const LOW_LEVEL: float = 0.55
 ## Segundos de carga por debajo de los cuales la luz empieza a bajar.
 const LOW_CHARGE: float = 20.0
+## Aviso de carga baja: bajadas suaves del haz por segundo (muy por debajo de 3 destellos por
+## segundo) y cuánto baja en cada una.
+const LOW_FLICKER_RATE: float = 0.6
+const LOW_FLICKER_DEPTH: float = 0.35
 
 var on: bool = false
 var charge: float = Rules.FLASHLIGHT_SECONDS
@@ -51,6 +55,21 @@ func level() -> float:
 	if charge >= LOW_CHARGE:
 		return 1.0
 	return lerpf(LOW_LEVEL, 1.0, charge / LOW_CHARGE)
+
+
+## Si queda poca carga (y la linterna sigue dando luz normal): hay que avisar.
+func is_low() -> bool:
+	return on and charge > 0.0 and charge < LOW_CHARGE
+
+
+## Multiplicador del brillo para avisar de la carga baja: una bajada suave cada
+## 1 / LOW_FLICKER_RATE segundos. Con reduce_flashes no hay bajadas (solo la atenuación de
+## level()). Fuera de la carga baja, 1.
+func flicker(time: float, reduce_flashes: bool) -> float:
+	if reduce_flashes or not is_low():
+		return 1.0
+	var wave := maxf(sin(time * TAU * LOW_FLICKER_RATE), 0.0)
+	return 1.0 - LOW_FLICKER_DEPTH * pow(wave, 8.0)
 
 
 ## Fracción de carga (0 a 1) para la interfaz.

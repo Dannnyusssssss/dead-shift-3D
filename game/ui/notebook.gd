@@ -22,7 +22,8 @@ static func objective_text() -> String:
 	if state == null or GameState.rescue == null:
 		return ""
 	var roof_open := GameState.world.has_flag("roof_open")
-	var objective := Objectives.current(state, GameState.rescue, roof_open)
+	var knows_phone := Discovery.knows_phone(GameState.world, state.keys)
+	var objective := Objectives.current(state, GameState.rescue, roof_open, knows_phone)
 	return _format(objective)
 
 
@@ -97,7 +98,9 @@ func _recipes_section() -> void:
 ## Zona de cada pieza: «tienda — piso», según dónde la colocan los datos del piso.
 func _part_zones() -> Dictionary:
 	var result: Dictionary = {}
-	for place: Dictionary in MapMarkers.locations(GameState.CATALOG.floors, Rules.PHONE_PARTS):
+	for place: Dictionary in MapMarkers.locations(
+		GameState.CATALOG.floors, Rules.PHONE_PARTS, GameState.loot_plan
+	):
 		var room_key: String = place["room_key"]
 		var floor_key: String = place["floor_key"]
 		if not room_key.is_empty():

@@ -22,6 +22,7 @@ const FLOATS: Dictionary = {
 	"volume_ambience": [0.0, 1.0, 0.8],
 	"touch_button_scale": [0.75, 1.5, 1.0],
 	"touch_opacity": [0.3, 1.0, 0.7],
+	"ui_scale": [0.8, 1.5, 1.0],
 }
 
 ## Campos enteros: [mínimo, máximo, por defecto].
@@ -54,6 +55,7 @@ const DEFAULT_BINDINGS: Dictionary = {
 	"reload": [KEY_R],
 	"interact": [KEY_E],
 	"throw": [KEY_G],
+	"throw_next": [KEY_V],
 	"inventory": [KEY_TAB, KEY_I],
 	"map": [KEY_M],
 	"notebook": [KEY_N],
@@ -72,6 +74,7 @@ const REBINDABLE: Array[String] = [
 	"reload",
 	"interact",
 	"throw",
+	"throw_next",
 	"inventory",
 	"map",
 	"notebook",

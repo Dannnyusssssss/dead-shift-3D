@@ -8,6 +8,8 @@ const OUTCOME_RESCUED: int = 0
 const OUTCOME_LOST: int = 1
 const OUTCOME_DEAD: int = 2
 const OUTCOME_CONVERTED: int = 3
+## Subió al helicóptero infectado: se convierte en pleno vuelo y el helicóptero cae.
+const OUTCOME_CRASHED: int = 4
 
 ## Letras de la nota, de mejor a peor, y puntos mínimos de cada una.
 const GRADES: Array[String] = ["S", "A", "B", "C", "D"]
@@ -66,3 +68,10 @@ static func from_state(state: PlayerState, run_outcome: int, elapsed: float) -> 
 	stats.ammo_left = state.ammo_left()
 	stats.kills = state.kills
 	return stats
+
+
+## Desenlace al subir al helicóptero: si sigue infectado (sin curar), cae en pleno vuelo.
+static func boarding_outcome(infection: Infection) -> int:
+	if infection != null and infection.infected and not infection.is_converted():
+		return OUTCOME_CRASHED
+	return OUTCOME_RESCUED

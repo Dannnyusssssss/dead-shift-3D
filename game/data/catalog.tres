@@ -52,11 +52,15 @@
 [ext_resource type="Resource" path="res://game/data/recipes/improvised_bandage.tres" id="56_r_impband"]
 [ext_resource type="Resource" path="res://game/data/recipes/pipe_nails.tres" id="57_r_pipenails"]
 [ext_resource type="Resource" path="res://game/data/recipes/noise_bottle.tres" id="58_r_nbottle"]
+[ext_resource type="Resource" path="res://game/data/items/baton.tres" id="59_baton"]
+[ext_resource type="Resource" path="res://game/data/items/antiviral_vial.tres" id="60_vial"]
+[ext_resource type="Resource" path="res://game/data/items/syringe.tres" id="61_syringe"]
+[ext_resource type="Resource" path="res://game/data/recipes/neutrax.tres" id="62_r_neutrax"]
 
 [resource]
 script = ExtResource("20_u11ii")
-items = Array[ExtResource("4_l3ywh")]([ExtResource("5_bkrud"), ExtResource("6_rhyd5"), ExtResource("7_eb5ne"), ExtResource("8_ayso4"), ExtResource("9_vhlhy"), ExtResource("10_goheo"), ExtResource("11_uhpda"), ExtResource("12_dbc7a"), ExtResource("13_gx4w4"), ExtResource("14_ojgfw"), ExtResource("15_vyqb5"), ExtResource("21_bottle"), ExtResource("23_bandage"), ExtResource("24_antibiotics"), ExtResource("25_neutrax"), ExtResource("26_shotgun"), ExtResource("27_shotgun_shells"), ExtResource("28_security_key"), ExtResource("29_phone_antenna"), ExtResource("30_phone_battery"), ExtResource("31_phone_board"), ExtResource("45_roofkey"), ExtResource("46_ext"), ExtResource("47_map"), ExtResource("53_pipenails"), ExtResource("54_impband"), ExtResource("55_nbottle"), ExtResource("56_batteries")])
-recipes = Array[ExtResource("16_tqm5c")]([ExtResource("17_vmiuv"), ExtResource("18_4e5a7"), ExtResource("19_cnqtj"), ExtResource("56_r_impband"), ExtResource("57_r_pipenails"), ExtResource("58_r_nbottle")])
+items = Array[ExtResource("4_l3ywh")]([ExtResource("5_bkrud"), ExtResource("6_rhyd5"), ExtResource("7_eb5ne"), ExtResource("8_ayso4"), ExtResource("9_vhlhy"), ExtResource("10_goheo"), ExtResource("11_uhpda"), ExtResource("12_dbc7a"), ExtResource("13_gx4w4"), ExtResource("14_ojgfw"), ExtResource("15_vyqb5"), ExtResource("21_bottle"), ExtResource("23_bandage"), ExtResource("24_antibiotics"), ExtResource("25_neutrax"), ExtResource("26_shotgun"), ExtResource("27_shotgun_shells"), ExtResource("28_security_key"), ExtResource("29_phone_antenna"), ExtResource("30_phone_battery"), ExtResource("31_phone_board"), ExtResource("45_roofkey"), ExtResource("46_ext"), ExtResource("47_map"), ExtResource("53_pipenails"), ExtResource("54_impband"), ExtResource("55_nbottle"), ExtResource("56_batteries"), ExtResource("59_baton"), ExtResource("60_vial"), ExtResource("61_syringe")])
+recipes = Array[ExtResource("16_tqm5c")]([ExtResource("17_vmiuv"), ExtResource("18_4e5a7"), ExtResource("19_cnqtj"), ExtResource("56_r_impband"), ExtResource("57_r_pipenails"), ExtResource("58_r_nbottle"), ExtResource("62_r_neutrax")])
 enemies = Array[ExtResource("1_3x42p")]([ExtResource("2_4gdo0"), ExtResource("3_amknx"), ExtResource("22_listener"), ExtResource("43_stalker"), ExtResource("44_tech")])
 floors = Array[ExtResource("39_floortype")]([ExtResource("40_ground"), ExtResource("41_level1"), ExtResource("42_level2"), ExtResource("48_roof")])
 difficulties = Array[ExtResource("49_difftype")]([ExtResource("50_easy"), ExtResource("51_medium"), ExtResource("52_hard")])
