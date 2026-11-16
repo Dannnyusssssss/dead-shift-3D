@@ -63,6 +63,21 @@ func test_boss_blackout_fades_and_returns() -> void:
 		steps += 1
 	assert_almost_eq(light.light_energy, full * Rules.BLACKOUT_LIGHT_FACTOR, 0.01)
 	assert_gt(steps, 60, "tarda en bajar (gradual)")
+	# Oscuridad total: las luces del piso a cero y los paneles del techo casi apagados (solo en el
+	# piso del jefe; los demás pisos conservan su material encendido).
+	assert_eq(Rules.BLACKOUT_LIGHT_FACTOR, 0.0)
+	var material: ShaderMaterial = section.get("_surface_material")
+	assert_not_null(material, "el piso tiene su propia copia del material")
+	await wait_seconds(0.3)
+	var glow: float = material.get_shader_parameter("emission_scale")
+	assert_almost_eq(glow, Rules.BLACKOUT_EMISSION_FACTOR, 0.01)
+	for other: FloorSection in game.level.sections:
+		if other == section or other.get("_surface_material") == null:
+			continue
+		var other_material: ShaderMaterial = other.get("_surface_material")
+		assert_ne(other_material, material, "cada piso con su material")
+		var other_glow: float = other_material.get_shader_parameter("emission_scale")
+		assert_almost_eq(other_glow, 1.0, 0.001, other.name)
 	# Dos fases: el primer golpe enorme rompe el traje y el segundo lo vence.
 	boss.take_hit(100000.0, boss.global_position, true)
 	await wait_physics_frames(2)

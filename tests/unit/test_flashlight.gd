@@ -76,3 +76,30 @@ func test_fraction_for_the_hud() -> void:
 	var torch := Flashlight.new()
 	torch.charge = Rules.FLASHLIGHT_SECONDS * 0.25
 	assert_almost_eq(torch.fraction(), 0.25, 0.0001)
+
+
+## Aviso de carga baja: bajadas suaves del haz, menos de 3 por segundo y nunca a oscuras; con
+## «Reducir destellos» o con carga normal, ninguna.
+func test_low_charge_flicker_is_slow_soft_and_optional() -> void:
+	var torch := Flashlight.new()
+	torch.toggle()
+	assert_eq(torch.flicker(0.4, false), 1.0, "carga normal: sin bajadas")
+	torch.charge = Flashlight.LOW_CHARGE * 0.5
+	assert_true(torch.is_low())
+	var dips := 0
+	var was_dipping := false
+	var lowest := 1.0
+	for step: int in 1000:
+		var value := torch.flicker(step * 0.01, false)
+		lowest = minf(lowest, value)
+		var dipping := value < 0.95
+		if dipping and not was_dipping:
+			dips += 1
+		was_dipping = dipping
+	assert_lte(float(dips) / 10.0, 3.0, "menos de 3 por segundo")
+	assert_gt(dips, 0, "se nota el aviso")
+	assert_gte(lowest, 1.0 - Flashlight.LOW_FLICKER_DEPTH - 0.001, "nunca se apaga")
+	for step: int in 200:
+		assert_eq(torch.flicker(step * 0.05, true), 1.0, "sin bajadas con Reducir destellos")
+	torch.charge = 0.0
+	assert_false(torch.is_low(), "agotada: es la luz de emergencia, no el aviso")

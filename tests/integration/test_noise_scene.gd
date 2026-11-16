@@ -134,3 +134,22 @@ func test_thrown_sturdy_object_lands_as_pickup() -> void:
 		var pickup: Pickup = pickups[0]
 		assert_eq(pickup.item_id, "rag")
 		assert_gt(_flat_distance(pickup.global_position, _player.global_position), 2.0)
+
+
+## La botella ruidosa llama a todos los enemigos cercanos de su piso, también a un caminante
+## (que no oye el resto de ruidos); los que están lejos o en otro piso no se mueven.
+func test_noise_bottle_pulls_every_nearby_enemy() -> void:
+	_player.position = Vector3(30.0, 0.0, 30.0)
+	var near := _spawn(WALKER, Vector3(8.0, 0.0, 0.0))
+	var far := _spawn(WALKER, Vector3(-30.0, 0.0, 0.0))
+	var lure := Lure.new()
+	lure.time_left = 3.0
+	_world.add_child(lure)
+	await wait_physics_frames(3)
+	assert_eq(near.state, Enemy.STATE_INVESTIGATE, "el cercano va hacia el señuelo")
+	assert_ne(far.state, Enemy.STATE_INVESTIGATE, "el lejano no")
+	var start := near.global_position.distance_to(lure.global_position)
+	await wait_seconds(1.5)
+	assert_lt(near.global_position.distance_to(lure.global_position), start - 0.5, "se acerca")
+	EventBus.lure_pulled.emit(Vector3(8.0, 5.0, 0.0), 14.0)
+	assert_eq(far.state, Enemy.STATE_IDLE, "un señuelo de otro piso no lo mueve")

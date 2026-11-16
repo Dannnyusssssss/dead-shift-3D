@@ -3,6 +3,9 @@ extends RefCounted
 ## Consultas del bot de recorrido que solo leen el estado de la partida (mochila, armas,
 ## combinaciones, enemigos cercanos y a dónde huir); las decisiones las toma bot_session.gd.
 
+## Diferencia de altura a partir de la cual algo está en otro piso.
+const SAME_FLOOR: float = 2.0
+
 ## Huida sin armas: radios y direcciones que prueba, alejamiento mínimo, ángulo máximo respecto
 ## a la dirección contraria al enemigo (producto escalar mínimo) y castigo por metro que el
 ## punto elegido queda fuera del suelo navegable (contra un borde o una pared: arrincona).
@@ -48,7 +51,8 @@ static func ammo_for(stack: ItemStack) -> int:
 	return stack.ammo_loaded + GameState.player.inventory.count_of(stack.item.weapon.ammo_item_id)
 
 
-## Casilla del arma cuerpo a cuerpo sana con más daño (sin contar las que aturden), o -1.
+## Casilla del arma cuerpo a cuerpo sana con más daño (sin contar las que aturden ni la porra,
+## que es la reserva débil: con ella el bot no se acerca a pelear), o -1.
 static func best_melee_slot() -> int:
 	var state := GameState.player
 	var best := -1
@@ -56,6 +60,8 @@ static func best_melee_slot() -> int:
 	for index: int in state.inventory.capacity():
 		var stack := state.inventory.get_slot(index)
 		if stack == null or not stack.is_weapon() or stack.durability.is_broken():
+			continue
+		if stack.item.bound:
 			continue
 		var weapon := stack.item.weapon
 		if (
@@ -216,8 +222,149 @@ static func wants(stack: ItemStack) -> bool:
 	var category := stack.item.category
 	if category == ItemData.CATEGORY_WEAPON:
 		return weapon_count() < 4
+	# El vial y la jeringa preparan la segunda dosis de Neutrax.
 	return (
 		category == ItemData.CATEGORY_AMMO
 		or category == ItemData.CATEGORY_CONSUMABLE
 		or category == ItemData.CATEGORY_KEY
+		or stack.id() in ["antiviral_vial", "syringe"]
 	)
+
+
+## Casilla que soltar para hacer sitio a la cura: el arma cuerpo a cuerpo más débil que no sea
+## la porra ni la equipada (-1 si no hay ninguna).
+static func slot_to_free_for_cure() -> int:
+	var state := GameState.player
+	var weakest := -1
+	for index: int in state.inventory.capacity():
+		var stack := state.inventory.get_slot(index)
+		if stack == null or not stack.is_weapon() or stack.item.bound:
+			continue
+		if stack.item.weapon.kind != WeaponData.KIND_MELEE or index == state.equipped_slot:
+			continue
+		if (
+			weakest < 0
+			or stack.item.weapon.damage < state.inventory.get_slot(weakest).item.weapon.damage
+		):
+			weakest = index
+	return weakest
+
+
+## Si hace falta la cura y la mochila está llena, suelta el arma cuerpo a cuerpo más débil.
+static func free_room_for_cure(player: Player) -> void:
+	if not needs_cure() or not GameState.player.inventory.is_full():
+		return
+	var spare := slot_to_free_for_cure()
+	if spare >= 0:
+		player.drop_stack(GameState.player.inventory.take_slot(spare))
+
+
+## Contenedor al que ir: el del Neutrax si está infectado y sin cura (antes que nada); si no,
+## uno marcado en el mapa en su piso. null si no hay.
+static func container_to_open(
+	building: Building, player_position: Vector3, ignored: Array
+) -> LootContainer:
+	if needs_cure():
+		var cure := cure_container(building, player_position)
+		if cure != null:
+			return cure
+	return marked_container(building.section_at(player_position), player_position, ignored)
+
+
+## Contenedor de cualquier piso que todavía guarda Neutrax (la farmacia), o null. El bot va a
+## por él si se infecta y no lleva cura, como haría un jugador.
+static func cure_container(building: Building, player_position: Vector3) -> LootContainer:
+	var best: LootContainer = null
+	var best_distance := INF
+	for section: FloorSection in building.sections:
+		for node: Node in section.get_children():
+			var box := node as LootContainer
+			if box == null or not box.enabled:
+				continue
+			var has_cure := false
+			for entry: String in box.remaining_entries():
+				if entry.get_slice(":", 0) == "neutrax":
+					has_cure = true
+			if not has_cure:
+				continue
+			var distance := box.global_position.distance_to(player_position)
+			if distance < best_distance:
+				best = box
+				best_distance = distance
+	return best
+
+
+## Infectado y sin nada con qué curarse o ganar tiempo.
+static func needs_cure() -> bool:
+	var state := GameState.player
+	if not state.infection.infected or state.infection.is_converted():
+		return false
+	return state.inventory.count_of("neutrax") == 0 and state.inventory.count_of("antibiotics") == 0
+
+
+## Contenedor sin vaciar en una sala que el mapa marca para una pieza o llave que falta, en el
+## piso del bot (como un jugador que lee el mapa o la nota y va a buscar allí). null si no hay.
+static func marked_container(
+	section: FloorSection, player_position: Vector3, ignored: Array
+) -> LootContainer:
+	if section == null:
+		return null
+	var keys := GameState.player.keys
+	var rooms: Array[String] = []
+	for entry: Dictionary in MapMarkers.missing(
+		GameState.CATALOG.floors, keys, GameState.loot_plan
+	):
+		var carrier: String = entry["carrier_key"]
+		if entry["floor_id"] == section.floor_data.id and carrier.is_empty():
+			rooms.append(entry["room_id"])
+	if rooms.is_empty():
+		return null
+	var best: LootContainer = null
+	var best_distance := INF
+	for node: Node in section.get_children():
+		var box := node as LootContainer
+		if box == null or not box.enabled or box.is_empty() or ignored.has(box.get_instance_id()):
+			continue
+		if not rooms.has(room_of(section.floor_data, box.position)):
+			continue
+		var distance := box.global_position.distance_to(player_position)
+		if distance < best_distance:
+			best = box
+			best_distance = distance
+	return best
+
+
+## Sala de un piso que contiene un punto (coordenadas del piso), o "".
+static func room_of(floor_data: FloorData, local: Vector3) -> String:
+	for room: RoomData in floor_data.rooms:
+		if room.rect.has_point(Vector2(local.x, local.z)):
+			return room.id
+	return ""
+
+
+## Objeto útil cercano en el suelo (munición, curas, objetos clave y armas si faltan), en el
+## mismo piso. Un objeto clave se va a buscar a cualquier distancia del piso.
+static func nearby_loot(
+	tree: SceneTree, player_position: Vector3, ignored: Array, loot_range: float
+) -> Pickup:
+	var best: Pickup = null
+	var best_distance := loot_range
+	for node: Node in tree.get_nodes_in_group("pickup"):
+		var pickup := node as Pickup
+		if pickup == null or not pickup.enabled or pickup.stack == null:
+			continue
+		if (
+			ignored.has(pickup.get_instance_id())
+			or not pickup.is_inside_tree()
+			or not wants(pickup.stack)
+			or absf(pickup.global_position.y - player_position.y) > SAME_FLOOR
+		):
+			continue
+		var offset := pickup.global_position - player_position
+		var distance := Vector2(offset.x, offset.z).length()
+		if pickup.stack.item.category == ItemData.CATEGORY_KEY:
+			distance = minf(distance, 0.0)
+		if distance < best_distance:
+			best = pickup
+			best_distance = distance
+	return best

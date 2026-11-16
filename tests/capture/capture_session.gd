@@ -4,6 +4,12 @@ extends Node
 ## cada uno y mide FPS, tiempo de frame, llamadas de dibujo y primitivas. Sirve para detectar
 ## errores visibles (pantalla negra, piezas que faltan) y medir en esta máquina; no para dar
 ## por buena la estética. Restaura la calidad que tenía el jugador al terminar.
+## Con la variable de entorno DEADSHIFT_CAPTURE_ONLY=enemigos solo hace las capturas de los
+## enemigos en movimiento, con =angulos solo las de un mismo sitio desde ángulos casi iguales y
+## con =objetos solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
+## cerradas, con =decorado solo el decorado, con =luz las tiendas iluminadas y el apagón del
+## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
+## intro y con =final las escenas finales (para revisar una parte sin recorrer todo).
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Nombre, posición en el edificio, giro y cabeceo (grados) de cada punto.
@@ -44,12 +50,63 @@ func _ready() -> void:
 		base = OS.get_user_data_dir()
 	_out_dir = base.path_join("deadshift3d-capturas").path_join("godot")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
-	_game = GAME_SCRIPT.new()
-	add_child(_game)
+	# La intro va antes de la partida: se captura sola, sin el edificio debajo.
+	if OS.get_environment("DEADSHIFT_CAPTURE_ONLY") != "intro":
+		_game = GAME_SCRIPT.new()
+		add_child(_game)
 	_run.call_deferred()
 
 
 func _run() -> void:
+	var only := OS.get_environment("DEADSHIFT_CAPTURE_ONLY")
+	var parts: Array[String] = [
+		"enemigos",
+		"angulos",
+		"objetos",
+		"tiendas",
+		"decorado",
+		"luz",
+		"brazos",
+		"jefe",
+		"intro",
+		"final",
+	]
+	if only in parts:
+		if only == "final":
+			await _capture_outros()
+		elif only == "intro":
+			await _capture_intro()
+		elif only == "jefe":
+			await _capture_boss_throw()
+		elif only == "brazos":
+			await _capture_arms()
+		elif only == "luz":
+			await _capture_spots(
+				[
+					["15_n1_ropa_luz", Vector3(-17.0, 5.0, -6.6), 0.0, -8.0],
+					["16_n1_electronica_luz", Vector3(8.0, 5.0, -6.8), 10.0, -8.0],
+					["12_azotea_luz", Vector3(-10.0, 15.0, 7.0), -60.0, 0.0],
+				]
+			)
+			GameState.player.flashlight.on = true
+			await _capture_spots(
+				[["16_n1_electronica_linterna", Vector3(8.0, 5.0, -6.8), 10.0, -20.0]]
+			)
+			GameState.player.flashlight.on = false
+			await _capture_blackout()
+		elif only == "decorado":
+			await _capture_decor()
+		elif only == "tiendas":
+			await _capture_closed_stores()
+		elif only == "enemigos":
+			await _capture_enemies_moving()
+		elif only == "angulos":
+			await _capture_angles()
+		else:
+			await _capture_catalog()
+		print("[captura] %s en %s" % [only, _out_dir])
+		get_tree().quit(0)
+		return
 	var original_quality := Settings.get_int("quality")
 	_report.append("punto | calidad | FPS | frame ms | draw calls | primitivas")
 	for quality: int in QUALITIES:
@@ -71,9 +128,19 @@ func _run() -> void:
 			await _measure(label, quality)
 	Settings.set_value("quality", original_quality)
 	await _capture_broken_glass()
+	await _capture_impacts()
 	await _capture_cameras()
 	await _capture_blackout()
 	await _capture_interface()
+	await _capture_enemies_moving()
+	await _capture_angles()
+	await _capture_catalog()
+	await _capture_closed_stores()
+	await _capture_decor()
+	await _capture_arms()
+	await _capture_boss_throw()
+	await _capture_intro()
+	await _capture_outros()
 	var report_path := _out_dir.path_join("medicion.txt")
 	var file := FileAccess.open(report_path, FileAccess.WRITE)
 	if file != null:
@@ -103,6 +170,313 @@ func _measure(label: String, quality: int) -> void:
 	_report.append(
 		"%s | %d | %.0f | %.1f | %d | %d" % [label, quality, fps, 1000.0 / fps, draws, primitives]
 	)
+
+
+## Tiendas cerradas vistas desde el pasillo: persiana, puerta cerrada y escaparate con fondo.
+func _capture_closed_stores() -> void:
+	await _capture_spots(
+		[
+			["38_cerrada_jugueteria", Vector3(-2.0, 0.0, 1.5), 180.0, 0.0],
+			["38_cerrada_boutique", Vector3(-7.0, 5.0, 4.6), 180.0, 0.0],
+			["38_cerrada_joyeria", Vector3(19.0, 5.0, -1.5), 0.0, 0.0],
+		]
+	)
+
+
+## Decorado: ascensor con cabina, baños, cafetería, monitores de cámaras y desorden.
+func _capture_decor() -> void:
+	await _capture_spots(
+		[
+			["39_ascensor", Vector3(18.5, 0.0, 3.5), -90.0, 4.0],
+			["40_banos_pb", Vector3(-21.0, 0.0, 7.4), 180.0, -8.0],
+			["41_banos_n1", Vector3(-25.2, 5.0, -2.0), 90.0, -8.0],
+			["42_cafeteria", Vector3(8.0, 0.0, 7.4), 180.0, -10.0],
+			["43_monitores", Vector3(-28.0, 0.0, -2.5), 0.0, -5.0],
+			["44_desorden_pasillo", Vector3(-12.0, 0.0, 4.5), -100.0, -20.0],
+		]
+	)
+
+
+## Cada arma en la mano, en primera persona y vista de lado (cámara aparte junto al brazo), para
+## ver si el puño la sujeta o la atraviesa.
+func _capture_arms() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	player.global_position = Vector3(-21.0, 0.0, 0.5)
+	player.rotation.y = 0.0
+	player.head.rotation.x = 0.0
+	var state := GameState.player
+	var side := Camera3D.new()
+	side.fov = 40.0
+	player.head.add_child(side)
+	side.position = Vector3(0.75, -0.25, -0.35)
+	side.rotation.y = deg_to_rad(90.0)
+	var ids := Array(GameState.items.ids())
+	ids.sort()
+	for item_id: String in ids:
+		var item := GameState.items.get_item(item_id)
+		if item.category != ItemData.CATEGORY_WEAPON:
+			continue
+		# Se deja sitio en la mochila: el arma anterior se quita (salvo la pistola inicial).
+		for slot: int in state.inventory.capacity():
+			var held := state.inventory.get_slot(slot)
+			if (
+				held != null
+				and held.item.category == ItemData.CATEGORY_WEAPON
+				and held.id() != "pistol"
+			):
+				state.inventory.take_slot(slot)
+		if state.inventory.find_slot(item_id) < 0:
+			state.inventory.add_stack(ItemStack.new(item))
+		state.select_slot(state.inventory.find_slot(item_id))
+		EventBus.weapon_changed.emit()
+		for _frame: int in SETTLE_FRAMES:
+			await get_tree().process_frame
+		_save_image("45_brazos_%s" % item_id)
+		side.make_current()
+		for _frame: int in 4:
+			await get_tree().process_frame
+		_save_image("46_brazos_lado_%s" % item_id)
+		player.camera.make_current()
+	side.queue_free()
+
+
+## Lanzamiento de la nube del jefe en sus fases: marca en el suelo, bote en el aire y nube
+## activa (con la linterna encendida, porque el combate es a oscuras).
+func _capture_boss_throw() -> void:
+	var boss := get_tree().get_first_node_in_group("boss") as Boss
+	if boss == null:
+		return
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		if node != boss:
+			node.set_physics_process(false)
+	# En el centro del almacén del Nivel 2: el jefe a un lado, el jugador al otro y la marca en
+	# medio (a más de un radio del jugador).
+	var section := _game.level.find_section("level_2")
+	var room := section.find_room("warehouse")
+	var center := (
+		section.global_position + Vector3(room.rect.get_center().x, 0.0, room.rect.get_center().y)
+	)
+	boss.global_position = center + Vector3(-5.0, 0.0, 0.0)
+	var spot := center + Vector3(5.0, 0.0, 0.0)
+	player.global_position = spot
+	player.rotation.y = deg_to_rad(90.0)
+	player.head.rotation.x = deg_to_rad(-22.0)
+	GameState.player.flashlight.on = true
+	boss.call("_engage")
+	for _frame: int in 30:
+		await get_tree().process_frame
+	boss.set("_player", player)
+	player.global_position = center
+	boss.call("_begin_throw")
+	player.global_position = spot
+	for frame: int in 200:
+		await get_tree().physics_frame
+		if frame == 25:
+			_save_image("47_jefe_marca")
+		elif frame == 70:
+			_save_image("47_jefe_bote")
+		elif frame == 190:
+			_save_image("47_jefe_nube")
+	GameState.player.flashlight.on = false
+
+
+## La intro en sus momentos clave (segundos desde el principio).
+func _capture_intro() -> void:
+	var intro := Intro.new()
+	add_child(intro)
+	var moments: Array = [
+		[2.5, "48_intro_central"],
+		[7.0, "48_intro_alarma"],
+		[11.5, "48_intro_caida"],
+		[13.5, "48_intro_caidos"],
+		[16.5, "48_intro_viaje"],
+		[21.5, "48_intro_guardia_dormido"],
+		[27.5, "48_intro_despierta"],
+		[29.5, "48_intro_de_pie"],
+	]
+	var elapsed := 0.0
+	for moment: Array in moments:
+		var at: float = moment[0]
+		await get_tree().create_timer(at - elapsed).timeout
+		elapsed = at
+		if not is_instance_valid(intro):
+			break
+		_save_image(moment[1])
+	if is_instance_valid(intro):
+		intro.queue_free()
+	if _game != null:
+		_game.level.player.camera.make_current()
+
+
+## Escenas finales (rescate y caída) en sus momentos clave, en la azotea.
+func _capture_outros() -> void:
+	var pad := _game.level.helipad_point()
+	for outcome: int in [RunStats.OUTCOME_RESCUED, RunStats.OUTCOME_CRASHED]:
+		var outro := Outro.new()
+		outro.setup(_game.level, pad, pad + Vector3(2.5, 0.0, 1.5), outcome)
+		add_child(outro)
+		var name := "rescate" if outcome == RunStats.OUTCOME_RESCUED else "caida"
+		var moments: Array = [[1.8, "aterriza"], [3.6, "sube"], [6.5, "se_va"], [9.5, "final"]]
+		var elapsed := 0.0
+		for moment: Array in moments:
+			var at: float = moment[0]
+			await get_tree().create_timer(at - elapsed).timeout
+			elapsed = at
+			if not is_instance_valid(outro) or outro.get("_done"):
+				break
+			_save_image("49_final_%s_%s" % [name, moment[1]])
+		if is_instance_valid(outro):
+			outro.skip()
+			outro.queue_free()
+	_game.level.player.camera.make_current()
+
+
+## Captura una lista de puntos [nombre, posición, giro, cabeceo] con los enemigos quietos.
+func _capture_spots(spots: Array) -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	for spot: Array in spots:
+		player.global_position = spot[1]
+		player.rotation.y = deg_to_rad(spot[2])
+		player.head.rotation.x = deg_to_rad(spot[3])
+		for _frame: int in SETTLE_FRAMES:
+			await get_tree().process_frame
+		_save_image(spot[0])
+
+
+## Todos los objetos del catálogo en el suelo del pasillo oeste de la planta baja, de cinco en
+## cinco y vistos de cerca (con su nombre flotando), y los tres contenedores cerrados y abiertos.
+func _capture_catalog() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	var base := Vector3(-21.0, 0.0, -0.5)
+	player.global_position = base + Vector3(0.0, 0.0, 2.6)
+	player.rotation.y = 0.0
+	player.head.rotation.x = deg_to_rad(-26.0)
+	var ids := Array(GameState.items.ids())
+	ids.sort()
+	for batch: int in range(0, ids.size(), 5):
+		var placed: Array[Node] = []
+		for index: int in mini(5, ids.size() - batch):
+			var pickup := Pickup.new()
+			pickup.item_id = ids[batch + index]
+			_game.level.add_child(pickup)
+			pickup.global_position = base + Vector3(-1.8 + 0.9 * index, 0.0, 0.0)
+			placed.append(pickup)
+		for _frame: int in SETTLE_FRAMES:
+			await get_tree().process_frame
+		_save_image("36_objetos_%02d" % (batch / 5))
+		for node: Node in placed:
+			node.queue_free()
+	var boxes: Array[LootContainer] = []
+	for kind: int in 3:
+		var box := LootContainer.new()
+		box.kind = kind
+		box.contents = PackedStringArray(["neutrax:1", "batteries:1"])
+		box.facing = PI
+		_game.level.add_child(box)
+		box.global_position = base + Vector3(-1.4 + kind * 1.4, 0.0, -0.4)
+		boxes.append(box)
+	for _frame: int in SETTLE_FRAMES:
+		await get_tree().process_frame
+	_save_image("37_contenedores_cerrados")
+	for box: LootContainer in boxes:
+		box.interact(player)
+	for _frame: int in 24:
+		await get_tree().process_frame
+	_save_image("37_contenedores_abiertos")
+	for box: LootContainer in boxes:
+		box.queue_free()
+
+
+## Mismo sitio desde tres ángulos casi iguales (giro de 3 grados): las paredes, marcos,
+## barandillas y rótulos no deben cambiar de una a otra.
+func _capture_angles() -> void:
+	var spots: Array = [
+		["31_quiosco", Vector3(-16.0, 0.0, -3.8), 180.0, 10.0],
+		["32_escalera_ascensor", Vector3(19.5, 0.0, 3.5), -90.0, 0.0],
+		["33_jardinera", Vector3(-6.0, 0.0, 4.5), 180.0, -10.0],
+		["34_atrio_desde_n1", Vector3(0.0, 5.0, 4.4), 0.0, -32.0],
+		["35_escalera_mecanica", Vector3(9.5, 0.0, -4.0), -70.0, 4.0],
+	]
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	for spot: Array in spots:
+		for offset: float in [-3.0, 0.0, 3.0]:
+			player.global_position = spot[1]
+			player.rotation.y = deg_to_rad(float(spot[2]) + offset)
+			player.head.rotation.x = deg_to_rad(spot[3])
+			for _frame: int in SETTLE_FRAMES:
+				await get_tree().process_frame
+			_save_image("%s_%+d" % [spot[0], int(offset)])
+
+
+## Un enemigo de cada tipo persiguiendo al jugador por el pasillo este del Nivel 1, en dos
+## momentos: tiene que verse de frente (la cara), no de espaldas.
+func _capture_enemies_moving() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	var seen: Dictionary = {}
+	for floor_id: String in ["ground_floor", "level_1", "level_2"]:
+		for enemy: Enemy in _game.level.enemies_on_floor(floor_id):
+			if enemy is Boss or seen.has(enemy.data.model_id):
+				continue
+			seen[enemy.data.model_id] = true
+			for node: Node in get_tree().get_nodes_in_group("enemy"):
+				node.set_physics_process(false)
+			player.global_position = Vector3(23.5, 5.0, -1.0)
+			player.rotation.y = deg_to_rad(90.0)
+			player.head.rotation.x = deg_to_rad(-4.0)
+			var home := enemy.global_position
+			enemy.global_position = Vector3(20.5, 5.0, -1.0)
+			enemy.set_physics_process(true)
+			enemy.call("_start_chase")
+			for frame: int in 24:
+				await get_tree().physics_frame
+				if frame == 6:
+					_save_image("30_enemigo_%s_a" % enemy.data.model_id)
+			_save_image("30_enemigo_%s_b" % enemy.data.model_id)
+			enemy.set_physics_process(false)
+			enemy.global_position = home
+
+
+## Golpes y una muerte delante del jugador en el pasillo este del Nivel 1: salpicaduras,
+## manchas, marcas de bala y escombros (y lo mismo con «Reducir sangre»).
+func _capture_impacts() -> void:
+	var player := _game.level.player
+	player.global_position = Vector3(19.0, 5.0, -1.0)
+	player.rotation.y = deg_to_rad(-80.0)
+	player.head.rotation.x = deg_to_rad(-22.0)
+	var gore := Settings.get_bool("reduce_gore")
+	for reduced: bool in [false, true]:
+		Settings.set_value("reduce_gore", reduced)
+		var target := Vector3(21.8, 5.0, -1.6)
+		for index: int in 4:
+			EventBus.enemy_hit.emit(
+				target + Vector3(0, 1.2, 0.2 * index), Vector3.RIGHT, index % 2 == 0
+			)
+		EventBus.enemy_died.emit(target + Vector3(0, 0, 0.8), [] as Array[ItemStack])
+		EventBus.surface_hit.emit(Vector3(21.0, 6.6, -5.85), Vector3.BACK)
+		EventBus.surface_hit.emit(Vector3(21.4, 6.3, -5.85), Vector3.BACK)
+		EventBus.debris.emit(target + Vector3(0, 1.0, -1.0))
+		for _frame: int in 6:
+			await get_tree().process_frame
+		_save_image("25_impactos" + ("_sin_sangre" if reduced else ""))
+		for _frame: int in SETTLE_FRAMES:
+			await get_tree().process_frame
+		_save_image("26_manchas" + ("_sin_sangre" if reduced else ""))
+	Settings.set_value("reduce_gore", gore)
 
 
 ## Escaparate de electrónica del Nivel 1 roto, visto desde el pasillo (trozos y hueco).

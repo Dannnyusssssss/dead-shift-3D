@@ -38,6 +38,8 @@ const FIGHT_HEAL_DISTANCE: float = 6.0
 const THREAT_RANGE: float = 14.0
 const BOSS_HEAL_DISTANCE: float = 5.0
 const INTERACT_RANGE: float = 1.6
+## Distancia delante de un contenedor a la que se pone el bot para abrirlo.
+const BOX_FRONT: float = 1.0
 const REPATH_TIME: float = 0.5
 const CHEST_HEIGHT: float = 1.1
 ## Altura a la que apunta con armas de fuego (la cabeza, como haría un jugador).
@@ -242,9 +244,16 @@ func _physics_process(delta: float) -> void:
 	elif _try_craft():
 		pass
 	else:
-		var loot := _nearby_loot()
+		var loot := BotHelpers.nearby_loot(
+			get_tree(), _player.global_position, _ignored, LOOT_RANGE
+		)
+		var box: LootContainer = null
+		if loot == null:
+			box = BotHelpers.container_to_open(_game.level, _player.global_position, _ignored)
 		if loot != null:
 			_collect(loot, delta)
+		elif box != null:
+			_open_marked(box, delta)
 		else:
 			_follow_route(delta)
 	_apply_actions()
@@ -575,9 +584,10 @@ func _choose_weapon(enemy: Enemy) -> void:
 			continue
 		if weapon.stuns and boss_alive:
 			continue
-		if weapon.stuns:
-			# El extintor, solo si no queda nada más.
-			fallback = index
+		if weapon.stuns or stack.item.bound:
+			# El extintor y la porra (débil), solo si no queda nada más.
+			if fallback < 0 or not stack.item.bound:
+				fallback = index
 			continue
 		var score := weapon.damage
 		if weapon.kind == WeaponData.KIND_RANGED:
@@ -699,31 +709,6 @@ func _try_craft() -> bool:
 	return true
 
 
-## Objeto útil cercano en el suelo (munición, curas, objetos clave y armas si faltan).
-func _nearby_loot() -> Pickup:
-	var best: Pickup = null
-	var best_distance := LOOT_RANGE
-	for node: Node in get_tree().get_nodes_in_group("pickup"):
-		var pickup := node as Pickup
-		if pickup == null or not pickup.enabled or pickup.stack == null:
-			continue
-		if (
-			_ignored.has(pickup.get_instance_id())
-			or not pickup.is_inside_tree()
-			or not BotHelpers.wants(pickup.stack)
-			or absf(pickup.global_position.y - _player.global_position.y) > SAME_FLOOR
-		):
-			continue
-		var distance := _flat(pickup.global_position).distance_to(_flat(_player.global_position))
-		if pickup.stack.item.category == ItemData.CATEGORY_KEY:
-			# Un objeto clave (la llave que suelta el jefe) se va a buscar a cualquier distancia.
-			distance = minf(distance, 0.0)
-		if distance < best_distance:
-			best = pickup
-			best_distance = distance
-	return best
-
-
 func _collect(pickup: Pickup, delta: float) -> void:
 	if pickup != _loot_target:
 		_loot_target = pickup
@@ -833,6 +818,23 @@ func _use_nearby(point: Vector3) -> void:
 		best.interact(_player)
 
 
+func _open_marked(box: LootContainer, delta: float) -> void:
+	if box.global_position.distance_to(_player.global_position) < INTERACT_RANGE:
+		_make_room()
+		BotHelpers.free_room_for_cure(_player)
+		print("[bot] abre un contenedor marcado en el mapa")
+		box.interact(_player)
+		if not box.is_empty():
+			# No cupo todo o no quiso lo de dentro: no insiste con este.
+			_ignored.append(box.get_instance_id())
+		return
+	# Se pone delante del contenedor (su frente, -Z, mira al centro de la sala): pegado a la
+	# pared el contenedor queda fuera de la navegación y el punto más cercano podía ser el
+	# piso de abajo.
+	var front := Vector3(sin(box.facing), 0.0, cos(box.facing)) * -BOX_FRONT
+	_walk_to(box.global_position + front, delta)
+
+
 ## Nodos de todos los pisos (objetos, contenedores, rejas y accesorios con función).
 func _level_nodes() -> Array[Node]:
 	var result: Array[Node] = []
@@ -852,7 +854,8 @@ func _make_room() -> void:
 	for index: int in inventory.capacity():
 		var stack := inventory.get_slot(index)
 		if stack != null and stack.is_weapon() and stack.item.weapon.kind == WeaponData.KIND_MELEE:
-			if not stack.item.weapon.stuns:
+			# La porra no se suelta.
+			if not stack.item.weapon.stuns and not stack.item.bound:
 				melee.append(index)
 	if melee.size() <= 2:
 		return
@@ -956,7 +959,7 @@ func _on_died() -> void:
 
 ## La partida terminó: correcto si el desenlace es el esperado en el escenario.
 func _on_run_finished(outcome: int) -> void:
-	var names := ["rescate", "rescate perdido", "muerte", "conversión"]
+	var names := ["rescate", "rescate perdido", "muerte", "conversión", "caída"]
 	var text: String = names[outcome] if outcome >= 0 and outcome < names.size() else "?"
 	if EXPECTED.has(scenario):
 		var expected: int = EXPECTED[scenario]

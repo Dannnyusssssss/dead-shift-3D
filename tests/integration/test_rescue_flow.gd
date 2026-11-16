@@ -168,7 +168,7 @@ func test_technician_note_opens_and_teaches_the_phone() -> void:
 	var body := NoteView.body_text("technician")
 	assert_string_contains(body, "[x] " + tr("item_phone_antenna"), "la que ya tiene")
 	assert_string_contains(body, "[ ] " + tr("item_phone_board"))
-	assert_string_contains(body, tr("room_repair"), "dice dónde la dejó")
+	assert_string_contains(body, _board_room(), "dice dónde la dejó")
 	assert_false(_game.level.player.controls_enabled)
 	view.close()
 	assert_true(_game.level.player.controls_enabled)
@@ -188,7 +188,7 @@ func test_notebook_shows_only_what_was_discovered() -> void:
 	await wait_frames(1)
 	text = _labels(notebook)
 	assert_string_contains(text, tr("notebook_phone_intro"))
-	assert_string_contains(text, tr("room_repair"), "la nota dice dónde buscar")
+	assert_string_contains(text, _board_room(), "la nota dice dónde buscar")
 	assert_string_contains(text, tr("item_improvised_bandage"), "receta con el trapo")
 	assert_false(text.contains(tr("item_bat_nails")), "la del bate todavía no")
 
@@ -257,3 +257,11 @@ func test_pause_shows_the_run_summary() -> void:
 	assert_string_contains(text, tr("end_kills"))
 	assert_string_contains(text, "%s 1/3" % tr("end_phone_parts"))
 	assert_false(text.contains(tr("end_grade")), "sin nota a mitad de partida")
+
+
+## Sala donde el reparto de esta partida dejó la placa del teléfono (cambia con la semilla).
+func _board_room() -> String:
+	var wanted: Array[String] = ["phone_board"]
+	var places := MapMarkers.locations(GameState.CATALOG.floors, wanted, GameState.loot_plan)
+	assert_eq(places.size(), 1, "la placa está en algún piso")
+	return tr(String(places[0]["room_key"])) if not places.is_empty() else ""

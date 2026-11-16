@@ -112,3 +112,16 @@ func test_interacts_with_target_in_front() -> void:
 	await wait_physics_frames(2)
 	Input.action_release("interact")
 	assert_eq(target.uses, 1)
+
+
+## Al morir la cámara cae y se ladea; con «Reducir movimiento» no se mueve (solo fundido).
+func test_death_fall_moves_camera_unless_reduced_motion() -> void:
+	Settings.set_value("reduce_motion", true)
+	assert_eq(_player.play_death_fall(), 0.0, "sin caída con «Reducir movimiento»")
+	Settings.set_value("reduce_motion", false)
+	var start_y := _player.camera.position.y
+	var seconds := _player.play_death_fall()
+	assert_gt(seconds, 0.0)
+	await wait_seconds(seconds + 0.2)
+	assert_lt(_player.camera.position.y, start_y - 1.0, "la cámara bajó casi al suelo")
+	assert_gt(absf(_player.camera.rotation.z), 0.8, "la cámara se ladeó")

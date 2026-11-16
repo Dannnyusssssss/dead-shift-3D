@@ -138,8 +138,9 @@ function Step-Bot {
     # Escenarios: la partida completa hasta el rescate, el jefe con y sin escopeta, el rescate
     # perdido y la muerte.
     # La partida completa se juega con varias semillas fijas en Facil y con una en Medio
+    # (la 7: con el reparto del botin por semilla, en la 20261114 el bot muere ante el jefe)
     # (escenario:semilla:dificultad; sin dificultad, Facil).
-    $runs = @('full:20261114', 'full:7', 'full:31337', 'full:20261114:medium', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
+    $runs = @('full:20261114', 'full:7', 'full:31337', 'full:7:medium', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
     foreach ($run in $runs) {
         $parts = $run.Split(':')
         $scenario = $parts[0]

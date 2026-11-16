@@ -51,3 +51,16 @@ func test_clock_format() -> void:
 	assert_eq(Objectives.clock(150.0), "2:30")
 	assert_eq(Objectives.clock(0.2), "0:01")
 	assert_eq(Objectives.clock(-5.0), "0:00")
+
+
+## Antes de leer la nota del técnico (o de encontrar una pieza), el objetivo es general; al
+## saberlo, pasa a buscar las piezas.
+func test_general_objective_until_the_phone_is_known() -> void:
+	var state := _state()
+	var rescue := RescueClock.new()
+	assert_eq(Objectives.current(state, rescue, false, false)["key"], "objective_explore")
+	assert_eq(Objectives.current(state, rescue, false, true)["key"], "objective_find_parts")
+	var world := WorldState.new()
+	assert_false(Discovery.knows_phone(world, state.keys), "al empezar no lo sabe")
+	world.set_flag(Discovery.NOTE_FLAG)
+	assert_true(Discovery.knows_phone(world, state.keys), "al leer la nota lo sabe")

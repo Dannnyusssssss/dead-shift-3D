@@ -124,3 +124,19 @@ func test_calling_the_helicopter_brings_capped_waves_while_waiting() -> void:
 		_game.level.get_node_or_null("Actors/Waves"), "al irse, las del rescate perdido"
 	)
 	assert_null(_game.level.get_node_or_null("Actors/CallWaves"), "y las de la espera se retiran")
+
+
+## Subir al helicóptero infectado y sin curar no es un rescate: es la caída (y la historia
+## termina, sin partida que continuar).
+func test_boarding_infected_is_the_crash() -> void:
+	await _travel("rooftop", "stairs_down")
+	assert_true(GameState.player.infection.try_infect(1.0, RandomNumberGenerator.new()))
+	GameState.rescue.call_helicopter()
+	GameState.rescue.time_left = 0.05
+	await wait_frames(6)
+	var data := _game.level.floor_data
+	_game.level.player.global_position = data.helipad_position + Vector3.UP * data.elevation()
+	await wait_frames(6)
+	assert_eq(_outcomes, [RunStats.OUTCOME_CRASHED] as Array[int])
+	assert_false(_game.won)
+	assert_false(SaveStore.has_game(), "la historia terminó")

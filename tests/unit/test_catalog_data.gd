@@ -178,11 +178,22 @@ func test_ramps_have_headroom_and_land_on_the_floor_above() -> void:
 				assert_true(_on_floor(above, landing), where + ": no llega a un suelo")
 
 
-func test_neutrax_has_exactly_two_doses_in_the_whole_game() -> void:
+## Una sola dosis de Neutrax colocada en el edificio, y solo en la farmacia (la otra se fabrica).
+func test_neutrax_is_placed_once_and_only_in_the_pharmacy() -> void:
 	var total := 0
 	for floor_data: FloorData in _catalog.floors:
-		total += int(_floor_items(floor_data).get("neutrax", 0))
-	assert_eq(total, 2)
+		for room: RoomData in floor_data.rooms:
+			for spot: LootSpot in room.loot:
+				var amount := 0
+				if spot.item_id == "neutrax":
+					amount += spot.count
+				for entry: String in spot.contents:
+					if entry.get_slice(":", 0) == "neutrax":
+						amount += maxi(entry.get_slice(":", 1).to_int(), 1)
+				if amount > 0:
+					assert_eq(room.id, "pharmacy", "Neutrax fuera de la farmacia: " + room.id)
+				total += amount
+	assert_eq(total, 1)
 
 
 func test_gates_needing_a_key_have_that_key_in_the_game() -> void:

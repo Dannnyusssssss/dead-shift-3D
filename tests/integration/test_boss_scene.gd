@@ -121,3 +121,39 @@ func test_death_drops_roof_key_and_sets_flag() -> void:
 	assert_eq(drops.size(), 1)
 	var key: ItemStack = drops[0]
 	assert_eq(key.id(), "roof_key")
+
+
+## La nube se lanza con aviso: el jefe se para y hace el gesto, el punto queda marcado en el
+## suelo donde estaba el jugador (a su misma altura), el bote vuela después y la nube no hace
+## daño hasta pasar el gesto, el vuelo y su propio aviso. Si el jugador se aparta, no le daña.
+func test_toxic_cloud_is_telegraphed_and_avoidable() -> void:
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
+	_player.position = Vector3(0.0, 0.0, 0.0)
+	await wait_physics_frames(2)
+	boss.call("_engage")
+	boss.set("_player", _player)
+	boss.call("_begin_throw")
+	assert_eq(boss.boss_state, Boss.B_THROW, "gesto de lanzar")
+	var clouds := get_tree().get_nodes_in_group("toxic_cloud")
+	assert_eq(clouds.size(), 1)
+	var cloud := clouds[0] as ToxicCloud
+	assert_almost_eq(cloud.global_position.y, boss.global_position.y, 0.01, "en su piso")
+	assert_true(cloud.contains(Vector3.ZERO), "marca donde estaba el jugador")
+	assert_false(cloud.is_active())
+	assert_false(cloud.is_flying(), "durante el gesto solo se ve la marca")
+	var start := boss.global_position
+	_player.position = Vector3(8.0, 0.0, 0.0)
+	var health := GameState.player.health
+	await wait_seconds(Boss.THROW_WINDUP - 0.15)
+	var moved := Vector2(boss.global_position.x - start.x, boss.global_position.z - start.z)
+	assert_lt(moved.length(), 0.05, "quieto durante el gesto")
+	await wait_seconds(0.25)
+	assert_true(cloud.is_flying(), "el bote vuela tras el gesto")
+	await wait_seconds(Boss.THROW_FLIGHT)
+	assert_false(cloud.is_flying())
+	assert_false(cloud.is_active(), "al caer todavía avisa")
+	await wait_seconds(cloud.warning + 0.5)
+	assert_true(cloud.is_active())
+	assert_eq(GameState.player.health, health, "el jugador se apartó a tiempo")
+	var lead := Boss.THROW_WINDUP + Boss.THROW_FLIGHT + TECHNICIAN.boss.cloud_warning
+	assert_gte(lead, 2.5, "tiempo de sobra para apartarse")

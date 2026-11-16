@@ -4,6 +4,8 @@ Sirve build/web en 127.0.0.1, abre el juego por URL directa y dentro de un ifram
 servido desde otro origen local (como lo haria el portal), y falla si hay errores de
 consola, violaciones de CSP, errores de pagina o peticiones fuera del servidor local.
 Opcionalmente guarda capturas fuera del repositorio.
+En PC tambien mide el nivel de salida del audio ya dentro de la partida: si el motor
+reproduce sonidos pero a la salida del navegador solo llega silencio, la prueba falla.
 
 Uso: python tools/web_smoke.py <carpeta_build_web> <carpeta_capturas> [--touch]
 """
@@ -27,6 +29,44 @@ IFRAME_PAGE = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><tit
 </head><body><iframe src="http://127.0.0.1:%d/index.html" allow="fullscreen; autoplay"
 sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe></body></html>
 """ % GAME_PORT
+
+# Pico minimo de salida para dar el audio por bueno (el ambiente y la musica suenan siempre).
+MIN_AUDIO_PEAK = 0.005
+
+# Desvia lo que se conecta a la salida del contexto de audio a traves de un analizador y
+# guarda el pico; cuenta tambien las reproducciones de muestras iniciadas.
+AUDIO_PROBE = r"""
+(() => {
+  window.__audioProbe = {starts: 0, peak: 0};
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (target, ...rest) {
+    if (target instanceof AudioDestinationNode) {
+      const ctx = target.context;
+      if (!ctx.__probeAnalyser) {
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        connect.call(analyser, target);
+        const samples = new Float32Array(2048);
+        setInterval(() => {
+          analyser.getFloatTimeDomainData(samples);
+          for (const value of samples) {
+            const level = Math.abs(value);
+            if (level > window.__audioProbe.peak) { window.__audioProbe.peak = level; }
+          }
+        }, 50);
+        ctx.__probeAnalyser = analyser;
+      }
+      return connect.call(this, ctx.__probeAnalyser, ...rest);
+    }
+    return connect.call(this, target, ...rest);
+  };
+  const start = AudioBufferSourceNode.prototype.start;
+  AudioBufferSourceNode.prototype.start = function (...args) {
+    window.__audioProbe.starts++;
+    return start.apply(this, args);
+  };
+})();
+"""
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -93,6 +133,8 @@ def main():
                     "Element.prototype.requestPointerLock = function () {"
                     " return Promise.resolve(); };"
                 )
+                if not touch:
+                    context.add_init_script(AUDIO_PROBE)
 
                 page = context.new_page()
                 watch(page, problems, "directa")
@@ -109,9 +151,23 @@ def main():
                     page.touchscreen.tap(150, 300)
                     page.wait_for_timeout(1500)
                 else:
+                    # Intro elige la dificultad marcada y Espacio salta la intro (Esc pausaria
+                    # la partida si la intro ya termino).
+                    page.keyboard.press("Enter")
+                    page.wait_for_timeout(3000)
+                    page.keyboard.press("Space")
+                    page.wait_for_timeout(WAIT_MS)
                     page.keyboard.down("w")
                     page.wait_for_timeout(1500)
                     page.keyboard.up("w")
+                    page.wait_for_timeout(2000)
+                    probe = page.evaluate("window.__audioProbe")
+                    print("audio: %d reproducciones, pico de salida %.4f"
+                          % (probe["starts"], probe["peak"]))
+                    if probe["starts"] == 0:
+                        problems.append("directa audio: no se inicio ninguna reproduccion")
+                    elif probe["peak"] < MIN_AUDIO_PEAK:
+                        problems.append("directa audio: se reproduce pero a la salida llega silencio")
                 page.screenshot(path=str(shots / ("juego%s.png" % suffix)))
 
                 framed = context.new_page()
