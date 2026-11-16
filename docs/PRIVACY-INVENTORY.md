@@ -18,4 +18,4 @@ Si el navegador no permite guardar (por ejemplo, en una ventana privada), el jue
 - **Hosting de archivos estáticos:** al descargar el juego, el servidor puede registrar la dirección IP y datos técnicos de la petición, como cualquier sitio web. El juego no recibe ni usa esos datos.
 
 ## Parámetros de la dirección
-- `seed`: número entero opcional que fija el azar de la partida (por ejemplo, si una mordida contagia). No identifica a nadie.
+- `seed`: número entero opcional que fija el azar de la partida (el reparto del botín y, por ejemplo, si una mordida contagia). No identifica a nadie.
