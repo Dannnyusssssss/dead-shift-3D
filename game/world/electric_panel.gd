@@ -38,7 +38,11 @@ func _ready() -> void:
 	_label.text = tr("prop_panel_live")
 	_label.font_size = 40
 	_label.outline_size = 8
-	_label.position = Vector3(0.0, size.y + 0.7, size.z * 0.5 + 0.05)
+	# Pegado a la parte de arriba de la cara del cuadro (antes flotaba por encima de la caja) y
+	# solo por delante, para que no se lea en espejo desde detrás.
+	_label.pixel_size = 0.0035
+	_label.double_sided = false
+	_label.position = Vector3(0.0, 0.4 + size.y - 0.2, size.z * 0.5 + 0.006)
 	add_child(_label)
 
 

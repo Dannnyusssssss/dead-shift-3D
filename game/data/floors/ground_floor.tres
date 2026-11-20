@@ -322,15 +322,15 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_110"]
 script = ExtResource("10_prop_spe")
 kind = 4
-position = Vector3(-16, 2.75, 1.01)
-size = Vector3(1, 0.006, 1)
+position = Vector3(-16, 2.78, 0.046)
+size = Vector3(1, 0.005, 1)
 text_key = "sign_kiosk_phones"
 
 [sub_resource type="Resource" id="Resource_prop_111"]
 script = ExtResource("10_prop_spe")
 kind = 4
-position = Vector3(-16, 2.75, -1.01)
-size = Vector3(1, 0.006, 1)
+position = Vector3(-16, 2.78, -0.046)
+size = Vector3(1, 0.005, 1)
 rotation_deg = 180.0
 text_key = "sign_kiosk_phones"
 
@@ -1876,7 +1876,7 @@ width = 3.0
 
 [sub_resource type="Resource" id="Resource_loot_51"]
 script = ExtResource("6_loot_spo")
-position = Vector3(11, 0, 6)
+position = Vector3(9.5, 0, 7.3)
 item_id = "bottle"
 count = 2
 contents = PackedStringArray()
@@ -1916,6 +1916,41 @@ storefront_side = 0
 light_energy = 0.0
 shutter = 1.0
 
+[sub_resource type="Resource" id="Resource_kiosk_board"]
+script = ExtResource("10_prop_spe")
+kind = 3
+position = Vector3(-16, 2.55, 0)
+size = Vector3(2.4, 0.45, 0.08)
+shade = 0.12
+
+[sub_resource type="Resource" id="Resource_ground_sign_board"]
+script = ExtResource("10_prop_spe")
+kind = 3
+position = Vector3(0, 3, -5.895)
+size = Vector3(2.4, 0.6, 0.08)
+shade = 0.12
+
+[sub_resource type="Resource" id="Resource_level1_sign_board"]
+script = ExtResource("10_prop_spe")
+kind = 3
+position = Vector3(14, 3.3, 2.255)
+size = Vector3(2, 0.6, 0.08)
+shade = 0.12
+
+[sub_resource type="Resource" id="Resource_level1_sign_rod_a"]
+script = ExtResource("10_prop_spe")
+kind = 3
+position = Vector3(13.2, 3.9, 2.255)
+size = Vector3(0.03, 0.8, 0.03)
+shade = 0.3
+
+[sub_resource type="Resource" id="Resource_level1_sign_rod_b"]
+script = ExtResource("10_prop_spe")
+kind = 3
+position = Vector3(14.8, 3.9, 2.255)
+size = Vector3(0.03, 0.8, 0.03)
+shade = 0.3
+
 [resource]
 script = ExtResource("11_floor_da")
 id = "ground_floor"
@@ -1927,6 +1962,6 @@ player_spawn = Vector3(-29, 0, -2)
 player_yaw_deg = -90.0
 exits = Array[ExtResource("7_floor_ex")]([SubResource("Resource_exit_55"), SubResource("Resource_exit_56")])
 gates = Array[ExtResource("9_gate_spe")]([SubResource("Resource_gate_60")])
-props = Array[ExtResource("10_prop_spe")]([SubResource("Resource_prop_61"), SubResource("Resource_prop_62"), SubResource("Resource_prop_63"), SubResource("Resource_prop_64"), SubResource("Resource_prop_65"), SubResource("Resource_prop_66"), SubResource("Resource_prop_67"), SubResource("Resource_prop_68"), SubResource("Resource_prop_69"), SubResource("Resource_prop_70"), SubResource("Resource_prop_86"), SubResource("Resource_prop_87"), SubResource("Resource_prop_88"), SubResource("Resource_prop_89"), SubResource("Resource_prop_90"), SubResource("Resource_prop_91"), SubResource("Resource_prop_92"), SubResource("Resource_prop_93"), SubResource("Resource_prop_94"), SubResource("Resource_prop_95"), SubResource("Resource_prop_96"), SubResource("Resource_prop_97"), SubResource("Resource_prop_98"), SubResource("Resource_prop_99"), SubResource("Resource_prop_100"), SubResource("Resource_prop_101"), SubResource("Resource_prop_102"), SubResource("Resource_prop_103"), SubResource("Resource_prop_104"), SubResource("Resource_prop_105"), SubResource("Resource_prop_106"), SubResource("Resource_prop_107"), SubResource("Resource_prop_108"), SubResource("Resource_prop_109"), SubResource("Resource_prop_110"), SubResource("Resource_prop_111"), SubResource("Resource_prop_112"), SubResource("Resource_prop_113"), SubResource("Resource_prop_114"), SubResource("Resource_prop_115"), SubResource("Resource_prop_116"), SubResource("Resource_prop_117"), SubResource("Resource_prop_118"), SubResource("Resource_prop_119"), SubResource("Resource_prop_120"), SubResource("Resource_prop_121"), SubResource("Resource_prop_122"), SubResource("Resource_prop_123"), SubResource("Resource_prop_124"), SubResource("Resource_prop_125"), SubResource("Resource_prop_126"), SubResource("Resource_prop_127"), SubResource("Resource_prop_128"), SubResource("Resource_prop_129"), SubResource("Resource_prop_130"), SubResource("Resource_prop_131"), SubResource("Resource_prop_132"), SubResource("Resource_prop_133"), SubResource("Resource_prop_134"), SubResource("Resource_prop_135"), SubResource("Resource_prop_136"), SubResource("Resource_prop_137"), SubResource("Resource_prop_138"), SubResource("Resource_prop_139"), SubResource("Resource_prop_140"), SubResource("Resource_prop_141"), SubResource("Resource_prop_142"), SubResource("Resource_prop_143"), SubResource("Resource_prop_144"), SubResource("Resource_prop_145"), SubResource("Resource_prop_150"), SubResource("Resource_prop_151"), SubResource("Resource_prop_152"), SubResource("Resource_prop_153"), SubResource("Resource_prop_154"), SubResource("Resource_prop_155"), SubResource("Resource_prop_156"), SubResource("Resource_prop_157"), SubResource("Resource_prop_158"), SubResource("Resource_prop_159"), SubResource("Resource_prop_160"), SubResource("Resource_prop_161"), SubResource("Resource_prop_162"), SubResource("Resource_prop_163"), SubResource("Resource_prop_164"), SubResource("Resource_prop_165"), SubResource("Resource_prop_166"), SubResource("Resource_prop_167"), SubResource("Resource_prop_168"), SubResource("Resource_prop_169"), SubResource("Resource_prop_170"), SubResource("Resource_prop_171"), SubResource("Resource_prop_172"), SubResource("Resource_prop_173"), SubResource("Resource_prop_174"), SubResource("Resource_prop_175"), SubResource("Resource_prop_176"), SubResource("Resource_prop_177"), SubResource("Resource_prop_178"), SubResource("Resource_prop_179"), SubResource("Resource_prop_180"), SubResource("Resource_prop_181"), SubResource("Resource_prop_182"), SubResource("Resource_prop_183"), SubResource("Resource_prop_184"), SubResource("Resource_prop_185"), SubResource("Resource_prop_186"), SubResource("Resource_prop_187"), SubResource("Resource_prop_192"), SubResource("Resource_prop_194"), SubResource("Resource_prop_195"), SubResource("Resource_prop_196"), SubResource("Resource_prop_197"), SubResource("Resource_prop_198"), SubResource("Resource_prop_199"), SubResource("Resource_prop_200"), SubResource("Resource_prop_201"), SubResource("Resource_prop_202"), SubResource("Resource_prop_203"), SubResource("Resource_prop_204"), SubResource("Resource_prop_205"), SubResource("Resource_prop_206"), SubResource("Resource_prop_207"), SubResource("Resource_prop_208"), SubResource("Resource_prop_209"), SubResource("Resource_prop_210"), SubResource("Resource_prop_211"), SubResource("Resource_prop_212"), SubResource("Resource_prop_213"), SubResource("Resource_prop_214"), SubResource("Resource_prop_215"), SubResource("Resource_prop_216"), SubResource("Resource_prop_217"), SubResource("Resource_prop_218"), SubResource("Resource_prop_219"), SubResource("Resource_prop_220"), SubResource("Resource_prop_221"), SubResource("Resource_prop_222"), SubResource("Resource_prop_223"), SubResource("Resource_prop_224"), SubResource("Resource_prop_225"), SubResource("Resource_prop_226"), SubResource("Resource_prop_227"), SubResource("Resource_prop_228"), SubResource("Resource_prop_229"), SubResource("Resource_prop_230"), SubResource("Resource_prop_231"), SubResource("Resource_prop_232"), SubResource("Resource_prop_233"), SubResource("Resource_prop_234"), SubResource("Resource_prop_235"), SubResource("Resource_prop_236"), SubResource("Resource_prop_237"), SubResource("Resource_prop_238"), SubResource("Resource_prop_239"), SubResource("Resource_prop_240"), SubResource("Resource_prop_241"), SubResource("Resource_prop_242"), SubResource("Resource_prop_243"), SubResource("Resource_prop_244"), SubResource("Resource_prop_245"), SubResource("Resource_prop_246"), SubResource("Resource_prop_247"), SubResource("Resource_prop_248"), SubResource("Resource_prop_249"), SubResource("Resource_prop_250"), SubResource("Resource_prop_251"), SubResource("Resource_laryh"), SubResource("Resource_1i77t"), SubResource("Resource_ff2y7"), SubResource("Resource_ej6oq"), SubResource("Resource_fa4gr"), SubResource("Resource_y30g8"), SubResource("Resource_bvl3y"), SubResource("Resource_irjpn"), SubResource("Resource_3av3m"), SubResource("Resource_lmk3g"), SubResource("Resource_oq22q"), SubResource("Resource_7ij3j"), SubResource("Resource_feitc"), SubResource("Resource_0qw6p"), SubResource("Resource_2vg81"), SubResource("Resource_y6ni3"), SubResource("Resource_bh3yl"), SubResource("Resource_slk2r"), SubResource("Resource_bpj3r"), SubResource("Resource_fi6cx"), SubResource("Resource_uws5o")])
+props = Array[ExtResource("10_prop_spe")]([SubResource("Resource_prop_61"), SubResource("Resource_prop_62"), SubResource("Resource_prop_63"), SubResource("Resource_prop_64"), SubResource("Resource_prop_65"), SubResource("Resource_prop_66"), SubResource("Resource_prop_67"), SubResource("Resource_prop_68"), SubResource("Resource_prop_69"), SubResource("Resource_prop_70"), SubResource("Resource_prop_86"), SubResource("Resource_prop_87"), SubResource("Resource_prop_88"), SubResource("Resource_prop_89"), SubResource("Resource_prop_90"), SubResource("Resource_prop_91"), SubResource("Resource_prop_92"), SubResource("Resource_prop_93"), SubResource("Resource_prop_94"), SubResource("Resource_prop_95"), SubResource("Resource_prop_96"), SubResource("Resource_prop_97"), SubResource("Resource_prop_98"), SubResource("Resource_prop_99"), SubResource("Resource_prop_100"), SubResource("Resource_prop_101"), SubResource("Resource_prop_102"), SubResource("Resource_prop_103"), SubResource("Resource_prop_104"), SubResource("Resource_prop_105"), SubResource("Resource_prop_106"), SubResource("Resource_prop_107"), SubResource("Resource_prop_108"), SubResource("Resource_prop_109"), SubResource("Resource_prop_110"), SubResource("Resource_prop_111"), SubResource("Resource_prop_112"), SubResource("Resource_prop_113"), SubResource("Resource_prop_114"), SubResource("Resource_prop_115"), SubResource("Resource_prop_116"), SubResource("Resource_prop_117"), SubResource("Resource_prop_118"), SubResource("Resource_prop_119"), SubResource("Resource_prop_120"), SubResource("Resource_prop_121"), SubResource("Resource_prop_122"), SubResource("Resource_prop_123"), SubResource("Resource_prop_124"), SubResource("Resource_prop_125"), SubResource("Resource_prop_126"), SubResource("Resource_prop_127"), SubResource("Resource_prop_128"), SubResource("Resource_prop_129"), SubResource("Resource_prop_130"), SubResource("Resource_prop_131"), SubResource("Resource_prop_132"), SubResource("Resource_prop_133"), SubResource("Resource_prop_134"), SubResource("Resource_prop_135"), SubResource("Resource_prop_136"), SubResource("Resource_prop_137"), SubResource("Resource_prop_138"), SubResource("Resource_prop_139"), SubResource("Resource_prop_140"), SubResource("Resource_prop_141"), SubResource("Resource_prop_142"), SubResource("Resource_prop_143"), SubResource("Resource_prop_144"), SubResource("Resource_prop_145"), SubResource("Resource_prop_150"), SubResource("Resource_prop_151"), SubResource("Resource_prop_152"), SubResource("Resource_prop_153"), SubResource("Resource_prop_154"), SubResource("Resource_prop_155"), SubResource("Resource_prop_156"), SubResource("Resource_prop_157"), SubResource("Resource_prop_158"), SubResource("Resource_prop_159"), SubResource("Resource_prop_160"), SubResource("Resource_prop_161"), SubResource("Resource_prop_162"), SubResource("Resource_prop_163"), SubResource("Resource_prop_164"), SubResource("Resource_prop_165"), SubResource("Resource_prop_166"), SubResource("Resource_prop_167"), SubResource("Resource_prop_168"), SubResource("Resource_prop_169"), SubResource("Resource_prop_170"), SubResource("Resource_prop_171"), SubResource("Resource_prop_172"), SubResource("Resource_prop_173"), SubResource("Resource_prop_174"), SubResource("Resource_prop_175"), SubResource("Resource_prop_176"), SubResource("Resource_prop_177"), SubResource("Resource_prop_178"), SubResource("Resource_prop_179"), SubResource("Resource_prop_180"), SubResource("Resource_prop_181"), SubResource("Resource_prop_182"), SubResource("Resource_prop_183"), SubResource("Resource_prop_184"), SubResource("Resource_prop_185"), SubResource("Resource_prop_186"), SubResource("Resource_prop_187"), SubResource("Resource_prop_192"), SubResource("Resource_prop_194"), SubResource("Resource_prop_195"), SubResource("Resource_prop_196"), SubResource("Resource_prop_197"), SubResource("Resource_prop_198"), SubResource("Resource_prop_199"), SubResource("Resource_prop_200"), SubResource("Resource_prop_201"), SubResource("Resource_prop_202"), SubResource("Resource_prop_203"), SubResource("Resource_prop_204"), SubResource("Resource_prop_205"), SubResource("Resource_prop_206"), SubResource("Resource_prop_207"), SubResource("Resource_prop_208"), SubResource("Resource_prop_209"), SubResource("Resource_prop_210"), SubResource("Resource_prop_211"), SubResource("Resource_prop_212"), SubResource("Resource_prop_213"), SubResource("Resource_prop_214"), SubResource("Resource_prop_215"), SubResource("Resource_prop_216"), SubResource("Resource_prop_217"), SubResource("Resource_prop_218"), SubResource("Resource_prop_219"), SubResource("Resource_prop_220"), SubResource("Resource_prop_221"), SubResource("Resource_prop_222"), SubResource("Resource_prop_223"), SubResource("Resource_prop_224"), SubResource("Resource_prop_225"), SubResource("Resource_prop_226"), SubResource("Resource_prop_227"), SubResource("Resource_prop_228"), SubResource("Resource_prop_229"), SubResource("Resource_prop_230"), SubResource("Resource_prop_231"), SubResource("Resource_prop_232"), SubResource("Resource_prop_233"), SubResource("Resource_prop_234"), SubResource("Resource_prop_235"), SubResource("Resource_prop_236"), SubResource("Resource_prop_237"), SubResource("Resource_prop_238"), SubResource("Resource_prop_239"), SubResource("Resource_prop_240"), SubResource("Resource_prop_241"), SubResource("Resource_prop_242"), SubResource("Resource_prop_243"), SubResource("Resource_prop_244"), SubResource("Resource_prop_245"), SubResource("Resource_prop_246"), SubResource("Resource_prop_247"), SubResource("Resource_prop_248"), SubResource("Resource_prop_249"), SubResource("Resource_prop_250"), SubResource("Resource_prop_251"), SubResource("Resource_laryh"), SubResource("Resource_1i77t"), SubResource("Resource_ff2y7"), SubResource("Resource_ej6oq"), SubResource("Resource_fa4gr"), SubResource("Resource_y30g8"), SubResource("Resource_bvl3y"), SubResource("Resource_irjpn"), SubResource("Resource_3av3m"), SubResource("Resource_lmk3g"), SubResource("Resource_oq22q"), SubResource("Resource_7ij3j"), SubResource("Resource_feitc"), SubResource("Resource_0qw6p"), SubResource("Resource_2vg81"), SubResource("Resource_y6ni3"), SubResource("Resource_bh3yl"), SubResource("Resource_slk2r"), SubResource("Resource_bpj3r"), SubResource("Resource_fi6cx"), SubResource("Resource_uws5o"), SubResource("Resource_kiosk_board"), SubResource("Resource_ground_sign_board"), SubResource("Resource_level1_sign_board"), SubResource("Resource_level1_sign_rod_a"), SubResource("Resource_level1_sign_rod_b")])
 wave_spawn_points = PackedVector3Array()
 ambient_energy = 0.55

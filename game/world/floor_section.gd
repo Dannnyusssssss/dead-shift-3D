@@ -496,7 +496,9 @@ func _add_sign(room: RoomData, builder: Kit.Builder) -> void:
 		_:
 			outward = Vector3.RIGHT
 	var yaw := atan2(outward.x, outward.z)
-	var center := spot + Vector3.UP * (Kit.WINDOW_TOP + 0.55)
+	# Por encima de la puerta, sin pasar del alto de la sala (en una caseta baja quedaba sobre el
+	# borde de la pared, flotando).
+	var center := spot + Vector3.UP * minf(Kit.WINDOW_TOP + 0.55, room.height - 0.45)
 	var brand_key := "brand_" + room.id
 	var brand := tr(brand_key)
 	if brand == brand_key:
