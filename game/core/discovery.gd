@@ -45,9 +45,16 @@ static func knows_recipe(world: WorldState, recipe: RecipeData) -> bool:
 	return false
 
 
-## Sabe que tiene que armar un teléfono: leyó la nota, ya encontró alguna pieza o ya lo armó.
+## Sabe que tiene que armar un teléfono: leyó la nota del técnico. Encontrar piezas no basta (son
+## trastos sueltos hasta que la nota explica para qué sirven). Si ya lo armó, también lo sabe:
+## así una partida guardada en la que se armó antes de esta regla sigue igual.
 static func knows_phone(world: WorldState, keys: KeyItems) -> bool:
-	return world.has_flag(NOTE_FLAG) or keys.phone_parts_count() > 0 or keys.phone_assembled
+	return world.has_flag(NOTE_FLAG) or keys.phone_assembled
+
+
+## Puede armar el teléfono ahora: sabe cómo (la nota) y tiene todas las piezas.
+static func can_assemble_phone(world: WorldState, keys: KeyItems) -> bool:
+	return knows_phone(world, keys) and keys.can_assemble_phone()
 
 
 ## Sabe dónde buscar las piezas: lo dice la nota del técnico y lo marca el plano.

@@ -368,3 +368,11 @@ static func nearby_loot(
 			best = pickup
 			best_distance = distance
 	return best
+
+
+## Leer una nota abre su vista y bloquea al jugador: el bot la cierra en seguida.
+static func close_notes(game: Node) -> void:
+	for node: Node in game.find_children("*", "NoteView", true, false):
+		var view := node as NoteView
+		if view.is_open():
+			view.close()

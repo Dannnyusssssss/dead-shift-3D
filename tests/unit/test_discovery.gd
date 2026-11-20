@@ -50,15 +50,38 @@ func test_recipe_inputs_without_repeats() -> void:
 	assert_eq(Discovery.recipe_inputs(recipes), ["rag", "tape", "pipe", "nails"])
 
 
-func test_phone_known_after_note_or_part() -> void:
+## El teléfono solo se descubre con la nota del técnico: las piezas sueltas no lo revelan.
+func test_phone_known_only_after_the_note() -> void:
 	var world := WorldState.new()
 	var keys := KeyItems.new()
 	assert_false(Discovery.knows_phone(world, keys))
-	keys.add("phone_board")
-	assert_true(Discovery.knows_phone(world, keys), "con una pieza")
-	var other := WorldState.new()
-	other.set_flag(Discovery.NOTE_FLAG)
-	assert_true(Discovery.knows_phone(other, KeyItems.new()), "con la nota")
+	for part: String in Rules.PHONE_PARTS:
+		keys.add(part)
+	assert_false(Discovery.knows_phone(world, keys), "con todas las piezas pero sin la nota")
+	world.set_flag(Discovery.NOTE_FLAG)
+	assert_true(Discovery.knows_phone(world, keys), "con la nota")
+
+
+## Sin la nota no se puede armar aunque estén todas las piezas; al leerla, sí.
+func test_assembling_needs_the_note() -> void:
+	var world := WorldState.new()
+	var keys := KeyItems.new()
+	for part: String in Rules.PHONE_PARTS:
+		keys.add(part)
+	assert_false(Discovery.can_assemble_phone(world, keys), "sin la nota")
+	world.set_flag(Discovery.NOTE_FLAG)
+	assert_true(Discovery.can_assemble_phone(world, keys), "con la nota y las piezas")
+	keys.assemble_phone()
+	assert_false(Discovery.can_assemble_phone(world, keys), "ya armado")
+
+
+## Una partida guardada con el teléfono ya armado sin haber leído la nota sigue igual.
+func test_assembled_phone_counts_as_known() -> void:
+	var keys := KeyItems.new()
+	for part: String in Rules.PHONE_PARTS:
+		keys.add(part)
+	keys.assemble_phone()
+	assert_true(Discovery.knows_phone(WorldState.new(), keys))
 
 
 func test_part_zones_known_after_note_or_map() -> void:

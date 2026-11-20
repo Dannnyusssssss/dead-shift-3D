@@ -53,8 +53,7 @@ func test_clock_format() -> void:
 	assert_eq(Objectives.clock(-5.0), "0:00")
 
 
-## Antes de leer la nota del técnico (o de encontrar una pieza), el objetivo es general; al
-## saberlo, pasa a buscar las piezas.
+## Antes de leer la nota del técnico el objetivo es general; al leerla, pasa a buscar las piezas.
 func test_general_objective_until_the_phone_is_known() -> void:
 	var state := _state()
 	var rescue := RescueClock.new()
@@ -64,3 +63,14 @@ func test_general_objective_until_the_phone_is_known() -> void:
 	assert_false(Discovery.knows_phone(world, state.keys), "al empezar no lo sabe")
 	world.set_flag(Discovery.NOTE_FLAG)
 	assert_true(Discovery.knows_phone(world, state.keys), "al leer la nota lo sabe")
+
+
+## Con todas las piezas pero sin la nota, el objetivo sigue siendo general (no pide armar el
+## teléfono); al leer la nota pide armarlo.
+func test_parts_without_note_keep_the_general_objective() -> void:
+	var state := _state()
+	var rescue := RescueClock.new()
+	for part: String in Rules.PHONE_PARTS:
+		state.keys.add(part)
+	assert_eq(Objectives.current(state, rescue, false, false)["key"], "objective_explore")
+	assert_eq(Objectives.current(state, rescue, false, true)["key"], "objective_assemble")

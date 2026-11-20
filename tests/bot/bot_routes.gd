@@ -50,6 +50,8 @@ const FULL: Array = [
 	# Nivel 1: electrónica (dos piezas del teléfono).
 	[Vector3(8.0, 5.0, -4.5), false],
 	[Vector3(8.0, 5.0, -9.0), true],
+	# La nota del técnico, sobre el mostrador: sin leerla no se puede armar el teléfono.
+	[Vector3(7.5, 5.0, -15.0), true],
 	[Vector3(11.8, 5.0, -15.0), true],
 	[Vector3(3.6, 5.0, -15.2), true],
 	[Vector3(8.0, 5.0, -4.5), false],

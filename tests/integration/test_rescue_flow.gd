@@ -265,3 +265,16 @@ func _board_room() -> String:
 	var places := MapMarkers.locations(GameState.CATALOG.floors, wanted, GameState.loot_plan)
 	assert_eq(places.size(), 1, "la placa está en algún piso")
 	return tr(String(places[0]["room_key"])) if not places.is_empty() else ""
+
+
+## La pestaña Combinar no ofrece armar el teléfono hasta leer la nota del técnico, aunque estén
+## todas las piezas; al leerla, la opción aparece.
+func test_combine_tab_offers_the_phone_only_after_the_note() -> void:
+	var lists := _game.get_node("UI").find_children("*", "CombineList", true, false)
+	assert_false(lists.is_empty(), "la pestaña Combinar existe")
+	var list := lists[0] as CombineList
+	for part: String in Rules.PHONE_PARTS:
+		GameState.player.keys.add(part)
+	var before := list.available_count()
+	GameState.world.set_flag(Discovery.NOTE_FLAG)
+	assert_eq(list.available_count(), before + 1, "con la nota aparece armar el teléfono")

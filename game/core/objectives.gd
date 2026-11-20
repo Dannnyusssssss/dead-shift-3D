@@ -5,8 +5,8 @@ extends RefCounted
 
 
 ## Objetivo principal: {"key": String, "args": Array}. Mientras el jugador no sabe que tiene que
-## armar un teléfono (no leyó la nota del técnico ni encontró ninguna pieza), el objetivo es
-## general: buscar la forma de salir.
+## armar un teléfono (no leyó la nota del técnico), el objetivo es general: buscar la forma de
+## salir, aunque ya lleve piezas encima.
 static func current(
 	state: PlayerState, rescue: RescueClock, roof_open: bool, knows_phone: bool = true
 ) -> Dictionary:
@@ -22,10 +22,10 @@ static func current(
 		if not roof_open and not keys.has("roof_key"):
 			return _make("objective_roof_key")
 		return _make("objective_call")
-	if keys.can_assemble_phone():
-		return _make("objective_assemble")
 	if not knows_phone:
 		return _make("objective_explore")
+	if keys.can_assemble_phone():
+		return _make("objective_assemble")
 	return _make("objective_find_parts", [keys.phone_parts_count(), Rules.PHONE_PARTS.size()])
 
 

@@ -23,7 +23,7 @@ func _ready() -> void:
 func available_count() -> int:
 	var state := GameState.player
 	var count := _crafting.options(state.inventory).size()
-	if state.keys.can_assemble_phone():
+	if Discovery.can_assemble_phone(GameState.world, state.keys):
 		count += 1
 	return count
 
@@ -34,7 +34,8 @@ func refresh() -> void:
 	var state := GameState.player
 	var options := _crafting.options(state.inventory)
 	var any := false
-	if state.keys.can_assemble_phone():
+	# El teléfono solo se arma después de leer la nota del técnico.
+	if Discovery.can_assemble_phone(GameState.world, state.keys):
 		any = true
 		_list.add_child(_phone_row())
 	if not options.is_empty():

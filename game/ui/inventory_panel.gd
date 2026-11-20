@@ -405,7 +405,10 @@ func _on_combine(recipe: RecipeData, slot: int) -> void:
 
 
 func _on_assemble() -> void:
-	if GameState.player.keys.assemble_phone():
+	var keys := GameState.player.keys
+	if not Discovery.can_assemble_phone(GameState.world, keys):
+		return
+	if keys.assemble_phone():
 		_info.text = tr("msg_phone_assembled")
 		EventBus.key_items_changed.emit()
 		_show_tab(TAB_BAG)
