@@ -5,6 +5,7 @@ Uso: blender --background --factory-startup --python tools/blender/enemies.py
 Para cada enemigo: importa el cuerpo base (assets/third_party/quaternius-ubc), quita ojos y
 cejas, lo simplifica (unos 3000 triángulos, para el celular), pinta la ropa y la piel en el
 color de vértice según el hueso que mueve cada vértice (cabeza, torso, brazos, piernas, pies),
+lo adelgaza hacia el eje de sus huesos (el cuerpo base es de complexión de superhéroe),
 añade accesorios rígidos en la cabeza (gorra, máscara) y le pone las animaciones de
 assets/third_party/quaternius-ual1/2 con nombres propios (idle, walk, run, attack, hit,
 hit_head, stun, death). Escribe assets/generated/enemies/<id>.glb. Siluetas distintas:
@@ -188,6 +189,46 @@ def paint(body, spec: dict) -> None:
     mesh.color_attributes.active_color = attr
 
 
+# Cuerpo menos musculoso: cuánto se acerca cada zona al eje de su hueso (0 = sin cambio).
+# El cuerpo base es de complexión de superhéroe; con esto queda una persona corriente.
+SLIM = {"torso": 0.3, "upperarm": 0.34, "forearm": 0.28, "legs": 0.22, "hips": 0.12}
+# El cuello (zona de la cabeza) lleva el trapecio abultado: se estrecha aparte.
+SLIM_NECK = 0.25
+
+
+def slim(body, armature) -> None:
+    """Estrecha cada vértice hacia el eje de los huesos que lo mueven, mezclando por el peso de
+    cada hueso: así no hay escalones entre zonas (el codo queda entre brazo y antebrazo). Cabeza,
+    manos y pies no cambian. Solo mueve vértices: mismos triángulos, esqueleto y animaciones."""
+    groups = {g.index: g.name for g in body.vertex_groups}
+    to_world = body.matrix_world
+    to_local = to_world.inverted()
+    # Eje de cada hueso (inicio y fin) en el mundo, en la pose de reposo.
+    axes = {}
+    for bone in armature.data.bones:
+        axes[bone.name] = (armature.matrix_world @ bone.head_local,
+                           armature.matrix_world @ bone.tail_local)
+    for v in body.data.vertices:
+        total = sum(g.weight for g in v.groups)
+        if total <= 0.0:
+            continue
+        point = to_world @ v.co
+        shift = Vector((0.0, 0.0, 0.0))
+        for g in v.groups:
+            name = groups[g.group]
+            amount = SLIM_NECK if name.startswith("neck") else SLIM.get(zone_of(name), 0.0)
+            if amount <= 0.0 or name not in axes:
+                continue
+            # Punto más cercano del eje del hueso (segmento de inicio a fin).
+            start, end = axes[name]
+            line = end - start
+            length = line.length_squared
+            t = 0.0 if length < 1e-9 else max(0.0, min(1.0, (point - start).dot(line) / length))
+            closest = start + line * t
+            shift += (closest - point) * amount * (g.weight / total)
+        v.co = to_local @ (point + shift)
+
+
 def head_matrix(armature) -> Matrix:
     """Punto de giro de la cabeza en el mundo, sin giro: las piezas se dibujan en ejes de
     Blender (z arriba, el personaje mira hacia -Y)."""
@@ -271,6 +312,8 @@ def build(enemy_id: str, spec: dict, out_dir: str = OUT) -> None:
     body.data.materials.clear()
     simplify(body)
     paint(body, spec)
+    # Después de pintar: los rotos y manchas quedan en los mismos sitios del cuerpo.
+    slim(body, armature)
     if spec.get("lean"):
         # Delgado: se estrecha el cuerpo en su sitio (no cambia el esqueleto).
         for v in body.data.vertices:
