@@ -22,6 +22,8 @@ const DISPLAY_BASE_HEIGHT: float = 0.25
 ## Zócalo de azulejo de los baños: alto y separación de la cara de la pared.
 const TILE_BAND_HEIGHT: float = 1.4
 const TILE_BAND_GAP: float = 0.006
+## Grosor del zócalo de azulejo.
+const TILE_BAND_THICKNESS: float = 0.01
 const CLUTTER_MODELS: Array[String] = [
 	"clutter_papers",
 	"clutter_clothes",
@@ -115,7 +117,7 @@ static func furnish_restroom(room: RoomData, builder: Kit.Builder) -> void:
 			Basis(Vector3.UP, yaw_facing(toward_door)),
 			front.point(front.length * 0.5, inner) + Vector3.UP * (TILE_BAND_HEIGHT * 0.5)
 		),
-		Vector3(front.length - wall * 2.0, TILE_BAND_HEIGHT, 0.01),
+		Vector3(front.length - wall * 2.0, TILE_BAND_HEIGHT, TILE_BAND_THICKNESS),
 		tiles,
 		false
 	)
@@ -125,7 +127,7 @@ static func furnish_restroom(room: RoomData, builder: Kit.Builder) -> void:
 				Basis(Vector3.UP, yaw_facing(front.along)),
 				front.point(u, front.depth * 0.5) + Vector3.UP * (TILE_BAND_HEIGHT * 0.5)
 			),
-			Vector3(front.depth - wall * 2.0, TILE_BAND_HEIGHT, 0.01),
+			Vector3(front.depth - wall * 2.0, TILE_BAND_HEIGHT, TILE_BAND_THICKNESS),
 			tiles,
 			false
 		)
@@ -134,13 +136,15 @@ static func furnish_restroom(room: RoomData, builder: Kit.Builder) -> void:
 	for index: int in stalls:
 		var at := front.point(wall + 0.55 + index * 1.05, front.depth - wall - 0.75)
 		place(builder, "toilet_stall", at, yaw_facing(toward_door), Vector3(1.0, 2.0, 1.5))
-	# Lavabos en la pared lateral izquierda (u = 0) a media sala, mirando hacia dentro.
-	var sinks_at := front.point(wall + 0.28, front.depth * 0.45)
+	# Lavabos en la pared lateral izquierda (u = 0) a media sala, mirando hacia dentro, apoyados en
+	# la cara del zócalo (dentro de él, sus caras de atrás coincidían con las del azulejo).
+	var tiled := wall + TILE_BAND_GAP + TILE_BAND_THICKNESS * 0.5
+	var sinks_at := front.point(tiled + 0.28, front.depth * 0.45)
 	place(builder, "sink_counter", sinks_at, yaw_facing(front.along), Vector3(2.0, 0.9, 0.55))
 	place(
 		builder,
 		"hand_dryer",
-		front.point(wall + 0.11, front.depth * 0.45 - 1.5),
+		front.point(tiled + 0.11, front.depth * 0.45 - 1.5),
 		yaw_facing(front.along),
 		Vector3.ZERO
 	)

@@ -526,6 +526,8 @@ func _sign_label(text: String, pixel: float, color: Color) -> Label3D:
 	label.outline_size = 12
 	label.pixel_size = pixel
 	label.modulate = color
+	# Solo por delante: por detrás se leía en espejo (a través de cristales o desde las cámaras).
+	label.double_sided = false
 	return label
 
 
@@ -660,6 +662,8 @@ func _build_decor(spec: PropSpec, builders: Dictionary, loose: Kit.Builder) -> b
 			label.pixel_size = clampf(spec.size.y, 0.002, 0.03)
 			label.position = spec.position
 			label.rotation.y = deg_to_rad(spec.rotation_deg)
+			# Solo por delante: un rótulo que se lee por los dos lados lleva dos copias en los datos.
+			label.double_sided = false
 			add_child(label)
 		_:
 			return false

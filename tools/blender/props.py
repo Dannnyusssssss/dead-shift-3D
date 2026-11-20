@@ -41,9 +41,17 @@ GARMENTS = [(0.62, 0.18, 0.16), (0.16, 0.26, 0.45), (0.78, 0.74, 0.66), (0.2, 0.
 class Model:
     """Acumula piezas en un único bmesh con color por esquina."""
 
+    # Caras coincidentes entre cajas: distancia entre planos que cuenta como el mismo plano,
+    # solape mínimo que se corrige (m²) y cuánto se retrasa la cara de la caja pequeña (m).
+    PLANE_TOLERANCE = 0.0015
+    MIN_OVERLAP = 0.0001
+    COPLANAR_RECESS = 0.004
+
     def __init__(self) -> None:
         self.bm = bmesh.new()
         self.color = self.bm.loops.layers.color.new("Color")
+        # Vértices de cada caja alineada con los ejes, para separar después sus caras.
+        self._boxes = []
 
     def _faces_of(self, result) -> list:
         # Caras de los vértices que devolvió la operación: exactamente las de la pieza nueva
@@ -76,6 +84,65 @@ class Model:
         scale = Matrix.Diagonal(Vector((sx, sz, sy, 1.0)))
         result = bmesh.ops.create_cube(self.bm, size=1.0, matrix=mat @ scale)
         self._paint(self._faces_of(result), rgb)
+        self._boxes.append(list(result["verts"]))
+
+    def resolve_coplanar(self) -> None:
+        """Separa las caras que coinciden: si dos cajas alineadas con los ejes tienen una cara en
+        el mismo plano, mirando al mismo lado y solapada, la de la caja más pequeña se retrasa
+        unos milímetros (una fila de cajas encadenadas se retrasa un paso más cada vez). Sin
+        esto, cuál de las dos se ve depende del ángulo de la cámara y salen rayas."""
+        boxes = []
+        for verts in self._boxes:
+            lo = [min(v.co[i] for v in verts) for i in range(3)]
+            hi = [max(v.co[i] for v in verts) for i in range(3)]
+            # Solo cajas alineadas: cada vértice está en una de las dos caras de cada eje.
+            aligned = all(abs(v.co[i] - lo[i]) < 1e-6 or abs(v.co[i] - hi[i]) < 1e-6
+                          for v in verts for i in range(3))
+            if aligned and all(hi[i] - lo[i] > 1e-6 for i in range(3)):
+                boxes.append({"verts": verts, "lo": lo, "hi": hi,
+                              "volume": (hi[0] - lo[0]) * (hi[1] - lo[1]) * (hi[2] - lo[2])})
+        for axis in range(3):
+            u, w = (axis + 1) % 3, (axis + 2) % 3
+            for side in (-1, 1):
+                faces = []
+                for index, box in enumerate(boxes):
+                    plane = box["hi"][axis] if side > 0 else box["lo"][axis]
+                    faces.append({"box": index, "plane": plane, "touching": [], "depth": -1})
+                faces.sort(key=lambda f: f["plane"])
+                for i, first in enumerate(faces):
+                    for second in faces[i + 1:]:
+                        if second["plane"] - first["plane"] > self.PLANE_TOLERANCE:
+                            break
+                        a, b = boxes[first["box"]], boxes[second["box"]]
+                        du = min(a["hi"][u], b["hi"][u]) - max(a["lo"][u], b["lo"][u])
+                        dw = min(a["hi"][w], b["hi"][w]) - max(a["lo"][w], b["lo"][w])
+                        if du <= 0.0 or dw <= 0.0 or du * dw < self.MIN_OVERLAP:
+                            continue
+                        first["touching"].append(second)
+                        second["touching"].append(first)
+                # De mayor a menor volumen; cada cara va un paso detrás de las ya colocadas.
+                order = [f for f in faces if f["touching"]]
+                order.sort(key=lambda f: (-boxes[f["box"]]["volume"], f["box"]))
+                for face in order:
+                    steps = 0
+                    for other in face["touching"]:
+                        if other["depth"] >= 0:
+                            steps = max(steps, other["depth"] + 1)
+                    face["depth"] = min(steps, 4)
+                    if face["depth"] == 0:
+                        continue
+                    box = boxes[face["box"]]
+                    # Sin dejar la caja más fina que un tercio de su grosor.
+                    amount = min(self.COPLANAR_RECESS * face["depth"],
+                                 (box["hi"][axis] - box["lo"][axis]) / 3.0)
+                    plane = face["plane"]
+                    for vert in box["verts"]:
+                        if abs(vert.co[axis] - plane) < 1e-6:
+                            vert.co[axis] -= amount * side
+                    if side > 0:
+                        box["hi"][axis] -= amount
+                    else:
+                        box["lo"][axis] += amount
 
     def cylinder(self, r_bottom, r_top, h, x, y_bottom, z, rgb, segments=10, rot_x=0.0,
                  rot_z=0.0, squash_z=1.0) -> None:
@@ -744,6 +811,7 @@ for _size in COUNTERS:
 def export(name: str, build, out_dir: str) -> None:
     model = Model()
     build(model)
+    model.resolve_coplanar()
     # Triangulación propia con método fijo y escritura propia del GLB: el exportador de Blender
     # no da siempre el mismo orden de índices y el archivo cambiaría en cada ejecución.
     bmesh.ops.triangulate(model.bm, faces=model.bm.faces[:], quad_method="FIXED",

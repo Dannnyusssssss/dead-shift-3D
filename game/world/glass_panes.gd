@@ -119,5 +119,5 @@ static func _box(size: Vector3) -> BoxMesh:
 
 static func _commit(tool: SurfaceTool, mat: StandardMaterial3D) -> ArrayMesh:
 	tool.set_material(mat)
-	tool.generate_normals()
+	# Las cajas ya traen normales planas; recalcularlas las suavizaría entre caras vecinas.
 	return tool.commit()

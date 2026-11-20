@@ -462,7 +462,10 @@ class Builder:
 		_boxes.clear()
 		for mat: Material in _tools:
 			var tool: SurfaceTool = _tools[mat]
-			tool.generate_normals()
+			# Las cajas y los modelos ya traen sus normales planas. Recalcularlas las suavizaba
+			# entre caras que comparten esquina: en losas de pocos triángulos grandes la normal se
+			# inclinaba hacia los bordes y el material cambiaba de proyección (rayas y bordes en
+			# escalera que se movían con la cámara).
 			var instance := MeshInstance3D.new()
 			instance.mesh = tool.commit()
 			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

@@ -154,10 +154,11 @@ func _build_chest(body: SurfaceTool, lid: SurfaceTool, size: Vector3) -> void:
 	var lid_height := 0.06
 	var box_height := size.y - lid_height
 	_box(body, Vector3(0, box_height * 0.5, 0), Vector3(size.x, box_height, size.z), color)
-	# Interior oscuro justo bajo el borde: se ve al levantar la tapa.
+	# Interior oscuro: asoma 4 mm sobre el borde de la caja (queda dentro de la tapa cerrada y se
+	# ve al levantarla). Justo bajo el borde coincidía con la cara de arriba y parpadeaba.
 	_box(
 		body,
-		Vector3(0, box_height - 0.004, 0),
+		Vector3(0, box_height + 0.001, 0),
 		Vector3(size.x - 0.06, 0.006, size.z - 0.06),
 		INSIDE_COLOR
 	)
@@ -189,11 +190,12 @@ func _build_register(body: SurfaceTool, drawer: SurfaceTool, size: Vector3) -> v
 		color
 	)
 	_box(body, Vector3(0, 0.004, 0), Vector3(size.x, 0.008, size.z), color.darkened(0.3))
-	# Hueco oscuro del cajón (se ve cuando sale).
+	# Hueco oscuro del cajón (se ve cuando sale): 4 mm más alto y más bajo que el cajón para que
+	# sus caras no coincidan.
 	_box(
 		body,
 		Vector3(0, drawer_height * 0.5, 0.02),
-		Vector3(size.x - 0.04, drawer_height - 0.01, size.z - 0.04),
+		Vector3(size.x - 0.04, drawer_height - 0.004, size.z - 0.04),
 		INSIDE_COLOR
 	)
 	_box(
@@ -226,10 +228,11 @@ func _build_register(body: SurfaceTool, drawer: SurfaceTool, size: Vector3) -> v
 func _build_locker(body: SurfaceTool, door: SurfaceTool, size: Vector3) -> void:
 	var color := COLORS[KIND_LOCKER]
 	_box(body, Vector3(0, size.y * 0.5, 0.01), Vector3(size.x, size.y, size.z - 0.02), color)
-	# Fondo oscuro del interior y una balda (se ven con la puerta abierta).
+	# Fondo oscuro del interior, 4 mm por delante de la cara del armario para no coincidir con ella
+	# (se ve con la puerta abierta).
 	_box(
 		body,
-		Vector3(0, size.y * 0.5, -size.z * 0.5 + 0.02),
+		Vector3(0, size.y * 0.5, -size.z * 0.5 + 0.014),
 		Vector3(size.x - 0.04, size.y - 0.04, 0.004),
 		INSIDE_COLOR
 	)

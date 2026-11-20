@@ -9,7 +9,8 @@ extends Node
 ## con =objetos solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
 ## cerradas, con =decorado solo el decorado, con =luz las tiendas iluminadas y el apagón del
 ## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
-## intro y con =final las escenas finales (para revisar una parte sin recorrer todo).
+## intro, con =final las escenas finales, con =parpadeo los mismos sitios girando poco a poco en
+## las tres calidades y con =camaras el visor de cámaras (para revisar una parte sin recorrer todo).
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Nombre, posición en el edificio, giro y cabeceo (grados) de cada punto.
@@ -68,6 +69,8 @@ func _run() -> void:
 		"luz",
 		"brazos",
 		"jefe",
+		"parpadeo",
+		"camaras",
 		"intro",
 		"final",
 	]
@@ -94,6 +97,10 @@ func _run() -> void:
 			)
 			GameState.player.flashlight.on = false
 			await _capture_blackout()
+		elif only == "camaras":
+			await _capture_cameras()
+		elif only == "parpadeo":
+			await _capture_flicker()
 		elif only == "decorado":
 			await _capture_decor()
 		elif only == "tiendas":
@@ -396,6 +403,38 @@ func _capture_catalog() -> void:
 	_save_image("37_contenedores_abiertos")
 	for box: LootContainer in boxes:
 		box.queue_free()
+
+
+## Rayas y parpadeos: los mismos sitios girando de 2 en 2 grados, en las tres calidades y con la
+## linterna encendida (en Alta proyecta sombra). De una imagen a la siguiente no deben aparecer
+## rayas ni zonas que se apaguen de golpe.
+func _capture_flicker() -> void:
+	var spots: Array = [
+		["41_quiosco_techo", Vector3(-16.0, 0.0, -3.0), 180.0, 25.0],
+		["42_n2_comidas", Vector3(-12.0, 10.0, -4.5), 0.0, -30.0],
+		["43_pb_pasillo_pared", Vector3(-22.0, 0.0, 0.5), -60.0, 0.0],
+	]
+	var original_quality := Settings.get_int("quality")
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	GameState.player.flashlight.on = true
+	for quality: int in [
+		SettingsSchema.QUALITY_LOW, SettingsSchema.QUALITY_MEDIUM, SettingsSchema.QUALITY_HIGH
+	]:
+		Settings.set_value("quality", quality)
+		for spot: Array in spots:
+			for step: int in 5:
+				var offset := -4.0 + 2.0 * float(step)
+				player.global_position = spot[1]
+				player.rotation.y = deg_to_rad(float(spot[2]) + offset)
+				player.head.rotation.x = deg_to_rad(spot[3])
+				for _frame: int in SETTLE_FRAMES:
+					await get_tree().process_frame
+				_save_image("%s_q%d_%+d" % [spot[0], quality, int(offset)])
+	GameState.player.flashlight.on = false
+	Settings.set_value("quality", original_quality)
 
 
 ## Mismo sitio desde tres ángulos casi iguales (giro de 3 grados): las paredes, marcos,
