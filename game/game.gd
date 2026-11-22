@@ -20,6 +20,8 @@ const WAKE_DESK_DISTANCE: float = 1.1
 const WAKE_FADE_SECONDS: float = 0.8
 const WAKE_ALARM_DB: float = -14.0
 const WAKE_ALARM_FADE: float = 3.0
+## Herramientas de desarrollo opcionales: una carpeta local que no se publica ni se exporta.
+const DEV_TOOLS_PATH: String = "res://dev/dev_tools.gd"
 
 ## Partida guardada ya validada con la que empezar (vacío = partida nueva).
 var start_data: Dictionary = {}
@@ -89,6 +91,7 @@ func _ready() -> void:
 	_end_screen.continue_requested.connect(func() -> void: continue_requested.emit())
 	_end_screen.menu_requested.connect(func() -> void: menu_requested.emit())
 	ui.add_child(PerfOverlay.new())
+	_add_dev_tools(ui)
 	_bind_player()
 	EventBus.player_died.connect(_on_player_died)
 	EventBus.goal_reached.connect(_on_goal_reached)
@@ -104,6 +107,27 @@ func _ready() -> void:
 	_started = true
 	if wake_up_on_start and start_data.is_empty() and DisplayServer.get_name() != "headless":
 		_begin_wake_up(ui)
+
+
+## Herramientas de desarrollo desde «path», o null si no existen. Solo se crean en el editor o en
+## una versión de depuración y con ventana: la versión publicada nunca las busca.
+static func dev_tools_from(path: String) -> Node:
+	if not OS.is_debug_build() or DisplayServer.get_name() == "headless":
+		return null
+	if not ResourceLoader.exists(path):
+		return null
+	var script := load(path) as GDScript
+	if script == null or not script.can_instantiate():
+		return null
+	return script.new() as Node
+
+
+func _add_dev_tools(ui: CanvasLayer) -> void:
+	var tools := dev_tools_from(DEV_TOOLS_PATH)
+	if tools == null:
+		return
+	tools.set("game", self)
+	ui.add_child(tools)
 
 
 ## El guardia despierta con la cabeza sobre la mesa de los monitores de la sala de seguridad

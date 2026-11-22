@@ -5,6 +5,9 @@
 # Salida del export y de las capturas
 build/
 
+# Herramientas de desarrollo locales (no se publican ni se exportan)
+dev/
+
 # Entorno de Python de las herramientas
 tools/.venv/
 __pycache__/
