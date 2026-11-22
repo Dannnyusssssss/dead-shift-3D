@@ -130,3 +130,74 @@ func test_pause_returns_to_main_menu_after_confirming() -> void:
 	var main_box: Control = menu.get("_main_box")
 	assert_true(main_box.visible, "se ve el menú principal")
 	assert_false(GameState.paused)
+
+
+## Esc en la elección de dificultad vuelve al menú principal; mientras se elige, el aviso y los
+## controles se esconden para que «Volver» quepa en pantallas bajas.
+func test_escape_leaves_difficulty_choice() -> void:
+	var menu := await _make_menu()
+	var main_box: Control = menu.get("_main_box")
+	var labels: Array = menu.get("_info_labels")
+	menu.call("_on_new_game")
+	for label: Label in labels:
+		assert_false(label.visible, "el aviso y los controles se esconden al elegir")
+	var cancel := InputEventAction.new()
+	cancel.action = &"ui_cancel"
+	cancel.pressed = true
+	menu.call("_unhandled_input", cancel)
+	assert_true(main_box.visible, "Esc vuelve al menú principal")
+	for label: Label in labels:
+		assert_true(label.visible)
+
+
+## La tecla que salta la intro (Esc) sigue «recién pulsada» en el fotograma en que se crea la
+## partida: no debe abrir la pausa. Una pulsación posterior sí la abre.
+func test_pause_ignores_key_from_creation_frame() -> void:
+	InputRouter.gameplay_active = true
+	Input.action_press(&"pause")
+	var pause := PauseMenu.new()
+	add_child_autofree(pause)
+	pause.call("_process", 0.0)
+	assert_false(GameState.paused, "la tecla del fotograma de creación no pausa")
+	Input.action_release(&"pause")
+	await wait_process_frames(2)
+	Input.action_press(&"pause")
+	await wait_process_frames(2)
+	Input.action_release(&"pause")
+	assert_true(GameState.paused, "una pulsación posterior sí pausa")
+
+
+## Si se pausa mientras el guardia despierta, el menú de pausa se dibuja encima del negro del
+## despertar (antes quedaba tapado y la pantalla se veía negra sin responder).
+func test_wake_up_overlay_stays_below_pause_menu() -> void:
+	var menu := await _make_menu()
+	menu.call("_on_new_game")
+	menu.call("_on_difficulty", Difficulty.EASY)
+	await wait_physics_frames(2)
+	for child: Node in menu.get_children():
+		if child is Intro:
+			(child as Intro).skip()
+	await wait_physics_frames(3)
+	var game: Game = menu.get("_game")
+	var ui := game.get_node("UI") as CanvasLayer
+	game.call("_begin_wake_up", ui)
+	var black: Control = game.get("_wake_black")
+	var caption: Control = game.get("_wake_caption")
+	var pause: PauseMenu = game.get("_pause_menu")
+	assert_lt(black.get_index(), pause.get_index(), "el negro va debajo de la pausa")
+	assert_lt(caption.get_index(), pause.get_index(), "el texto va debajo de la pausa")
+	game.call("_end_wake_up")
+
+
+## El clic en «Continuar» de la pausa no dispara al volver al juego: ese clic queda tragado
+## (ataque y apuntar no cuentan) hasta soltar el ratón.
+func test_continue_click_does_not_attack() -> void:
+	InputRouter.gameplay_active = true
+	GameState.set_paused(true)
+	var pause := PauseMenu.new()
+	add_child_autofree(pause)
+	pause.call("_on_continue")
+	assert_false(GameState.paused)
+	assert_true(InputRouter.get("_swallow_click"), "el clic de «Continuar» queda tragado")
+	assert_false(InputRouter.is_pressed(&"attack"))
+	InputRouter.set("_swallow_click", false)

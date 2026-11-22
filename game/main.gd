@@ -12,6 +12,8 @@ var _menu: Control = null
 ## Botones del menú principal (se esconden mientras se elige la dificultad).
 var _main_box: VBoxContainer = null
 var _difficulty_box: VBoxContainer = null
+## Aviso de contenido y controles: se esconden al elegir la dificultad para que quepa «Volver».
+var _info_labels: Array[Label] = []
 var _game: Game = null
 var _continue: TapButton = null
 var _play: TapButton = null
@@ -104,6 +106,8 @@ func _play_intro() -> void:
 func _show_difficulties(choosing: bool) -> void:
 	_main_box.visible = not choosing
 	_difficulty_box.visible = choosing
+	for label: Label in _info_labels:
+		label.visible = not choosing
 	if choosing:
 		var first: Control = _difficulty_box.get_child(1)
 		first.grab_focus()
@@ -119,6 +123,15 @@ func _best_text() -> String:
 	if parts.is_empty():
 		return ""
 	return "%s %s" % [tr("start_best_grade"), " · ".join(parts)]
+
+
+## Esc (o la acción de cancelar) en la elección de dificultad vuelve al menú principal.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _menu.visible or not _difficulty_box.visible:
+		return
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause"):
+		get_viewport().set_input_as_handled()
+		_refresh_menu()
 
 
 func _on_delete() -> void:
@@ -198,8 +211,9 @@ func _build_menu() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 64)
 	box.add_child(title)
-	box.add_child(_text(tr("start_content_notice"), 22))
-	box.add_child(_text(tr("start_controls"), 18))
+	_info_labels = [_text(tr("start_content_notice"), 22), _text(tr("start_controls"), 18)]
+	for label: Label in _info_labels:
+		box.add_child(label)
 	_main_box = VBoxContainer.new()
 	_main_box.add_theme_constant_override("separation", 16)
 	box.add_child(_main_box)

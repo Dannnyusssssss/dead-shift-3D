@@ -16,10 +16,14 @@ var _main_menu: TapButton = null
 ## Volver al menú pide un segundo toque (se pierde lo que no se haya guardado).
 var _menu_armed: bool = false
 var _options: OptionsMenu = null
+## Fotograma en que se creó: la tecla que saltó la intro (Esc) sigue «recién pulsada» en ese
+## fotograma y no debe abrir la pausa nada más empezar.
+var _ready_frame: int = -1
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_ready_frame = Engine.get_process_frames()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var shade := ColorRect.new()
 	shade.color = Color(0.0, 0.0, 0.0, 0.75)
@@ -73,6 +77,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Se lee por acción (no por evento) para que también funcione el botón táctil.
+	if Engine.get_process_frames() <= _ready_frame:
+		return
 	if not GameState.paused and InputRouter.gameplay_active and InputRouter.just_pressed("pause"):
 		GameState.set_paused(true)
 
@@ -142,6 +148,8 @@ func _on_performance() -> void:
 
 func _on_continue() -> void:
 	GameState.set_paused(false)
+	# El clic en «Continuar» no debe disparar al volver al juego.
+	InputRouter.swallow_click()
 	# El clic o toque en «Continuar» es un gesto del usuario: el navegador permite capturar.
 	InputRouter.request_capture()
 

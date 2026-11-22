@@ -130,6 +130,12 @@ func request_capture() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## El clic en curso es de un menú (por ejemplo «Continuar» en la pausa): no dispara ni apunta
+## hasta soltar los botones del ratón.
+func swallow_click() -> void:
+	_swallow_click = true
+
+
 ## Se puede capturar el puntero: jugando, con teclado y ratón y sin un menú abierto.
 func can_capture() -> bool:
 	return gameplay_active and not touch_mode and not menu_open

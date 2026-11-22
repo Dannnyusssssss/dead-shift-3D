@@ -46,6 +46,7 @@ var _safe_room: String = ""
 var _started: bool = false
 var _wake_black: ColorRect = null
 var _wake_caption: Label = null
+var _pause_menu: PauseMenu = null
 
 
 func _ready() -> void:
@@ -80,7 +81,8 @@ func _ready() -> void:
 	ui.add_child(_note)
 	_cameras = CameraView.new()
 	ui.add_child(_cameras)
-	ui.add_child(PauseMenu.new())
+	_pause_menu = PauseMenu.new()
+	ui.add_child(_pause_menu)
 	_end_screen = EndScreen.new()
 	ui.add_child(_end_screen)
 	_end_screen.restart_requested.connect(func() -> void: restart_requested.emit())
@@ -127,6 +129,9 @@ func _begin_wake_up(ui: CanvasLayer) -> void:
 	_wake_caption.add_theme_color_override("font_outline_color", Color.BLACK)
 	_wake_caption.add_theme_constant_override("outline_size", 8)
 	ui.add_child(_wake_caption)
+	# Debajo de la pausa: si se pausa mientras despierta, el menú se ve encima del negro.
+	ui.move_child(_wake_black, _pause_menu.get_index())
+	ui.move_child(_wake_caption, _pause_menu.get_index())
 	# La interfaz se esconde mientras despierta (parada: si no, se vuelve a mostrar sola).
 	_hud.visible = false
 	_hud.process_mode = Node.PROCESS_MODE_DISABLED
