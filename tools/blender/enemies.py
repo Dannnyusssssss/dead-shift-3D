@@ -5,7 +5,8 @@ Uso: blender --background --factory-startup --python tools/blender/enemies.py
 Para cada enemigo: importa el cuerpo base (assets/third_party/quaternius-ubc), quita ojos y
 cejas, lo simplifica (unos 3000 triángulos, para el celular), pinta la ropa y la piel en el
 color de vértice según el hueso que mueve cada vértice (cabeza, torso, brazos, piernas, pies),
-lo adelgaza hacia el eje de sus huesos (el cuerpo base es de complexión de superhéroe),
+lo adelgaza hacia el eje de sus huesos, le alisa el relieve de músculos y le acerca los brazos
+al cuerpo (el cuerpo base es de complexión de superhéroe; El Técnico se queda corpulento),
 añade accesorios rígidos en la cabeza (gorra, máscara) y le pone las animaciones de
 assets/third_party/quaternius-ual1/2 con nombres propios (idle, walk, run, attack, hit,
 hit_head, stun, death). Escribe assets/generated/enemies/<id>.glb. Siluetas distintas:
@@ -115,6 +116,10 @@ ENEMIES = {
                    "legs": (0.78, 0.66, 0.14), "feet": (0.06, 0.06, 0.06)},
         "mask": True,
         "tears": 0.07,
+        # El jefe sí es corpulento: menos adelgazado, sin estrechar los hombros y poco alisado.
+        "slim": 0.45,
+        "smooth": 2,
+        "narrow": 0.0,
     },
 }
 
@@ -196,7 +201,7 @@ SLIM = {"torso": 0.3, "upperarm": 0.34, "forearm": 0.28, "legs": 0.22, "hips": 0
 SLIM_NECK = 0.25
 
 
-def slim(body, armature) -> None:
+def slim(body, armature, scale: float = 1.0) -> None:
     """Estrecha cada vértice hacia el eje de los huesos que lo mueven, mezclando por el peso de
     cada hueso: así no hay escalones entre zonas (el codo queda entre brazo y antebrazo). Cabeza,
     manos y pies no cambian. Solo mueve vértices: mismos triángulos, esqueleto y animaciones."""
@@ -217,6 +222,7 @@ def slim(body, armature) -> None:
         for g in v.groups:
             name = groups[g.group]
             amount = SLIM_NECK if name.startswith("neck") else SLIM.get(zone_of(name), 0.0)
+            amount *= scale
             if amount <= 0.0 or name not in axes:
                 continue
             # Punto más cercano del eje del hueso (segmento de inicio a fin).
@@ -227,6 +233,89 @@ def slim(body, armature) -> None:
             closest = start + line * t
             shift += (closest - point) * amount * (g.weight / total)
         v.co = to_local @ (point + shift)
+
+
+# Zonas que se alisan: el cuerpo base trae pectorales, abdominales y bíceps marcados de
+# superhéroe; alisados queda la silueta de una persona corriente con ropa.
+SMOOTH_ZONES = ("torso", "upperarm", "forearm", "hips", "legs")
+# Hombros: el cuerpo masculino base tiene la clavícula larga (42 cm entre hombros); se acercan
+# los brazos al cuerpo hasta unos 37 cm, como el maniquí de UAL.
+NARROW_MALE = 0.025
+# Huesos de cada brazo (todo lo que cuelga de la clavícula se mueve junto).
+ARM_PREFIXES = ("upperarm", "lowerarm", "hand", "index", "middle", "ring", "pinky", "thumb")
+
+
+def smooth_body(body, iterations: int) -> None:
+    """Alisa los vértices que solo mueven huesos del cuerpo (no la cabeza, las manos ni los
+    pies): quita el relieve de músculos sin tocar los bordes con la cabeza o las manos."""
+    if iterations <= 0:
+        return
+    groups = {g.index: g.name for g in body.vertex_groups}
+    movable = set()
+    for v in body.data.vertices:
+        zones = {zone_of(groups[g.group]) for g in v.groups if g.weight > 0.01}
+        if zones and zones.issubset(SMOOTH_ZONES):
+            movable.add(v.index)
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    bm.verts.ensure_lookup_table()
+    verts = [bm.verts[i] for i in sorted(movable)]
+    for _ in range(iterations):
+        bmesh.ops.smooth_vert(bm, verts=verts, factor=0.5, use_axis_x=True, use_axis_y=True,
+                              use_axis_z=True)
+    bm.to_mesh(body.data)
+    bm.free()
+
+
+def narrow_shoulders(body, armature, amount: float) -> None:
+    """Acerca los brazos al cuerpo `amount` metros por lado: mueve los huesos del brazo (y la
+    punta de la clavícula) en el esqueleto de reposo y los vértices con el mismo reparto de
+    pesos. Las animaciones giran los huesos, así que siguen valiendo."""
+    if amount <= 0.0:
+        return
+    world_to_arm = armature.matrix_world.inverted().to_3x3()
+
+    def shift_of(name: str) -> Vector:
+        side = 1.0 if name.endswith("_l") else -1.0 if name.endswith("_r") else 0.0
+        if side == 0.0:
+            return Vector((0.0, 0.0, 0.0))
+        if name.startswith(ARM_PREFIXES):
+            return Vector((-side * amount, 0.0, 0.0))
+        if name.startswith("clavicle"):
+            return Vector((-side * amount * 0.5, 0.0, 0.0))
+        return Vector((0.0, 0.0, 0.0))
+
+    # Lado de cada hueso según su posición en el mundo (x > 0 es el lado izquierdo).
+    for bone in armature.data.bones:
+        head = armature.matrix_world @ bone.head_local
+        if bone.name.endswith(("_l", "_r")) and abs(head.x) > 0.01:
+            expected = "_l" if head.x > 0 else "_r"
+            if not bone.name.endswith(expected):
+                raise RuntimeError("Lado inesperado del hueso " + bone.name)
+    groups = {g.index: g.name for g in body.vertex_groups}
+    to_world = body.matrix_world
+    to_local = to_world.inverted()
+    for v in body.data.vertices:
+        total = sum(g.weight for g in v.groups)
+        if total <= 0.0:
+            continue
+        shift = Vector((0.0, 0.0, 0.0))
+        for g in v.groups:
+            shift += shift_of(groups[g.group]) * (g.weight / total)
+        if shift.length > 0.0:
+            v.co = to_local @ (to_world @ v.co + shift)
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = armature
+    armature.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    for bone in armature.data.edit_bones:
+        if bone.name.startswith(ARM_PREFIXES):
+            delta = world_to_arm @ shift_of(bone.name)
+            bone.head += delta
+            bone.tail += delta
+        elif bone.name.startswith("clavicle"):
+            bone.tail += world_to_arm @ (shift_of(bone.name) * 2.0)
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def head_matrix(armature) -> Matrix:
@@ -313,7 +402,10 @@ def build(enemy_id: str, spec: dict, out_dir: str = OUT) -> None:
     simplify(body)
     paint(body, spec)
     # Después de pintar: los rotos y manchas quedan en los mismos sitios del cuerpo.
-    slim(body, armature)
+    slim(body, armature, spec.get("slim", 1.0))
+    smooth_body(body, spec.get("smooth", 6))
+    male = spec["body"].startswith("Superhero_Male")
+    narrow_shoulders(body, armature, spec.get("narrow", NARROW_MALE if male else 0.0))
     if spec.get("lean"):
         # Delgado: se estrecha el cuerpo en su sitio (no cambia el esqueleto).
         for v in body.data.vertices:

@@ -1,8 +1,8 @@
 extends GutTest
 @warning_ignore_start("unsafe_call_argument")
 ## Manos y agarre: cada arma se sostiene con su puño (alrededor del mango o de la empuñadura) y
-## ningún dedo invade el mango; la mano derecha se abre sin arma; el chaleco del policía tiene
-## forma de chaleco.
+## ningún dedo invade el mango; la mano derecha se abre sin arma; la izquierda no se queda
+## abierta delante; el chaleco del policía tiene forma de chaleco.
 
 const PLAYER_SCENE: PackedScene = preload("res://game/actors/player/player.tscn")
 const ARMS: String = "res://assets/generated/arms/"
@@ -21,29 +21,53 @@ func _vertices(path: String) -> PackedVector3Array:
 	return arrays[Mesh.ARRAY_VERTEX]
 
 
-## El puño de cuerpo a cuerpo deja libre el eje del mango (a lo largo de -Z, debajo de la
-## muñeca) en toda la longitud del puño.
+## Vértices a menos de CLEAR_RADIUS del eje (punto y dirección) en el tramo dado del eje.
+func _inside(
+	vertices: PackedVector3Array, point: Vector3, axis: Vector3, from: float, to: float
+) -> int:
+	var count := 0
+	var direction := axis.normalized()
+	for vertex: Vector3 in vertices:
+		var along := (vertex - point).dot(direction)
+		if along < from or along > to:
+			continue
+		if (vertex - point - direction * along).length() < CLEAR_RADIUS:
+			count += 1
+	return count
+
+
+## El puño de cuerpo a cuerpo deja libre el eje del mango (el -Z de su colocación) en todo el
+## ancho del puño.
 func test_melee_fist_leaves_the_handle_free() -> void:
-	var axis_y := PlayerArms.GRIP_POINT.y
+	var frame: Transform3D = PlayerArms.HOLD_FRAMES["melee"]
 	for side: String in ["right", "left"]:
-		var inside := 0
-		for vertex: Vector3 in _vertices(ARMS + "hand_grip_%s.glb" % side):
-			if vertex.z > -0.11 and vertex.z < -0.015:
-				if Vector2(vertex.x, vertex.y - axis_y).length() < CLEAR_RADIUS:
-					inside += 1
-		assert_eq(inside, 0, "dedos dentro del mango: " + side)
+		var point := frame.origin
+		var axis := -frame.basis.z
+		if side == "left":
+			point.x = -point.x
+			axis.x = -axis.x
+		var vertices := _vertices(ARMS + "hand_grip_%s.glb" % side)
+		assert_gt(vertices.size(), 300, "mano modelada: " + side)
+		assert_eq(_inside(vertices, point, axis, -0.06, 0.06), 0, "dedos dentro del mango: " + side)
 
 
-## El puño de arma de fuego deja libre la empuñadura vertical de la pistola.
+## El puño de arma de fuego deja libre la empuñadura de la pistola (inclinada 14 grados).
 func test_pistol_fist_leaves_the_grip_free() -> void:
-	var axis := PlayerArms.GRIP_POINT + Vector3(0.0, -0.045, 0.01)
+	var frame: Transform3D = PlayerArms.HOLD_FRAMES["pistol"]
+	var point := frame * Vector3(0.0, -0.045, 0.01)
+	var axis := frame.basis * Vector3(0.0, cos(deg_to_rad(14.0)), sin(deg_to_rad(14.0)))
 	for side: String in ["right", "left"]:
-		var inside := 0
-		for vertex: Vector3 in _vertices(ARMS + "hand_pistol_%s.glb" % side):
-			if vertex.y > axis.y - 0.05 and vertex.y < axis.y + 0.03:
-				if Vector2(vertex.x - axis.x, vertex.z - axis.z).length() < CLEAR_RADIUS:
-					inside += 1
-		assert_eq(inside, 0, "dedos dentro de la empuñadura: " + side)
+		var side_point := point
+		var side_axis := axis
+		if side == "left":
+			side_point.x = -side_point.x
+			side_axis.x = -side_axis.x
+		var vertices := _vertices(ARMS + "hand_pistol_%s.glb" % side)
+		assert_eq(
+			_inside(vertices, side_point, side_axis, -0.05, 0.03),
+			0,
+			"dedos dentro de la empuñadura: " + side
+		)
 
 
 func test_right_hand_shape_follows_what_it_holds() -> void:
@@ -61,7 +85,8 @@ func test_right_hand_shape_follows_what_it_holds() -> void:
 	assert_eq(arms.hand_shape("right"), "pistol")
 	arms.show_weapon(ItemStack.new(GameState.items.get_item("bat")))
 	assert_eq(arms.hand_shape("right"), "grip")
-	assert_eq(arms.hand_shape("left"), "open")
+	assert_eq(arms.hand_shape("left"), "grip", "la izquierda nunca queda abierta")
+	assert_eq(arms.left_shown(), 0.0, "en reposo la izquierda está fuera de la vista")
 	arms.show_weapon(ItemStack.new(GameState.items.get_item("extinguisher")))
 	var holder: Node3D = arms.call("_holder", "right")
 	var model: Node3D = null
@@ -69,7 +94,10 @@ func test_right_hand_shape_follows_what_it_holds() -> void:
 		if child is MeshInstance3D and not child.is_queued_for_deletion():
 			model = child
 	assert_not_null(model)
-	assert_eq(model.position, PlayerArms.GRIP_OFFSETS["extinguisher"], "se coge por la maneta")
+	var offset: Vector3 = PlayerArms.GRIP_OFFSETS["extinguisher"]
+	var frame: Transform3D = PlayerArms.HOLD_FRAMES["melee"]
+	var expected := frame * Transform3D(Basis(), offset)
+	assert_true(model.transform.is_equal_approx(expected), "se coge por la maneta")
 
 
 func test_police_vest_is_shaped() -> void:

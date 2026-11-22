@@ -26,7 +26,7 @@ Cada pack vive en `assets/third_party/<pack>/` con su archivo de licencia, una t
 | Pack (carpeta) | Licencia | Origen | Contenido y cambios |
 |---|---|---|---|
 | ambientCG (`ambientcg`) | CC0 1.0 Universal | https://ambientcg.com · licencia en https://docs.ambientcg.com/license/ | 11 materiales: Tiles078, Tiles074, WoodFloor051, Concrete031, Concrete034, PaintedPlaster017, OfficeCeiling001, CorrugatedSteel005, DiamondPlate008A, Metal064 y Asphalt031. Mapas de color, normales y rugosidad reducidos de 1024 a 512 px; página y huella del archivo original de cada uno en `SOURCES.md`. |
-| Quaternius: Universal Animation Library (`quaternius-ual1`) | CC0 1.0 Universal | https://quaternius.com/packs/universalanimationlibrary.html | Biblioteca de animaciones humanoides (GLB, sin root motion). |
+| Quaternius: Universal Animation Library (`quaternius-ual1`) | CC0 1.0 Universal | https://quaternius.com/packs/universalanimationlibrary.html | Biblioteca de animaciones humanoides (GLB, sin root motion) y maniquí, de cuya mano salen las manos en primera persona (`tools/blender/hands.py`). |
 | Quaternius: Universal Animation Library 2 (`quaternius-ual2`) | CC0 1.0 Universal | https://quaternius.com/packs/universalanimationlibrary2.html | Segunda biblioteca de animaciones (GLB) y maniquí femenino. |
 | Quaternius: Universal Base Characters, versión gratuita (`quaternius-ubc`) | CC0 1.0 Universal | https://quaternius.com/packs/universalbasecharacters.html | Dos cuerpos con esqueleto humanoide (glTF), peinados y cejas; texturas reducidas a 1024 px. |
 | Kenney: Impact Sounds 1.0 (`kenney-impact-sounds`) | CC0 1.0 Universal | https://kenney.nl/assets/impact-sounds | Pasos por superficie y golpes (OGG). |

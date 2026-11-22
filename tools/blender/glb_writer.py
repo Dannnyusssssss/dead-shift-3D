@@ -1,6 +1,6 @@
 """Escritor mínimo de GLB (glTF 2.0 binario) para los modelos generados por script.
 
-Escribe una sola malla de triángulos sin índices con POSITION, NORMAL (plana, por cara) y
+Escribe una sola malla de triángulos sin índices con POSITION, NORMAL (por cara o por esquina) y
 COLOR_0 (lineal). No usa el exportador de Blender: así el archivo sale byte a byte igual en
 cada ejecución. Sin texturas, materiales, animaciones ni extensiones.
 """
@@ -16,7 +16,8 @@ def _pad(data: bytes, filler: bytes) -> bytes:
 def write_glb(path: str, name: str, triangles) -> None:
     """triangles: lista de (normal, [(pos, color) x 3]) en coordenadas de glTF (y arriba).
 
-    pos y normal son tuplas de 3 floats; color, de 4 floats en lineal."""
+    pos y normal son tuplas de 3 floats; color, de 4 floats en lineal. normal también puede ser
+    una tupla de 3 normales (una por esquina, para superficies suavizadas)."""
     positions = bytearray()
     normals = bytearray()
     colors = bytearray()
@@ -24,9 +25,10 @@ def write_glb(path: str, name: str, triangles) -> None:
     hi = [float("-inf")] * 3
     count = 0
     for normal, corners in triangles:
-        for pos, color in corners:
+        per_corner = isinstance(normal[0], (tuple, list))
+        for index, (pos, color) in enumerate(corners):
             positions += struct.pack("<3f", *pos)
-            normals += struct.pack("<3f", *normal)
+            normals += struct.pack("<3f", *(normal[index] if per_corner else normal))
             colors += struct.pack("<4f", *color)
             # min y max se toman de los valores ya redondeados a float32, como pide glTF.
             stored = struct.unpack("<3f", struct.pack("<3f", *pos))

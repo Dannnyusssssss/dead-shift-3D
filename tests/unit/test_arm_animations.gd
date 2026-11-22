@@ -99,3 +99,12 @@ func test_preview_moves_the_bones() -> void:
 	var rest_spot := wrist.global_position
 	arms.preview("throw", 0.35)
 	assert_gt(wrist.global_position.distance_to(rest_spot), 0.05)
+
+
+## La mano izquierda solo sale en las acciones en las que trabaja; en reposo, al golpear o al
+## disparar la pistola queda fuera de la vista.
+func test_left_hand_only_in_actions_that_use_it() -> void:
+	for anim: String in ["idle", "walk", "swing", "stab", "bash", "shoot_pistol", "throw", ""]:
+		assert_false(ArmAnimations.uses_left_hand(anim), anim)
+	for anim: String in ["push", "shoot_shotgun", "reload_pistol", "heal_wrap", "craft_join"]:
+		assert_true(ArmAnimations.uses_left_hand(anim), anim)

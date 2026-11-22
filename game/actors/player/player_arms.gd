@@ -14,27 +14,89 @@ const LEFT_SHOULDER: Vector3 = Vector3(-0.2, -0.24, 0.12)
 ## Largo de los huesos (como los modelos) y punto de agarre en la mano.
 const UPPER_LENGTH: float = 0.28
 const FOREARM_LENGTH: float = 0.26
-## El mango pasa por debajo de la muñeca, como el eje del puño de tools/blender/arms.py (GRIP_Y).
-const GRIP_POINT: Vector3 = Vector3(0.0, -0.05, -0.06)
+## Colocación de cada arma en la mano, en coordenadas de la muñeca: su eje de agarre va por el
+## hueco del puño y su punto de agarre al centro. La calcula tools/blender/arms.py a partir de
+## la malla de la mano (la imprime al exportar). Las de cuerpo a cuerpo y los objetos apuntan a
+## -Z desde su origen y salen por el lado del pulgar; pistola y escopeta, por su empuñadura.
+const HOLD_FRAMES: Dictionary = {
+	"melee":
+	Transform3D(
+		Basis(
+			Vector3(1.0, 0.0040, -0.0031),
+			Vector3(0.0, 0.6077, 0.7942),
+			Vector3(0.0051, -0.7942, 0.6076)
+		),
+		Vector3(-0.0014, -0.0356, -0.0723)
+	),
+	"pistol":
+	Transform3D(
+		Basis(
+			Vector3(0.9984, 0.0551, 0.0077),
+			Vector3(-0.0540, 0.9930, -0.1049),
+			Vector3(-0.0135, 0.1043, 0.9944)
+		),
+		Vector3(-0.0607, 0.0664, -0.1048)
+	),
+	"shotgun":
+	Transform3D(
+		Basis(
+			Vector3(0.9984, 0.0551, 0.0077),
+			Vector3(-0.0557, 0.9888, 0.1388),
+			Vector3(0.0, -0.1390, 0.9903)
+		),
+		Vector3(-0.0606, 0.0679, -0.1242)
+	),
+}
 ## Armas de fuego: se sujetan con el puño de empuñadura vertical (índice en el gatillo).
 const FIREARMS: Array[String] = ["pistol", "shotgun"]
-## Desplazamiento del modelo del arma para que su parte de agarre quede en el puño: la
-## empuñadura de la escopeta va algo más atrás que la de la pistola, y el extintor se coge por
-## la maneta de arriba (el cuerpo cuelga por debajo del puño).
+## Desplazamiento del modelo dentro de su colocación: el extintor se coge por la maneta de
+## arriba (el cuerpo cuelga por debajo del puño).
 const GRIP_OFFSETS: Dictionary = {
-	"shotgun": Vector3(0.0, 0.0, -0.03),
 	"extinguisher": Vector3(0.0, -0.1, 0.38),
 }
 ## Tiempo para pasar de una pose a otra al empezar o terminar una acción.
 const BLEND_SECONDS: float = 0.12
-## Calibración del montaje: giro fijo que se suma al hombro y a la muñeca (x) de cada brazo para
-## que, con las poses de ArmAnimations, las manos queden en la parte baja de la vista.
-const RIGHT_SHOULDER_BIAS: float = 0.35
-const RIGHT_WRIST_BIAS: float = -0.35
+## Calibración del montaje del brazo derecho según la forma de la mano: desplazamiento del
+## hombro, giro fijo que se suma al hombro (x, y, z), al codo y a la muñeca (x). Con el puño de
+## verdad el mango sale hacia arriba por el lado del pulgar, así que con un arma de cuerpo a
+## cuerpo el hombro sube, el antebrazo va casi horizontal y la muñeca apenas se dobla (unos 40
+## grados con la caída del puño): el arma queda hacia delante y arriba. Con las de fuego el arma
+## queda donde estaba antes y la muñeca se dobla poco. Calculado con el reposo de ArmAnimations.
+const RIGHT_CALIBRATION: Dictionary = {
+	"grip":
+	{
+		"offset": Vector3(-0.007, 0.211, 0.057),
+		"shoulder": Vector3(0.113, -0.039, 0.016),
+		"elbow": -0.455,
+		"wrist": 0.23,
+	},
+	"pistol":
+	{
+		"offset": Vector3(0.067, -0.127, 0.025),
+		"shoulder": Vector3(0.35, 0.0, 0.0),
+		"elbow": 0.0,
+		"wrist": -0.25,
+	},
+	"open":
+	{
+		"offset": Vector3.ZERO,
+		"shoulder": Vector3(0.35, 0.0, 0.0),
+		"elbow": 0.0,
+		"wrist": -0.35,
+	},
+}
 const LEFT_SHOULDER_BIAS: float = 0.4
 const LEFT_WRIST_BIAS: float = -0.25
 ## Amplitud del reposo y el paso con «Reducir movimiento».
 const REDUCED_MOTION: float = 0.2
+## Mano izquierda fuera de la vista cuando no trabaja: cuánto baja y se retrasa el hombro, y
+## cuánto tarda en entrar o salir (segundos).
+## Reflejo en X: la mano izquierda sostiene los objetos como la derecha, al otro lado.
+const MIRROR: Transform3D = Transform3D(
+	Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK), Vector3.ZERO
+)
+const LEFT_AWAY: Vector3 = Vector3(-0.05, -0.5, 0.2)
+const LEFT_SHOW_SECONDS: float = 0.15
 
 var _bones: Dictionary = {}
 var _weapon_holder: Node3D = null
@@ -50,6 +112,8 @@ var _action_seconds: float = 1.0
 var _from_pose: PackedFloat32Array = ArmAnimations.rest()
 var _blend_left: float = 0.0
 var _current: PackedFloat32Array = ArmAnimations.rest()
+## 1 con la mano izquierda a la vista, 0 fuera de ella (entra y sale poco a poco).
+var _left_shown: float = 0.0
 
 
 func _ready() -> void:
@@ -60,7 +124,7 @@ func _ready() -> void:
 	_right_hold = Node3D.new()
 	_holder("right").add_child(_right_hold)
 	_left_hold = _holder("left")
-	_set_grip("left", "open")
+	_set_grip("left", "grip")
 	_refresh_right_hand()
 	_apply(_current)
 
@@ -87,6 +151,8 @@ func _process(delta: float) -> void:
 		_blend_left = maxf(_blend_left - delta, 0.0)
 		target = ArmAnimations.blend(target, _from_pose, _blend_left / BLEND_SECONDS)
 	_current = target
+	var wanted := 1.0 if ArmAnimations.uses_left_hand(_action) else 0.0
+	_left_shown = move_toward(_left_shown, wanted, delta / LEFT_SHOW_SECONDS)
 	_apply(_current)
 
 
@@ -102,7 +168,8 @@ func show_weapon(stack: ItemStack) -> void:
 	var model := ItemModels.instance(stack.id(), stack.durability.state())
 	if model == null:
 		model = _fallback_box()
-	model.position += GRIP_OFFSETS.get(_weapon_id, Vector3.ZERO)
+	var offset: Vector3 = GRIP_OFFSETS.get(_weapon_id, Vector3.ZERO)
+	model.transform = hold_frame(_weapon_id) * Transform3D(Basis(), offset)
 	_weapon_holder.add_child(model)
 	_refresh_right_hand()
 
@@ -207,6 +274,8 @@ func _hold(holder: Node3D, item_id: String) -> void:
 	if model == null:
 		model = _fallback_box()
 	holder.add_child(model)
+	var frame: Transform3D = HOLD_FRAMES["melee"]
+	model.transform = frame if holder != _left_hold else MIRROR * frame * MIRROR
 	if holder == _left_hold:
 		_set_grip("left", "grip")
 	else:
@@ -220,8 +289,21 @@ func _release_hands() -> void:
 	for child: Node in _weapon_holder.get_children():
 		if child is Node3D:
 			(child as Node3D).visible = true
-	_set_grip("left", "open")
+	_set_grip("left", "grip")
 	_refresh_right_hand()
+
+
+## Si la mano izquierda está a la vista (para las pruebas): 0 fuera, 1 del todo.
+func left_shown() -> float:
+	return _left_shown
+
+
+## Colocación de un arma en la mano derecha (las de fuego por su empuñadura, el resto como un
+## mango).
+static func hold_frame(weapon_id: String) -> Transform3D:
+	if HOLD_FRAMES.has(weapon_id):
+		return HOLD_FRAMES[weapon_id]
+	return HOLD_FRAMES["melee"]
 
 
 ## Aplica una pose de 20 valores (brazo derecho y después el izquierdo) a los huesos.
@@ -232,14 +314,26 @@ func _apply(pose: PackedFloat32Array) -> void:
 		var shoulder: Node3D = bones["shoulder"]
 		var rest_spot: Vector3 = bones["spot"]
 		shoulder.position = rest_spot + Vector3(pose[base], pose[base + 1], pose[base + 2])
+		if side == "left":
+			shoulder.position += LEFT_AWAY * (1.0 - _left_shown)
+			shoulder.visible = _left_shown > 0.001
 		# El brazo izquierdo es el reflejo del derecho: los giros laterales cambian de signo.
 		var mirror := 1.0 if side == "right" else -1.0
-		var shoulder_bias := RIGHT_SHOULDER_BIAS if side == "right" else LEFT_SHOULDER_BIAS
-		var wrist_bias := RIGHT_WRIST_BIAS if side == "right" else LEFT_WRIST_BIAS
+		var shoulder_bias := Vector3(LEFT_SHOULDER_BIAS, 0.0, 0.0)
+		var elbow_bias := 0.0
+		var wrist_bias := LEFT_WRIST_BIAS
+		if side == "right":
+			var calibration: Dictionary = RIGHT_CALIBRATION[hand_shape("right")]
+			shoulder.position += calibration["offset"]
+			shoulder_bias = calibration["shoulder"]
+			elbow_bias = calibration["elbow"]
+			wrist_bias = calibration["wrist"]
 		shoulder.rotation = Vector3(
-			pose[base + 3] + shoulder_bias, pose[base + 4] * mirror, pose[base + 5] * mirror
+			pose[base + 3] + shoulder_bias.x,
+			pose[base + 4] * mirror + shoulder_bias.y,
+			pose[base + 5] * mirror + shoulder_bias.z
 		)
-		(bones["elbow"] as Node3D).rotation = Vector3(pose[base + 6], 0.0, 0.0)
+		(bones["elbow"] as Node3D).rotation = Vector3(pose[base + 6] + elbow_bias, 0.0, 0.0)
 		(bones["wrist"] as Node3D).rotation = Vector3(
 			pose[base + 7] + wrist_bias, pose[base + 8] * mirror, pose[base + 9] * mirror
 		)
@@ -262,7 +356,6 @@ func _make_arm(side: String, spot: Vector3) -> Dictionary:
 	var pistol := _attach(wrist, ARMS_FOLDER + "hand_pistol_%s.glb" % side)
 	var open := _attach(wrist, ARMS_FOLDER + "hand_open_%s.glb" % side)
 	var holder := Node3D.new()
-	holder.position = GRIP_POINT
 	wrist.add_child(holder)
 	return {
 		"shoulder": shoulder,

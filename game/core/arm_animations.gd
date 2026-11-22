@@ -98,6 +98,17 @@ static func attack_for(weapon_id: String) -> String:
 			return "swing"
 
 
+## Acciones en las que la mano izquierda trabaja (empujar el extintor, bombear o recargar,
+## curarse y combinar). En las demás y en reposo la izquierda baja fuera de la vista: con un arma
+## de una mano no se queda flotando delante.
+static func uses_left_hand(anim: String) -> bool:
+	return (
+		anim in ["push", "shoot_shotgun", "reload_pistol", "reload_shotgun"]
+		or anim.begins_with("heal_")
+		or anim.begins_with("craft_")
+	)
+
+
 static func shoot_for(weapon_id: String) -> String:
 	return "shoot_shotgun" if weapon_id == "shotgun" else "shoot_pistol"
 

@@ -10,6 +10,7 @@ Escribe en assets/generated/items/:
 Origen en el punto de agarre; el arma apunta hacia -Z de Godot (hacia delante). Reproducible.
 """
 
+import math
 import os
 import sys
 
@@ -23,6 +24,8 @@ SCRATCH = (0.78, 0.78, 0.76)
 CLOTH = (0.78, 0.75, 0.66)
 RED_PAINT = (0.7, 0.1, 0.08)
 GUN_METAL = (0.16, 0.16, 0.18)
+NAIL = (0.8, 0.82, 0.85)
+NAIL_HEAD = (0.9, 0.9, 0.88)
 
 
 def rod(m: Model, r0: float, r1: float, z_back: float, z_front: float, rgb, segments=8) -> None:
@@ -32,29 +35,67 @@ def rod(m: Model, r0: float, r1: float, z_back: float, z_front: float, rgb, segm
     m.cylinder(r0, r1, length, 0, -length * 0.5, center, rgb, segments=segments, rot_x=-90)
 
 
-def wear_marks(m: Model, state: int, radius: float, z_from: float, z_to: float,
+def surface_patch(m: Model, radius: float, angle: float, z: float, length: float, width: float,
+                  rgb, twist: float = 0.0) -> None:
+    """Mancha fina pegada a la superficie de un cilindro a lo largo de -Z: angle en grados
+    alrededor del eje (0 arriba, 90 a la derecha). Sobresale menos de 1 mm, así que se ve como
+    marca y nunca como una pieza que sale del mango."""
+    thickness = 0.0016
+    a = math.radians(angle)
+    # Un poco por dentro del radio: el cilindro es un polígono y sus caras quedan más adentro.
+    center = radius * 0.975 + thickness * 0.25
+    x = math.sin(a) * center
+    y = math.cos(a) * center
+    m.box(width, thickness, length, x, y - thickness * 0.5, z, rgb, rot_y=twist, rot_z=-angle)
+
+
+def wear_marks(m: Model, state: int, radius_at, z_from: float, z_to: float,
                base_dark: bool = False) -> None:
-    """Marcas de desgaste a lo largo de un mango o cañón de radio dado."""
+    """Marcas de desgaste a lo largo de un mango o cañón. radius_at(z) da el radio en cada punto
+    (el bate se ensancha): las marcas quedan pegadas a la superficie, planas."""
     if state <= 0:
         return
     span = z_from - z_to
     scratch = CRACK if not base_dark else SCRATCH
-    # Dañado: rayas finas en la cara de arriba y a un lado.
+    # Dañado: rayas finas arriba y a los lados, algo torcidas.
     for i in range(3):
         z = z_from - span * (0.3 + 0.22 * i)
-        m.box(0.004, 0.003, span * 0.12, radius * 0.4, radius * 0.98, z, scratch, rot_y=12 * i)
-        m.box(0.003, span * 0.1, 0.004, radius * 0.99, -0.01 + 0.01 * i, z - 0.02, scratch)
+        r = radius_at(z)
+        surface_patch(m, r, -20 + 25 * i, z, span * 0.12, 0.004, scratch, twist=8 * (i - 1))
+        surface_patch(m, r, 95 - 10 * i, z - 0.03, span * 0.07, 0.003, scratch, twist=-10)
     if state < 2:
         return
-    # Crítico: grietas profundas, dos vueltas de cinta y manchas de óxido o suciedad.
+    # Crítico: grietas oscuras más largas, dos vueltas de cinta y manchas de óxido o suciedad.
     for i in range(3):
         z = z_from - span * (0.45 + 0.15 * i)
-        m.box(radius * 2.15, 0.006, 0.006, 0, radius * 0.2 * (i - 1), z, CRACK, rot_z=35 * (i - 1))
+        r = radius_at(z)
+        surface_patch(m, r, 40 * (i - 1), z, span * 0.16, 0.005, CRACK, twist=25 * (i - 1))
+        surface_patch(m, r, 180 + 30 * i, z + 0.02, span * 0.1, 0.004, CRACK, twist=-20)
     for z in (z_from - span * 0.35, z_from - span * 0.62):
-        rod(m, radius * 1.12, radius * 1.12, z + 0.02, z - 0.02, TAPE_GRAY, segments=8)
+        r = radius_at(z)
+        rod(m, r * 1.06, r * 1.06, z + 0.02, z - 0.02, TAPE_GRAY, segments=10)
     for i in range(2):
-        m.box(radius * 0.9, 0.004, 0.03, -radius * 0.3, radius * 1.0,
-              z_from - span * (0.55 + 0.2 * i), RUST)
+        z = z_from - span * (0.55 + 0.2 * i)
+        surface_patch(m, radius_at(z), -30 + 60 * i, z, 0.03, radius_at(z) * 0.8, RUST)
+
+
+def nail_ring(m: Model, radius_at, z_from: float, z_to: float, count: int,
+              length: float) -> None:
+    """Clavos clavados en espiral: asoman `length` desde la superficie con la cabeza plana en la
+    punta de fuera (vistos de lado se reconocen por la cabeza), metal claro."""
+    for i in range(count):
+        t = i / max(count - 1, 1)
+        z = z_from + (z_to - z_from) * t
+        a = math.radians(i * 137.5)
+        direction = (math.sin(a), math.cos(a))
+        r = radius_at(z)
+        inner = r * 0.4
+        outer = r + length
+        m.bar(direction[0] * inner, direction[1] * inner, z,
+              direction[0] * outer, direction[1] * outer, z, 0.0055, NAIL)
+        head = outer + 0.004
+        m.bar(direction[0] * outer, direction[1] * outer, z,
+              direction[0] * head, direction[1] * head, z, 0.015, NAIL_HEAD)
 
 
 def knife(m: Model, state: int) -> None:
@@ -70,18 +111,19 @@ def knife(m: Model, state: int) -> None:
         rod(m, 0.02, 0.02, 0.03, -0.01, TAPE_GRAY)
 
 
+def bat_radius(z: float) -> float:
+    """Radio del bate en z: se ensancha de 0,018 en el mango a 0,036 en la punta."""
+    t = min(max((0.12 - z) / 0.85, 0.0), 1.0)
+    return 0.018 + 0.018 * t
+
+
 def bat(m: Model, state: int, nails: bool = False) -> None:
     rod(m, 0.03, 0.03, 0.14, 0.12, WOOD, segments=10)
     rod(m, 0.018, 0.036, 0.12, -0.73, WOOD, segments=10)
     rod(m, 0.02, 0.02, 0.06, -0.06, DARK, segments=10)
     if nails:
-        for i in range(8):
-            z = -0.5 - 0.025 * i
-            if i % 2 == 0:
-                m.box(0.004, 0.09, 0.004, 0, 0.0, z, CHROME, rot_z=45 * i)
-            else:
-                m.box(0.09, 0.004, 0.004, 0, 0.0, z, CHROME, rot_y=20 * i)
-    wear_marks(m, state, 0.033, -0.1, -0.72)
+        nail_ring(m, bat_radius, -0.4, -0.68, 11, 0.04)
+    wear_marks(m, state, bat_radius, -0.1, -0.72)
 
 
 def pipe(m: Model, state: int, grip: bool = False, nails: bool = False) -> None:
@@ -93,13 +135,8 @@ def pipe(m: Model, state: int, grip: bool = False, nails: bool = False) -> None:
         for z in (0.06, -0.04, -0.12):
             rod(m, 0.03, 0.03, z + 0.008, z - 0.008, TAPE_GRAY, segments=8)
     if nails:
-        for i in range(8):
-            z = -0.5 - 0.022 * i
-            if i % 2 == 0:
-                m.box(0.004, 0.075, 0.004, 0, 0.0, z, CHROME, rot_z=45 * i)
-            else:
-                m.box(0.075, 0.004, 0.004, 0, 0.0, z, CHROME)
-    wear_marks(m, state, 0.02, -0.15, -0.66, base_dark=False)
+        nail_ring(m, lambda _z: 0.02, -0.42, -0.64, 9, 0.035)
+    wear_marks(m, state, lambda _z: 0.02, -0.15, -0.66, base_dark=False)
 
 
 def pistol(m: Model, state: int) -> None:
