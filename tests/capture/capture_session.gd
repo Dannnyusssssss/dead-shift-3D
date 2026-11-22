@@ -6,7 +6,8 @@ extends Node
 ## por buena la estética. Restaura la calidad que tenía el jugador al terminar.
 ## Con la variable de entorno DEADSHIFT_CAPTURE_ONLY=enemigos solo hace las capturas de los
 ## enemigos en movimiento, con =angulos solo las de un mismo sitio desde ángulos casi iguales y
-## con =cuerpos cada enemigo de cerca (frente, lado y corriendo: chaleco y pelo), con =objetos
+## con =combinar las manos al combinar (envolver, clavos y ensamblar, en varios momentos), con
+## =cuerpos cada enemigo de cerca (frente, lado y corriendo: chaleco y pelo), con =objetos
 ## solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
 ## cerradas, con =decorado solo el decorado, con =luz las tiendas iluminadas y el apagón del
 ## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
@@ -68,6 +69,7 @@ func _run() -> void:
 	var parts: Array[String] = [
 		"enemigos",
 		"cuerpos",
+		"combinar",
 		"angulos",
 		"objetos",
 		"tiendas",
@@ -121,6 +123,8 @@ func _run() -> void:
 			await _capture_enemies_moving()
 		elif only == "cuerpos":
 			await _capture_bodies_close()
+		elif only == "combinar":
+			await _capture_crafting()
 		elif only == "angulos":
 			await _capture_angles()
 		else:
@@ -651,6 +655,27 @@ func _capture_bodies_close() -> void:
 					await get_tree().process_frame
 				_save_image("31_cuerpo_%s_%s" % [enemy.data.model_id, view[0]])
 			enemy.global_position = home
+	GameState.player.flashlight.on = false
+
+
+## Las manos al combinar, en cuatro momentos de cada tipo: tienen que juntarse delante con los
+## dos objetos tocándose.
+func _capture_crafting() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	player.global_position = Vector3(-28.0, 0.0, -3.5)
+	player.head.rotation.x = deg_to_rad(-10.0)
+	GameState.player.flashlight.on = true
+	var pairs: Array = [["tape", "pipe"], ["bat", "nails"], ["phone_board", "phone_battery"]]
+	for pair: Array in pairs:
+		player.arms.start_craft(pair[0] as String, pair[1] as String)
+		for shot: int in 4:
+			for _frame: int in 17:
+				await get_tree().process_frame
+			_save_image("49_combinar_%s_%d" % [player.arms.current_action(), shot])
+		player.arms.stop_craft()
+		for _frame: int in 20:
+			await get_tree().process_frame
 	GameState.player.flashlight.on = false
 
 

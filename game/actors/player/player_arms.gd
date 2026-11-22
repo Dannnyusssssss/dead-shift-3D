@@ -85,6 +85,10 @@ const MIRROR: Transform3D = Transform3D(
 	Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK), Vector3.ZERO
 )
 const LEFT_AWAY: Vector3 = Vector3(-0.05, -0.5, 0.2)
+## Combinar: segundos para pasar de la pose normal a las manos juntas (y de vuelta) y hacia dónde
+## apunta el codo derecho (abajo, afuera y atrás; el izquierdo, en espejo).
+const CRAFT_BLEND: float = 0.2
+const CRAFT_POLE: Vector3 = Vector3(0.6, -1.0, 0.4)
 const LEFT_SHOW_SECONDS: float = 0.15
 
 var _bones: Dictionary = {}
@@ -103,6 +107,11 @@ var _blend_left: float = 0.0
 var _current: PackedFloat32Array = ArmAnimations.rest()
 ## 1 con la mano izquierda a la vista, 0 fuera de ella (entra y sale poco a poco).
 var _left_shown: float = 0.0
+## Combinar: cuánto mandan las manos juntas sobre la pose normal (0 a 1), tipo de combinación y
+## momento del ciclo (siguen al soltar, mientras la mezcla vuelve a 0).
+var _craft_weight: float = 0.0
+var _craft_kind: String = ""
+var _craft_time: float = 0.0
 
 
 func _ready() -> void:
@@ -143,6 +152,13 @@ func _process(delta: float) -> void:
 	var wanted := 1.0 if ArmAnimations.uses_left_hand(_action) else 0.0
 	_left_shown = move_toward(_left_shown, wanted, delta / LEFT_SHOW_SECONDS)
 	_apply(_current)
+	var crafting := _action.begins_with("craft_")
+	if crafting:
+		_craft_kind = _action
+		_craft_time = _action_time
+	_craft_weight = move_toward(_craft_weight, 1.0 if crafting else 0.0, delta / CRAFT_BLEND)
+	if _craft_weight > 0.0:
+		_apply_craft(_craft_kind, _craft_time, _craft_weight)
 
 
 ## Muestra en la mano el arma dada (o ninguna) con su estado de desgaste.
@@ -190,8 +206,9 @@ func play_throw() -> void:
 ## Combinar: cada mano sostiene uno de los objetos y repiten el gesto que toca (envolver, unir o
 ## ensamblar) hasta que termina.
 func start_craft(first_id: String, second_id: String) -> void:
-	_hold(_left_hold, first_id)
-	_hold(_right_hold, second_id)
+	var hands := ArmAnimations.craft_hands(first_id, second_id)
+	_hold(_left_hold, hands[0])
+	_hold(_right_hold, hands[1])
 	_play(ArmAnimations.craft_for(first_id, second_id), 1.1)
 
 
@@ -326,6 +343,49 @@ func _apply(pose: PackedFloat32Array) -> void:
 		(bones["wrist"] as Node3D).rotation = Vector3(
 			pose[base + 7] + wrist_bias, pose[base + 8] * mirror, pose[base + 9] * mirror
 		)
+
+
+## Combinar: lleva cada puño a donde lo pone CraftMotion (las dos manos juntas delante, con los
+## objetos tocándose), con el alcance de dos huesos de ArmReach, mezclado con la pose normal
+## según «weight». La mano izquierda es el reflejo de la derecha (también su objeto).
+func _apply_craft(kind: String, t: float, weight: float) -> void:
+	var amount := CraftMotion.REDUCED if Settings.get_bool("reduce_motion") else 1.0
+	var pose := CraftMotion.pose(kind, t, amount)
+	for side: String in ["right", "left"]:
+		var hand: Dictionary = pose[side]
+		var bones: Dictionary = _bones[side]
+		var shoulder: Node3D = bones["shoulder"]
+		var elbow: Node3D = bones["elbow"]
+		var wrist: Node3D = bones["wrist"]
+		var spot: Vector3 = bones["spot"]
+		var right := side == "right"
+		var grip: Transform3D = HOLD_FRAMES["melee"]
+		if not right:
+			grip = MIRROR * grip * MIRROR
+		var local_axis := grip.basis * Vector3(0.0, 0.0, -1.0)
+		var local_side := Vector3.RIGHT if right else Vector3.LEFT
+		var hand_basis := ArmReach.aim(
+			local_axis, local_side, hand["axis"] as Vector3, hand["side"] as Vector3
+		)
+		var wrist_point: Vector3 = hand["point"] - hand_basis * grip.origin
+		var pole := CRAFT_POLE if right else Vector3(-CRAFT_POLE.x, CRAFT_POLE.y, CRAFT_POLE.z)
+		var reach := ArmReach.solve(spot, wrist_point, pole, UPPER_LENGTH, FOREARM_LENGTH)
+		var shoulder_basis: Basis = reach["basis"]
+		var bend: float = reach["elbow"]
+		var elbow_basis := shoulder_basis * Basis(Vector3.RIGHT, bend)
+		var wrist_basis := (elbow_basis.inverse() * hand_basis).orthonormalized()
+		shoulder.position = shoulder.position.lerp(spot, weight)
+		shoulder.quaternion = shoulder.quaternion.slerp(Quaternion(shoulder_basis), weight)
+		elbow.quaternion = elbow.quaternion.slerp(Quaternion(Vector3.RIGHT, bend), weight)
+		wrist.quaternion = wrist.quaternion.slerp(Quaternion(wrist_basis), weight)
+		if not right:
+			shoulder.visible = true
+
+
+## Dónde está ahora la muñeca de un lado, en coordenadas de los brazos (para las pruebas).
+func wrist_position(side: String) -> Vector3:
+	var wrist: Node3D = (_bones[side] as Dictionary)["wrist"]
+	return to_local(wrist.global_position)
 
 
 func _make_arm(side: String, spot: Vector3) -> Dictionary:

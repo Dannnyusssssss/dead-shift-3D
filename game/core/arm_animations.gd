@@ -31,6 +31,9 @@ const LOOP_SECONDS: Dictionary = {"idle": 3.2, "walk": 0.9}
 const SHOOT_SECONDS: float = 0.22
 const SHOTGUN_SHOOT_SECONDS: float = 0.6
 const THROW_SECONDS: float = 0.5
+## Materiales que trabajan sobre la otra pieza al combinar (van en la mano derecha, la que se
+## mueve; la izquierda sujeta la pieza quieta).
+const CRAFT_TOOLS: Array[String] = ["tape", "rag", "nails"]
 
 static var _table: Dictionary = {}
 
@@ -126,6 +129,14 @@ static func heal_for(item_id: String) -> String:
 			return "heal_inject"
 		_:
 			return "heal_pill"
+
+
+## Qué sostiene cada mano al combinar: [izquierda, derecha]. El material (cinta, trapos o clavos)
+## va en la derecha, que da las vueltas o golpea; la pieza grande, quieta en la izquierda.
+static func craft_hands(first_id: String, second_id: String) -> Array[String]:
+	if CRAFT_TOOLS.has(first_id) and not CRAFT_TOOLS.has(second_id):
+		return [second_id, first_id]
+	return [first_id, second_id]
 
 
 ## Combinar: con cinta o trapos se envuelve, con clavos se une a golpes, lo demás se ensambla.

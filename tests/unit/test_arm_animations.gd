@@ -67,6 +67,16 @@ func test_choices_cover_the_catalog() -> void:
 	assert_eq(ArmAnimations.craft_for("pipe", "rag"), "craft_wrap")
 	assert_eq(ArmAnimations.craft_for("phone_board", "phone_battery"), "craft_assemble")
 	assert_true(ArmAnimations.is_loop("craft_wrap"))
+	assert_eq(
+		ArmAnimations.craft_hands("tape", "pipe"),
+		["pipe", "tape"] as Array[String],
+		"la cinta a la derecha"
+	)
+	assert_eq(ArmAnimations.craft_hands("bat", "nails"), ["bat", "nails"] as Array[String])
+	assert_eq(
+		ArmAnimations.craft_hands("phone_board", "phone_battery"),
+		["phone_board", "phone_battery"] as Array[String]
+	)
 	assert_false(ArmAnimations.is_loop("swing"))
 
 
@@ -108,3 +118,32 @@ func test_left_hand_only_in_actions_that_use_it() -> void:
 		assert_false(ArmAnimations.uses_left_hand(anim), anim)
 	for anim: String in ["push", "shoot_shotgun", "reload_pistol", "heal_wrap", "craft_join"]:
 		assert_true(ArmAnimations.uses_left_hand(anim), anim)
+
+
+## Al combinar, los dos objetos llegan de verdad al sitio que marca CraftMotion (las manos se
+## juntan delante); al soltar, los brazos vuelven a su pose.
+func test_crafting_brings_both_items_together() -> void:
+	var arms := PlayerArms.new()
+	add_child_autofree(arms)
+	for kind: Array in [["tape", "pipe"], ["bat", "nails"], ["phone_board", "phone_battery"]]:
+		arms.start_craft(kind[0] as String, kind[1] as String)
+		for i: int in 30:
+			arms._process(0.02)
+		var pose := CraftMotion.pose(arms.current_action(), arms.get("_craft_time") as float)
+		for side: String in ["right", "left"]:
+			var hold: Node3D = (
+				arms.get("_right_hold") if side == "right" else arms.get("_left_hold")
+			)
+			var item := hold.get_child(hold.get_child_count() - 1) as Node3D
+			var wanted: Vector3 = (pose[side] as Dictionary)["point"]
+			assert_lt(
+				arms.to_local(item.global_position).distance_to(wanted),
+				0.02,
+				"%s: objeto %s en su sitio" % [arms.current_action(), side]
+			)
+		var gap := arms.wrist_position("right").distance_to(arms.wrist_position("left"))
+		assert_lt(gap, 0.35, "las manos juntas delante")
+		arms.stop_craft()
+		for i: int in 30:
+			arms._process(0.02)
+		assert_eq(arms.get("_craft_weight"), 0.0, "vuelve a la pose normal")
