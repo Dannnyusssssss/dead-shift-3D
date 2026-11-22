@@ -32,8 +32,8 @@ func enemy_damage(base: float) -> float:
 	return base * _value(data.enemy_damage_multiplier if data != null else 1.0)
 
 
-## Probabilidad de contagio de una mordida, entre 0 y 1.
-func infection_chance(base: float) -> float:
+## Exposición que suma una mordida, entre 0 y 1.
+func infection_exposure(base: float) -> float:
 	var factor := _value(data.infection_chance_multiplier if data != null else 1.0)
 	return clampf(base * factor, 0.0, 1.0)
 

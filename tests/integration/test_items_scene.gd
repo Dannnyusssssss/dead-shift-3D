@@ -248,7 +248,7 @@ func test_healing_takes_time_and_leaves_player_exposed() -> void:
 
 func test_infection_countdown_ends_the_run() -> void:
 	watch_signals(EventBus)
-	GameState.player.infection.try_infect(1.0, GameState.rng)
+	GameState.player.infection.add_exposure(1.0)
 	GameState.player.infection.time_left = 0.2
 	await wait_physics_frames(30)
 	assert_signal_emitted(EventBus, "player_died")

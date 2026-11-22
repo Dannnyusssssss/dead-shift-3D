@@ -89,7 +89,7 @@ func test_conversion_warning_in_the_last_30_seconds() -> void:
 	await wait_frames(2)
 	assert_false(warning.is_warning(), "sano: sin aviso")
 	var infection := GameState.player.infection
-	assert_true(infection.try_infect(1.0, RandomNumberGenerator.new()))
+	assert_true(infection.add_exposure(1.0))
 	await wait_frames(2)
 	assert_false(warning.is_warning(), "con tiempo de sobra: sin aviso")
 	infection.time_left = 25.0

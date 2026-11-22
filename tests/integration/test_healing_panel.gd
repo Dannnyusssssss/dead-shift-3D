@@ -30,7 +30,7 @@ func _panel() -> HealingPanel:
 
 func test_antibiotics_show_their_effect_and_add_time() -> void:
 	var state := GameState.player
-	state.infection.try_infect(1.0, GameState.rng)
+	state.infection.add_exposure(1.0)
 	state.infection.time_left = 100.0
 	state.inventory.add_item(GameState.items.get_item("antibiotics"), 1)
 	var slot := state.inventory.find_slot("antibiotics")
@@ -67,7 +67,7 @@ func test_bandage_shows_health_before_and_after() -> void:
 ## Regresión: con decimales, (cuenta + 90) - cuenta da 90,00000000000001 y se mostraba «+91 s».
 func test_added_time_is_rounded_not_ceiled() -> void:
 	var state := GameState.player
-	state.infection.try_infect(1.0, GameState.rng)
+	state.infection.add_exposure(1.0)
 	state.infection.time_left = 38.08108108108108
 	var panel := HealingPanel.new()
 	add_child_autofree(panel)

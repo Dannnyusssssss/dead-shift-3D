@@ -109,6 +109,6 @@ func test_outro_stages_follow_the_outcome() -> void:
 func test_boarding_outcome_depends_on_the_infection() -> void:
 	var infection := Infection.new()
 	assert_eq(RunStats.boarding_outcome(infection), RunStats.OUTCOME_RESCUED)
-	assert_true(infection.try_infect(1.0, RandomNumberGenerator.new()))
+	assert_true(infection.add_exposure(1.0))
 	assert_eq(RunStats.boarding_outcome(infection), RunStats.OUTCOME_CRASHED)
 	assert_eq(RunStats.boarding_outcome(null), RunStats.OUTCOME_RESCUED)

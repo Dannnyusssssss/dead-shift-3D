@@ -31,6 +31,7 @@ static func capture(
 		{
 			"infected": state.infection.infected,
 			"time_left": state.infection.time_left,
+			"exposure": state.infection.exposure,
 		},
 		"inventory": state.inventory.to_data(),
 		"bag": state.inventory.bag.to_data(),
@@ -61,6 +62,7 @@ static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
 	var infection: Dictionary = data.get("infection", {})
 	state.infection.infected = infection.get("infected", false)
 	state.infection.time_left = infection.get("time_left", 0.0)
+	state.infection.exposure = infection.get("exposure", 0.0)
 	var bag: Dictionary = data.get("bag", {})
 	state.inventory.bag.load_data(bag, items)
 	var flashlight: Dictionary = data.get("flashlight", {})

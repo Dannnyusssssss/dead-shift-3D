@@ -320,26 +320,28 @@ def vest(m: Model) -> None:
 def vest_worn(m: Model) -> None:
     """Chaleco puesto, ceñido al torso (origen en su centro, frente hacia -Z): peto y espaldar,
     laterales, hombreras por encima de los hombros, cuello abierto y bolsillos en el pecho."""
-    w, h, d = 0.42, 0.42, 0.28
-    plate = 0.035
+    # A la medida del cuerpo delgado de los enemigos (pecho de unos 0,28 x 0,2 m).
+    w, h, d = 0.31, 0.36, 0.22
+    plate = 0.025
     # Peto y espaldar, con el cuello abierto arriba (dos piezas a los lados del cuello).
-    m.box(w, h - 0.08, plate, 0, -h / 2, -d / 2, VEST)
-    m.box(w, h - 0.06, plate, 0, -h / 2, d / 2, VEST)
-    for x in (-0.13, 0.13):
-        m.box(0.12, 0.08, plate, x, h / 2 - 0.08, -d / 2, VEST)
+    m.box(w, h - 0.07, plate, 0, -h / 2, -d / 2, VEST)
+    m.box(w, h - 0.05, plate, 0, -h / 2, d / 2, VEST)
+    side = w * 0.31
+    for x in (-side, side):
+        m.box(w * 0.29, 0.07, plate, x, h / 2 - 0.07, -d / 2, VEST)
     # Laterales (algo más bajos que el peto, por debajo de las axilas).
     for x in (-w / 2, w / 2):
-        m.box(plate, h - 0.14, d, x, -h / 2, 0, VEST_DARK)
-    # Hombreras: van del peto al espaldar por encima de los hombros.
-    for x in (-0.13, 0.13):
-        m.box(0.08, plate, d + plate, x, h / 2 - 0.005, 0, VEST_STRAP)
+        m.box(plate, h - 0.12, d, x, -h / 2, 0, VEST_DARK)
+    # Hombreras planas: van del peto al espaldar por encima de los hombros.
+    for x in (-side, side):
+        m.box(0.06, plate * 0.7, d + plate, x, h / 2 - 0.005, 0, VEST_STRAP)
     # Bolsillos del pecho y franja clara.
-    for x in (-0.12, 0.0, 0.12):
-        m.box(0.09, 0.09, 0.03, x, -0.17, -d / 2 - 0.03, VEST_DARK)
-        m.box(0.09, 0.025, 0.012, x, -0.08, -d / 2 - 0.036, VEST_STRAP)
-    m.box(0.3, 0.05, 0.006, 0, 0.0, -d / 2 - 0.02, (0.85, 0.85, 0.8))
+    for x in (-w * 0.28, 0.0, w * 0.28):
+        m.box(0.07, 0.07, 0.022, x, -h * 0.4, -d / 2 - 0.022, VEST_DARK)
+        m.box(0.07, 0.02, 0.01, x, -h * 0.4 + 0.07, -d / 2 - 0.027, VEST_STRAP)
+    m.box(w * 0.7, 0.04, 0.006, 0, 0.0, -d / 2 - 0.016, (0.85, 0.85, 0.8))
     # Cincha de la cintura.
-    m.box(w + 0.02, 0.03, d + 0.02, 0, -h / 2 + 0.02, 0, VEST_STRAP)
+    m.box(w + 0.015, 0.025, d + 0.015, 0, -h / 2 + 0.02, 0, VEST_STRAP)
 
 
 def key(m: Model, color) -> None:

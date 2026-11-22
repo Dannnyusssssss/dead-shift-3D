@@ -20,7 +20,7 @@ func _ready() -> void:
 	add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
 	add_theme_color_override("font_outline_color", Color.BLACK)
 	add_theme_constant_override("outline_size", 8)
-	EventBus.player_damaged.connect(func(_amount: float) -> void: offer(Tips.DAMAGE))
+	EventBus.player_damaged.connect(_on_player_damaged)
 	EventBus.inventory_changed.connect(_on_inventory_changed)
 	EventBus.weapon_changed.connect(_on_inventory_changed)
 	EventBus.infection_changed.connect(_on_infection_changed)
@@ -68,6 +68,14 @@ func _on_inventory_changed() -> void:
 	var stack := state.equipped()
 	if stack != null and not stack.durability.is_unbreakable() and stack.durability.state() >= 1:
 		offer(Tips.WEAR)
+
+
+## Herido: cómo curarse y, si el golpe llenó la exposición, qué significa.
+func _on_player_damaged(_amount: float) -> void:
+	offer(Tips.DAMAGE)
+	var state := GameState.player
+	if state != null and not state.infection.infected and state.infection.exposure > 0.0:
+		offer(Tips.EXPOSURE)
 
 
 func _on_infection_changed() -> void:

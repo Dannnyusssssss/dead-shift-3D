@@ -11,8 +11,8 @@ extends Resource
 @export var attack_range: float = 1.6
 ## Distancia a la que ve al jugador.
 @export var sight_range: float = 14.0
-## Probabilidad (0 a 1) de que un golpe suyo infecte.
-@export var infect_chance: float = 0.0
+## Exposición (0 a 1) que suma cada golpe suyo que hace daño; al llegar a 1, infecta.
+@export var infect_exposure: float = 0.0
 ## Implacable (oleadas): sabe siempre dónde está el jugador y nunca deja de perseguirlo.
 @export var relentless: bool = false
 ## Sensibilidad al ruido (multiplica el radio de los ruidos). 0 = no reacciona al ruido.

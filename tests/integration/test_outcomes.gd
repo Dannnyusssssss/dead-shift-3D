@@ -84,7 +84,7 @@ func test_death_and_conversion_have_their_own_outcome() -> void:
 
 
 func test_conversion_outcome() -> void:
-	GameState.player.infection.try_infect(1.0, GameState.rng)
+	GameState.player.infection.add_exposure(1.0)
 	GameState.player.infection.time_left = 0.1
 	await wait_physics_frames(20)
 	assert_eq(_outcomes, [RunStats.OUTCOME_CONVERTED] as Array[int])
@@ -130,7 +130,7 @@ func test_calling_the_helicopter_brings_capped_waves_while_waiting() -> void:
 ## termina, sin partida que continuar).
 func test_boarding_infected_is_the_crash() -> void:
 	await _travel("rooftop", "stairs_down")
-	assert_true(GameState.player.infection.try_infect(1.0, RandomNumberGenerator.new()))
+	assert_true(GameState.player.infection.add_exposure(1.0))
 	GameState.rescue.call_helicopter()
 	GameState.rescue.time_left = 0.05
 	await wait_frames(6)

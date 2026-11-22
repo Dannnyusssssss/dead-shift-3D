@@ -15,6 +15,8 @@ extends RefCounted
 const SPAWN_START: String = "start"
 const SPAWN_EXIT: String = "exit"
 const SPAWN_SAFE: String = "safe"
+## Exposición máxima al cargar: por debajo de llena, así cargar nunca infecta.
+const MAX_LOADED_EXPOSURE: float = 0.99
 
 
 ## Decodifica, migra y valida. Falla solo si el texto no se puede leer como guardado.
@@ -105,12 +107,19 @@ static func _read_infection(source: Dictionary) -> Dictionary:
 	var raw := Validation.read_dict(source, "infection")
 	var infected := Validation.read_bool(raw, "infected", false)
 	if not infected:
-		return {"infected": false, "time_left": 0.0}
+		# Exposición sin llenar: cargar no debe infectar en el acto (las partidas de antes no la
+		# traen y empiezan en 0).
+		return {
+			"infected": false,
+			"time_left": 0.0,
+			"exposure": Validation.read_float(raw, "exposure", 0.0, MAX_LOADED_EXPOSURE, 0.0),
+		}
 	# Nunca a cero: cargar no debe convertir al jugador en el acto.
 	return {
 		"infected": true,
 		"time_left":
 		Validation.read_float(raw, "time_left", 1.0, Rules.INFECTION_TIME, Rules.INFECTION_TIME),
+		"exposure": 0.0,
 	}
 
 

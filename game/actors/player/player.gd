@@ -202,13 +202,13 @@ func is_dead() -> bool:
 
 
 ## Recibe un golpe: pasa por el chaleco (lógica de core) y avisa a la interfaz. Si viene de
-## un enemigo que contagia, infect_chance es la probabilidad de infectar (azar de la partida).
-func receive_damage(amount: float, infect_chance: float = 0.0) -> void:
+## un enemigo que contagia, exposure es lo que suma a la exposición (al llenarse, infecta).
+func receive_damage(amount: float, exposure: float = 0.0) -> void:
 	var state := GameState.player
 	if state == null or state.is_dead():
 		return
 	var was_infected := state.infection.infected
-	var lost := state.take_bite(amount, infect_chance, GameState.rng)
+	var lost := state.take_bite(amount, exposure)
 	EventBus.player_damaged.emit(lost)
 	if lost > 0.0 and not Settings.get_bool("reduce_motion"):
 		_shake = minf(_shake + lost * 0.0012, 0.03)

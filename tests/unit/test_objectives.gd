@@ -43,7 +43,7 @@ func test_open_roof_counts_as_having_the_key() -> void:
 func test_infection_is_a_warning() -> void:
 	var state := _state()
 	assert_eq(Objectives.warning(state), {})
-	state.infection.try_infect(1.0, Fixtures.rng())
+	state.infection.add_exposure(1.0)
 	assert_eq(Objectives.warning(state)["key"], "objective_infected")
 
 

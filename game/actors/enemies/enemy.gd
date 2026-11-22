@@ -40,7 +40,11 @@ const LURE_FLOOR_MARGIN: float = 2.5
 const LOOK_AROUND_SPEED: float = 1.6
 ## Chaleco puesto (tools/blender/items.py) y su escala para ceñirse al torso sin hundirse en él.
 const VEST_WORN_MODEL: String = "vest_worn"
-const VEST_WORN_SCALE: Vector3 = Vector3(1.1, 1.0, 1.25)
+const VEST_WORN_SCALE: Vector3 = Vector3.ONE
+## Chaleco en el pecho: hueso del que cuelga, metros a lo largo de él y hacia la espalda.
+const VEST_BONE: String = "spine_03"
+const VEST_ALONG: float = -0.02
+const VEST_BACK: float = 0.0
 ## Distancia horizontal a la que se considera que llegó a un punto.
 const ARRIVE_DISTANCE: float = 1.2
 
@@ -379,7 +383,7 @@ func _attack(delta: float) -> void:
 		var difficulty := GameState.difficulty
 		_player.receive_damage(
 			difficulty.enemy_damage(data.attack_damage),
-			difficulty.infection_chance(data.infect_chance)
+			difficulty.infection_exposure(data.infect_exposure)
 		)
 	_attack_cooldown = data.attack_interval
 	state = STATE_CHASE
@@ -467,7 +471,11 @@ func _build_visual() -> void:
 			if worn != null:
 				_vest_base_scale = VEST_WORN_SCALE
 				_vest_mesh.scale = VEST_WORN_SCALE
-			_model.attach_to_bone(_vest_mesh, "spine_02", Vector3(0.0, 1.25, 0.0))
+			# En un soporte: el desgaste cambia la escala del chaleco, no su colocación.
+			var holder := Node3D.new()
+			holder.name = "VestHolder"
+			holder.add_child(_vest_mesh)
+			_model.attach_along_bone(holder, VEST_BONE, VEST_ALONG, VEST_BACK)
 		return
 	_body_material = StandardMaterial3D.new()
 	_body_material.albedo_color = data.body_color

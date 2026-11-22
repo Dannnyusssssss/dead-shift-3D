@@ -6,6 +6,8 @@ extends Control
 
 const WEAR_KEYS: Array[String] = ["wear_good", "wear_damaged", "wear_critical", "wear_broken"]
 const WEAR_ICONS: Array[String] = ["[###]", "[##-]", "[#--]", "[---]"]
+## Tramos de la barra de exposición.
+const EXPOSURE_SEGMENTS: int = 5
 const MESSAGE_TIME: float = 3.0
 ## El borde de daño tarda esto en desvanecerse; con un golpe cada ~1,5 s nunca parpadea.
 const DAMAGE_FADE: float = 0.8
@@ -16,7 +18,6 @@ var _player: Player = null
 var _health: Label = null
 var _vest: Label = null
 var _infection: Label = null
-var _infection_seconds: int = -1
 var _weapon: Label = null
 var _prompt: Label = null
 var _message: Label = null
@@ -166,19 +167,34 @@ func _on_camera_alert(active: bool) -> void:
 	_camera.text = tr("hud_camera_alert") if active else ""
 
 
-## Línea de infección: icono, texto y cuenta atrás (no depende del color).
+## Línea de infección: con infección, icono, texto y cuenta atrás; sin ella, la exposición
+## que llenan los golpes, con barra de texto y porcentaje (no depende del color).
 func _refresh_infection() -> void:
-	var state := GameState.player
-	if state == null or not state.infection.infected:
-		if _infection_seconds != -1:
-			_infection_seconds = -1
-			_infection.text = ""
-		return
-	var seconds := ceili(state.infection.time_left)
-	if seconds == _infection_seconds:
-		return
-	_infection_seconds = seconds
-	_infection.text = "(!) %s %d:%02d" % [tr("hud_infected"), seconds / 60, seconds % 60]
+	_set_infection_text(infection_text(GameState.player))
+
+
+## Texto de la línea de infección para un estado (vacío sin infección ni exposición).
+static func infection_text(state: PlayerState) -> String:
+	if state == null:
+		return ""
+	var infection := state.infection
+	if infection.infected:
+		var seconds := ceili(infection.time_left)
+		return (
+			"(!) %s %d:%02d"
+			% [TranslationServer.translate("hud_infected"), seconds / 60, seconds % 60]
+		)
+	if infection.exposure <= 0.0:
+		return ""
+	var percent := clampi(ceili(infection.exposure * 100.0), 1, 99)
+	var filled := clampi(ceili(infection.exposure * EXPOSURE_SEGMENTS), 1, EXPOSURE_SEGMENTS)
+	var bar := "#".repeat(filled) + "-".repeat(EXPOSURE_SEGMENTS - filled)
+	return "%s [%s] %d %%" % [TranslationServer.translate("hud_exposure"), bar, percent]
+
+
+func _set_infection_text(value: String) -> void:
+	if _infection.text != value:
+		_infection.text = value
 
 
 ## Línea de lanzamiento rápido: el material que sale con la tecla de lanzar y cuántos quedan.

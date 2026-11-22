@@ -13,7 +13,8 @@ const INFECTION: String = "infection"
 const MAP: String = "map"
 const DARK: String = "dark"
 const PHONE: String = "phone"
-const ALL: Array[String] = [DAMAGE, BAG, THROW, WEAR, INFECTION, MAP, DARK, PHONE]
+const EXPOSURE: String = "exposure"
+const ALL: Array[String] = [DAMAGE, EXPOSURE, BAG, THROW, WEAR, INFECTION, MAP, DARK, PHONE]
 
 
 ## Verdadero (y lo anota) si el consejo todavía no salió en esta partida.

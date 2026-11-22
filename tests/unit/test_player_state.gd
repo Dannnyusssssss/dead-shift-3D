@@ -145,13 +145,17 @@ func _with(item_id: String, amount: int = 1) -> PlayerState:
 	return state
 
 
-func test_bite_with_certain_chance_infects() -> void:
+func test_bites_fill_exposure_and_infect_when_full() -> void:
 	var state := PlayerState.new(_items)
-	state.take_bite(10.0, 1.0, Fixtures.rng())
-	assert_true(state.infection.infected)
-	var lucky := PlayerState.new(_items)
-	lucky.take_bite(10.0, 0.0, Fixtures.rng())
-	assert_false(lucky.infection.infected)
+	for bite: int in 3:
+		state.take_bite(5.0, 0.25)
+		assert_false(state.infection.infected, "golpe %d de 4: aún no" % (bite + 1))
+	assert_almost_eq(state.infection.exposure, 0.75, 0.0001)
+	state.take_bite(5.0, 0.25)
+	assert_true(state.infection.infected, "el cuarto golpe de caminante infecta")
+	var clean := PlayerState.new(_items)
+	clean.take_bite(10.0, 0.0)
+	assert_eq(clean.infection.exposure, 0.0, "un golpe sin exposición no suma")
 
 
 func test_bandage_heals_up_to_max_and_is_consumed() -> void:
@@ -172,7 +176,7 @@ func test_antibiotics_and_neutrax_need_infection() -> void:
 	assert_eq(state.use_item(antibiotics), PlayerState.USE_NOT_INFECTED)
 	assert_eq(state.use_item(neutrax), PlayerState.USE_NOT_INFECTED)
 	assert_eq(state.inventory.count_of("neutrax"), 1, "no se gasta")
-	state.infection.try_infect(1.0, Fixtures.rng())
+	state.infection.add_exposure(1.0)
 	assert_eq(state.use_item(antibiotics), PlayerState.USE_COUNTDOWN_FULL, "cuenta completa")
 	state.infection.tick(100.0)
 	assert_eq(state.use_item(antibiotics), PlayerState.USE_OK)
@@ -189,7 +193,7 @@ func test_non_consumables_cannot_be_used() -> void:
 
 func test_infection_reaching_zero_kills_by_conversion() -> void:
 	var state := PlayerState.new(_items)
-	state.infection.try_infect(1.0, Fixtures.rng())
+	state.infection.add_exposure(1.0)
 	assert_false(state.tick_infection(Rules.INFECTION_TIME - 1.0))
 	assert_true(state.tick_infection(2.0))
 	assert_true(state.is_dead())

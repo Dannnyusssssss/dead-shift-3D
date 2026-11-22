@@ -118,11 +118,11 @@ func take_raw_damage(amount: float) -> float:
 
 
 ## Recibe un golpe de un enemigo que puede infectar. Devuelve la salud perdida.
-## Si el golpe hace daño y el jugador sigue vivo, el azar decide si lo contagia.
-func take_bite(amount: float, infect_chance: float, rng: RandomNumberGenerator) -> float:
+## Si el golpe hace daño y el jugador sigue vivo, suma su exposición (al llenarse, contagia).
+func take_bite(amount: float, exposure: float) -> float:
 	var lost := take_damage(amount)
 	if lost > 0.0 and not is_dead():
-		infection.try_infect(infect_chance, rng)
+		infection.add_exposure(exposure)
 	return lost
 
 

@@ -198,6 +198,36 @@ func attach_to_bone(node: Node3D, bone: String, spot: Vector3, along_bone: bool 
 		node.transform.basis = Basis(x, up, z).scaled(scale_kept)
 
 
+## Cuelga un nodo de un hueso colocado respecto al propio hueso, no al cuerpo: «along» metros a
+## lo largo del hueso (hacia su hijo) y «back» metros hacia la espalda, orientado con el hueso
+## (eje Y a lo largo de él, +Z hacia la espalda). Sirve con cualquier pose: el chaleco queda
+## en el pecho aunque el cuerpo vaya encorvado. Debe estar ya en el árbol.
+func attach_along_bone(node: Node3D, bone: String, along: float, back: float) -> void:
+	var index := -1 if _skeleton == null else _skeleton.find_bone(bone)
+	if index < 0:
+		node.position = Vector3(0.0, 1.3, back)
+		add_child(node)
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.bone_name = bone
+	_skeleton.add_child(attachment)
+	attachment.add_child(node)
+	if _player != null and not _player.current_animation.is_empty():
+		_player.advance(0.0)
+	var bone_pose := _skeleton.get_bone_global_pose(index)
+	# La escala del hueso (los esqueletos importados la traen) se deshace para medir en metros
+	# del esqueleto y que la pieza conserve su tamaño.
+	var bone_scale := bone_pose.basis.get_scale()
+	var unscale := Vector3(1.0 / bone_scale.x, 1.0 / bone_scale.y, 1.0 / bone_scale.z)
+	var up := _bone_direction(index)
+	var body_back := _skeleton.global_transform.basis.inverse() * global_transform.basis.z
+	var to_back := (bone_pose.basis.inverse() * body_back).normalized()
+	var z := (to_back - up * to_back.dot(up)).normalized()
+	var x := up.cross(z).normalized()
+	var offset := (up * along + z * back) * unscale.x
+	node.transform = Transform3D(Basis(x, up, z).scaled(unscale), offset)
+
+
 ## Dirección del hueso en sus propias coordenadas: hacia su primer hijo (en estos esqueletos el
 ## eje Y del hueso no siempre va a lo largo de él).
 func _bone_direction(index: int) -> Vector3:

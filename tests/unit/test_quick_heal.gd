@@ -38,13 +38,13 @@ func test_nothing_needed_when_healthy() -> void:
 func test_bandage_first_when_hurt() -> void:
 	var state := _state(["neutrax", "bandage"])
 	state.take_damage(20.0)
-	state.infection.try_infect(1.0, Fixtures.rng())
+	state.infection.add_exposure(1.0)
 	assert_eq(QuickHeal.choose(state), state.inventory.find_slot("bandage"))
 
 
 func test_infection_prefers_antibiotics_while_they_add_time() -> void:
 	var state := _state(["neutrax", "antibiotics"])
-	state.infection.try_infect(1.0, Fixtures.rng())
+	state.infection.add_exposure(1.0)
 	assert_eq(QuickHeal.choose(state), state.inventory.find_slot("neutrax"), "cuenta llena")
 	state.infection.tick(120.0)
 	assert_eq(QuickHeal.choose(state), state.inventory.find_slot("antibiotics"))

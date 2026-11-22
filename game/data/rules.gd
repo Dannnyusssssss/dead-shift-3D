@@ -39,6 +39,10 @@ const THROW_COOLDOWN: float = 0.6
 
 ## Infección: segundos hasta la conversión.
 const INFECTION_TIME: float = 240.0
+## Exposición: segundos sin recibir golpes antes de que empiece a bajar y cuánto baja por
+## segundo (un golpe de caminante, 0,25, se va en unos 25 s más).
+const EXPOSURE_DECAY_DELAY: float = 8.0
+const EXPOSURE_DECAY_PER_SECOND: float = 0.01
 ## Segundos que suman los antibióticos a la cuenta de la infección (sin pasar de la cuenta
 ## inicial: tomarlos pronto desperdicia parte).
 const ANTIBIOTIC_BONUS: float = 90.0

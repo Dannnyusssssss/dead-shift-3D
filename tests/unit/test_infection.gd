@@ -1,45 +1,57 @@
 extends GutTest
 @warning_ignore_start("unsafe_call_argument")
-## Infección: contagio con azar inyectado, cuenta regresiva, antibióticos que frenan, Neutrax
-## que cura y conversión al llegar a cero.
+## Infección: exposición que se llena con cada golpe y baja sola, cuenta regresiva,
+## antibióticos que frenan, Neutrax que cura y conversión al llegar a cero.
 
 const Fixtures = preload("res://tests/helpers/fixtures.gd")
 
 
 func _infected() -> Infection:
 	var infection := Infection.new()
-	infection.try_infect(1.0, Fixtures.rng())
+	infection.add_exposure(1.0)
 	return infection
 
 
-func test_chance_zero_never_and_one_always_infects() -> void:
-	var rng := Fixtures.rng()
-	var safe := Infection.new()
+func test_exposure_fills_with_each_bite_and_infects_when_full() -> void:
+	var infection := Infection.new()
+	assert_eq(infection.hits_left(0.25), 4, "caminante: cuatro golpes")
+	for _bite: int in 3:
+		assert_false(infection.add_exposure(0.25))
+	assert_eq(infection.hits_left(0.25), 1)
+	assert_true(infection.add_exposure(0.25), "el cuarto infecta")
+	assert_true(infection.infected)
+	assert_eq(infection.time_left, Rules.INFECTION_TIME)
+	assert_eq(infection.exposure, 0.0, "con infección la barra deja paso a la cuenta")
+	assert_eq(infection.hits_left(0.25), 0)
+
+
+func test_no_exposure_never_infects() -> void:
+	var infection := Infection.new()
 	for _bite: int in 50:
-		safe.try_infect(0.0, rng)
-	assert_false(safe.infected)
-	var sure := Infection.new()
-	assert_true(sure.try_infect(1.0, rng))
-	assert_eq(sure.time_left, Rules.INFECTION_TIME)
+		infection.add_exposure(0.0)
+	assert_false(infection.infected)
+	assert_eq(infection.exposure, 0.0)
 
 
-func test_same_seed_gives_same_result() -> void:
-	var results: Array[bool] = []
-	for _run: int in 2:
-		var rng := Fixtures.rng(77)
-		var infection := Infection.new()
-		var bites := 0
-		while not infection.try_infect(0.3, rng) and bites < 100:
-			bites += 1
-		results.append(bites < 100)
-		assert_true(infection.infected)
-	assert_eq(results[0], results[1])
+func test_exposure_decays_only_after_a_while_without_hits() -> void:
+	var infection := Infection.new()
+	infection.add_exposure(0.5)
+	infection.tick(Rules.EXPOSURE_DECAY_DELAY - 1.0)
+	assert_eq(infection.exposure, 0.5, "justo después de un golpe no baja")
+	infection.tick(2.0)
+	assert_lt(infection.exposure, 0.5, "después baja sola")
+	infection.add_exposure(0.1)
+	var after_hit := infection.exposure
+	infection.tick(1.0)
+	assert_eq(infection.exposure, after_hit, "un golpe nuevo vuelve a esperar")
+	infection.tick(1000.0)
+	assert_eq(infection.exposure, 0.0, "nunca baja de cero")
 
 
 func test_new_bite_does_not_reset_the_countdown() -> void:
 	var infection := _infected()
 	infection.tick(30.0)
-	assert_false(infection.try_infect(1.0, Fixtures.rng()))
+	assert_false(infection.add_exposure(1.0))
 	assert_almost_eq(infection.time_left, Rules.INFECTION_TIME - 30.0, 0.001)
 
 
@@ -79,6 +91,7 @@ func test_neutrax_cures() -> void:
 	infection.add_time(Rules.ANTIBIOTIC_BONUS)
 	assert_true(infection.cure())
 	assert_false(infection.infected)
+	assert_eq(infection.exposure, 0.0, "la exposición queda a cero")
 	assert_false(infection.tick(Rules.INFECTION_TIME * 2.0), "ya no hay cuenta")
 
 

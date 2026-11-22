@@ -21,7 +21,7 @@ func test_easy_keeps_every_current_value() -> void:
 	for difficulty: Difficulty in [_difficulty(Difficulty.EASY), Difficulty.new()]:
 		assert_eq(difficulty.enemy_health(110.0), 110.0)
 		assert_eq(difficulty.enemy_damage(18.0), 18.0)
-		assert_eq(difficulty.infection_chance(0.15), 0.15)
+		assert_eq(difficulty.infection_exposure(0.15), 0.15)
 		assert_eq(difficulty.boss_health_multiplier(), 1.0)
 		assert_eq(difficulty.helicopter_wait_time(), Rules.HELICOPTER_WAIT_TIME)
 		assert_eq(difficulty.waves([2, 2, 3, 3, 4, 4]), [2, 2, 3, 3, 4, 4])
@@ -36,7 +36,7 @@ func test_medium_values() -> void:
 	var medium := _difficulty(Difficulty.MEDIUM)
 	assert_almost_eq(medium.enemy_health(100.0), 125.0, 0.001)
 	assert_almost_eq(medium.enemy_damage(20.0), 25.0, 0.001)
-	assert_gt(medium.infection_chance(0.2), 0.2)
+	assert_gt(medium.infection_exposure(0.2), 0.2)
 	assert_almost_eq(medium.boss_health_multiplier(), 1.2, 0.001)
 	assert_eq(medium.helicopter_wait_time(), 60.0)
 	assert_eq(medium.ammo_found(8), 6, "−25 %")
@@ -52,7 +52,7 @@ func test_hard_values() -> void:
 	var medium := _difficulty(Difficulty.MEDIUM)
 	assert_almost_eq(hard.enemy_health(100.0), 150.0, 0.001)
 	assert_almost_eq(hard.enemy_damage(20.0), 30.0, 0.001)
-	assert_gt(hard.infection_chance(0.2), medium.infection_chance(0.2))
+	assert_gt(hard.infection_exposure(0.2), medium.infection_exposure(0.2))
 	assert_almost_eq(hard.boss_health_multiplier(), 1.4, 0.001)
 	assert_eq(hard.helicopter_wait_time(), 45.0)
 	assert_eq(hard.ammo_found(10), 6, "−40 %")
@@ -60,8 +60,8 @@ func test_hard_values() -> void:
 
 
 func test_infection_chance_never_exceeds_one() -> void:
-	assert_eq(_difficulty(Difficulty.HARD).infection_chance(0.9), 1.0)
-	assert_eq(_difficulty(Difficulty.HARD).infection_chance(0.0), 0.0)
+	assert_eq(_difficulty(Difficulty.HARD).infection_exposure(0.9), 1.0)
+	assert_eq(_difficulty(Difficulty.HARD).infection_exposure(0.0), 0.0)
 
 
 func test_waves_grow_and_never_shrink() -> void:

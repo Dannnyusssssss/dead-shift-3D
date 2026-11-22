@@ -142,6 +142,21 @@ func test_health_and_infection_are_never_lethal_on_load() -> void:
 	assert_eq(clean["infection"]["time_left"], 1.0)
 	var healthy := _parse({"infection": {"infected": false, "time_left": 500}})
 	assert_eq(healthy["infection"]["time_left"], 0.0)
+	assert_eq(healthy["infection"]["exposure"], 0.0, "partida de antes: sin exposición")
+
+
+## Exposición manipulada: siempre un número por debajo de llena (cargar nunca infecta).
+func test_exposure_is_clamped_below_full_on_load() -> void:
+	var full := _parse({"infection": {"infected": false, "exposure": 5.0}})
+	assert_eq(full["infection"]["exposure"], SaveValidation.MAX_LOADED_EXPOSURE)
+	var negative := _parse({"infection": {"infected": false, "exposure": -3}})
+	assert_eq(negative["infection"]["exposure"], 0.0)
+	var text := _parse({"infection": {"infected": false, "exposure": "0.9"}})
+	assert_eq(text["infection"]["exposure"], 0.0, "un texto no es un número")
+	var half := _parse({"infection": {"infected": false, "exposure": 0.5}})
+	assert_eq(half["infection"]["exposure"], 0.5)
+	var infected := _parse({"infection": {"infected": true, "time_left": 50, "exposure": 0.7}})
+	assert_eq(infected["infection"]["exposure"], 0.0, "con infección no hay barra")
 
 
 func test_world_is_limited_to_known_floors_and_valid_entries() -> void:
@@ -203,7 +218,7 @@ func test_round_trip_through_core_keeps_the_run() -> void:
 	state.health = 42.0
 	state.keys.add("phone_antenna")
 	state.kills = 5
-	state.infection.try_infect(1.0, RandomNumberGenerator.new())
+	state.infection.add_exposure(1.0)
 	var world := WorldState.new()
 	world.mark_killed("level_1", "enemy_2")
 	world.set_flag("shortcut_l1")
@@ -228,6 +243,22 @@ func test_round_trip_through_core_keeps_the_run() -> void:
 	)
 	assert_eq(clean["seed"], 77)
 	assert_eq(clean["stats"]["time"], 321.0)
+
+
+## La exposición sin llenar se guarda y se recupera.
+func test_round_trip_keeps_the_exposure() -> void:
+	var items := GameState.items
+	var state := PlayerState.new(items)
+	state.give_starting_kit()
+	state.infection.add_exposure(0.5)
+	var data := SaveGame.capture(
+		state, WorldState.new(), RescueClock.new(), "ground_floor", "start", "", 1, 0.0
+	)
+	var parsed := SaveValidation.parse(SaveCodec.encode(data), GameState.CATALOG.save_context())
+	assert_true(parsed.ok)
+	var restored := SaveGame.restore_player(parsed.data, items)
+	assert_false(restored.infection.infected)
+	assert_almost_eq(restored.infection.exposure, 0.5, 0.0001)
 
 
 func test_difficulty_is_kept_when_known_and_easy_otherwise() -> void:
