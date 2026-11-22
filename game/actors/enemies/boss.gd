@@ -32,6 +32,13 @@ const PROXIMITY_STEPS: Array[float] = [8.0, 16.0, 26.0]
 ## Ángulo (grados desde su frente) a partir del cual un golpe llega al tanque de la espalda.
 const TANK_ANGLE: float = 110.0
 const CHARGE_HIT_DISTANCE: float = 1.6
+## Tanque a la espalda, de pie detrás de la zona lumbar (hueso spine_02): radio, alto, grosor de
+## la espalda desde el hueso y cuánto baja respecto al hueso. Así no atraviesa el cuerpo (El
+## Técnico es corpulento) ni tapa la cabeza por detrás aunque vaya encorvado.
+const TANK_RADIUS: float = 0.13
+const TANK_HEIGHT: float = 0.36
+const TANK_BACK: float = 0.13
+const TANK_DROP: float = 0.08
 
 var model: BossModel = null
 var boss_state: int = B_IDLE
@@ -381,12 +388,14 @@ func _build_visual() -> void:
 	_tank_mesh = MeshInstance3D.new()
 	_tank_mesh.mesh = mesh
 	if _model != null:
-		# Colgado de la espalda y a lo largo de ella: sigue al cuerpo encorvado al andar y correr.
-		# Más bajo que la cabeza: entre los omóplatos y la cintura, sin taparla por detrás.
-		mesh.height = 0.5
-		mesh.top_radius = 0.17
-		mesh.bottom_radius = 0.17
-		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 0.92, 0.26), true)
+		# Colgado de la zona lumbar (sigue al cuerpo al andar y correr), por fuera de la espalda y
+		# más bajo que la cabeza, sin taparla por detrás.
+		mesh.height = TANK_HEIGHT
+		mesh.top_radius = TANK_RADIUS
+		mesh.bottom_radius = TANK_RADIUS
+		var lumbar := _model.bone_position("spine_02")
+		var spot := lumbar + Vector3(0.0, -TANK_DROP, TANK_BACK + TANK_RADIUS)
+		_model.attach_to_bone(_tank_mesh, "spine_02", spot)
 		return
 	_tank_mesh.position = Vector3(0.0, 1.25, 0.38)
 	_visual.add_child(_tank_mesh)

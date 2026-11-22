@@ -239,7 +239,14 @@ func test_tank_hangs_on_the_back() -> void:
 	var head := boss.to_local(
 		skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Head")).origin
 	)
-	var top := local.y + (tank as MeshInstance3D).mesh.get_aabb().size.y * 0.5
+	# El tanque va a lo largo de la columna (inclinado con el cuerpo): su punto más alto es el
+	# más alto de sus dos extremos.
+	var half := (tank as MeshInstance3D).mesh.get_aabb().size.y * 0.5
+	var axis := tank.global_transform.basis.y.normalized() * half
+	var ends := [
+		boss.to_local(tank.global_position + axis), boss.to_local(tank.global_position - axis)
+	]
+	var top := maxf((ends[0] as Vector3).y, (ends[1] as Vector3).y)
 	assert_lt(top, head.y - 0.1, "no tapa la cabeza por detrás")
 
 

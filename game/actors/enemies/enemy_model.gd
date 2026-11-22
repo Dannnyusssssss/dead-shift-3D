@@ -168,10 +168,8 @@ func current_animation() -> String:
 
 ## Cuelga un nodo de un hueso para que siga la animación, colocado en el punto dado en el
 ## espacio del enemigo (x a la derecha, y arriba, z hacia su espalda). Debe estar ya en el
-## árbol. Sin esqueleto, queda en ese punto sin moverse. Con «along_bone» la pieza se orienta
-## con el hueso (su eje Y a lo largo del hueso y su +Z hacia la espalda): así una pieza larga,
-## como el tanque del jefe, va siempre pegada a lo largo de la espalda, se incline o gire.
-func attach_to_bone(node: Node3D, bone: String, spot: Vector3, along_bone: bool = false) -> void:
+## árbol. Sin esqueleto, queda en ese punto sin moverse.
+func attach_to_bone(node: Node3D, bone: String, spot: Vector3) -> void:
 	var index := -1 if _skeleton == null else _skeleton.find_bone(bone)
 	if index < 0:
 		node.position = spot
@@ -189,13 +187,17 @@ func attach_to_bone(node: Node3D, bone: String, spot: Vector3, along_bone: bool 
 		_player.advance(0.0)
 	var bone_pose := _skeleton.global_transform * _skeleton.get_bone_global_pose(index)
 	node.transform = bone_pose.affine_inverse() * target
-	if along_bone:
-		var back := (bone_pose.basis.inverse() * global_transform.basis.z).normalized()
-		var up := _bone_direction(index)
-		var z := (back - up * back.dot(up)).normalized()
-		var x := up.cross(z).normalized()
-		var scale_kept := node.transform.basis.get_scale()
-		node.transform.basis = Basis(x, up, z).scaled(scale_kept)
+
+
+## Posición de un hueso en coordenadas del modelo, en la pose actual (para colocar piezas
+## respecto a él con attach_to_bone).
+func bone_position(bone: String) -> Vector3:
+	var index := -1 if _skeleton == null else _skeleton.find_bone(bone)
+	if index < 0:
+		return Vector3.ZERO
+	if _player != null and not _player.current_animation.is_empty():
+		_player.advance(0.0)
+	return to_local(_skeleton.global_transform * _skeleton.get_bone_global_pose(index).origin)
 
 
 ## Cuelga un nodo de un hueso colocado respecto al propio hueso, no al cuerpo: «along» metros a
@@ -221,11 +223,32 @@ func attach_along_bone(node: Node3D, bone: String, along: float, back: float) ->
 	var unscale := Vector3(1.0 / bone_scale.x, 1.0 / bone_scale.y, 1.0 / bone_scale.z)
 	var up := _bone_direction(index)
 	var body_back := _skeleton.global_transform.basis.inverse() * global_transform.basis.z
-	var to_back := (bone_pose.basis.inverse() * body_back).normalized()
+	var to_back := (bone_pose.basis.inverse() * _torso_back(index, body_back)).normalized()
 	var z := (to_back - up * to_back.dot(up)).normalized()
 	var x := up.cross(z).normalized()
 	var offset := (up * along + z * back) * unscale.x
 	node.transform = Transform3D(Basis(x, up, z).scaled(unscale), offset)
+
+
+## Espalda del torso en la pose actual (coordenadas del esqueleto): perpendicular a la línea de
+## los hombros y a la columna, del lado de la espalda del cuerpo. Las animaciones giran el
+## torso respecto al cuerpo; así la pieza sigue al torso y no queda de lado.
+func _torso_back(index: int, body_back: Vector3) -> Vector3:
+	var left := _skeleton.find_bone("upperarm_l")
+	var right := _skeleton.find_bone("upperarm_r")
+	var children := _skeleton.get_bone_children(index)
+	if left < 0 or right < 0 or children.is_empty():
+		return body_back
+	var pose := _skeleton.get_bone_global_pose(index)
+	var up := pose.basis * _bone_direction(index)
+	var lateral := (
+		_skeleton.get_bone_global_pose(left).origin - _skeleton.get_bone_global_pose(right).origin
+	)
+	var back := lateral.cross(up)
+	if back.length() < 0.0001:
+		return body_back
+	back = back.normalized()
+	return back if back.dot(body_back) >= 0.0 else -back
 
 
 ## Dirección del hueso en sus propias coordenadas: hacia su primer hijo (en estos esqueletos el
