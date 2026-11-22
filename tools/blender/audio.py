@@ -9,8 +9,9 @@ mismo pico (sin sonidos que destaquen de golpe) y lo sintetizado usa una semilla
 mismo script, mismo resultado (el WAV no lleva fechas ni números aleatorios).
 
 Sintetizado aquí (no hay CC0 en las fuentes permitidas): disparos, voces de cada tipo de
-enemigo, crepitar del contador Geiger, rotor del helicóptero, ambiente de cada piso y música
-mínima (tensión, jefe y espera del rescate).
+enemigo, crepitar del contador Geiger, rotor del helicóptero, fondo de cada piso y sus sonidos
+sueltos (gotas, metal y gemidos lejanos), alarma y golpe de la intro, y música mínima (tensión,
+jefe y espera del rescate).
 """
 
 import json
@@ -187,17 +188,63 @@ def rotor(seconds: float) -> np.ndarray:
     return noise * (0.25 + beat) + whine
 
 
-def ambience(seconds: float, hum: float, noise_amount: float, seed: int, wind: bool) -> np.ndarray:
+def ambience(seconds: float, hum: float, seed: int, wind: bool) -> np.ndarray:
+    """Fondo de cada piso: casi mudo. Dentro, un zumbido eléctrico grave y un retumbar muy
+    profundo que crece y baja despacio (sin ruido de banda ancha, que sonaba a ventilador).
+    En la azotea, viento suave a ráfagas lentas y apagado."""
     t = t_axis(seconds)
     rng = np.random.default_rng(seed)
     noise = rng.standard_normal(t.size)
+    swell = 0.7 + 0.3 * np.sin(2 * np.pi * t / seconds)
     if wind:
-        gust = 0.6 + 0.4 * np.sin(2 * np.pi * 0.11 * t) * np.sin(2 * np.pi * 0.037 * t + 1)
-        body = lowpass(noise, 0.97) * gust * 6
-    else:
-        body = lowpass(noise, 0.95) * noise_amount * 4
-        body += 0.12 * np.sin(2 * np.pi * hum * t) + 0.05 * np.sin(2 * np.pi * hum * 2 * t)
-    return body
+        gust = 0.35 + 0.65 * np.clip(np.sin(2 * np.pi * t / seconds * 2 + 0.6), 0, 1) ** 2
+        soft = lowpass(lowpass(noise, 0.985), 0.97)
+        return soft * gust * 30
+    rumble = lowpass(lowpass(noise, 0.995), 0.99) * 40
+    tone = 0.10 * np.sin(2 * np.pi * hum * t) + 0.03 * np.sin(2 * np.pi * hum * 2 * t)
+    return (tone + rumble * 0.12) * swell
+
+
+def drip(seconds: float, pitch: float) -> np.ndarray:
+    """Gota que cae en un charco, con un eco corto (sitio vacío y grande)."""
+    t = t_axis(seconds)
+    sweep = pitch * (1.0 + 0.8 * np.exp(-t * 60))
+    phase = 2 * np.pi * np.cumsum(sweep) / RATE
+    drop = np.sin(phase) * np.exp(-t * 35)
+    out = drop.copy()
+    for delay, gain in ((0.11, 0.35), (0.23, 0.15)):
+        shift = int(delay * RATE)
+        out[shift:] += drop[:-shift] * gain
+    return fade(out)
+
+
+def far_metal(seconds: float, base: float) -> np.ndarray:
+    """Golpe metálico lejano: parciales que no son armónicos, apagados por la distancia."""
+    t = t_axis(seconds)
+    out = np.zeros(t.size)
+    for ratio, decay, gain in ((1.0, 3.0, 1.0), (2.76, 5.0, 0.5), (5.4, 8.0, 0.3), (8.9, 12.0, 0.15)):
+        out += np.sin(2 * np.pi * base * ratio * t) * np.exp(-t * decay) * gain
+    return fade(lowpass(out * np.minimum(1.0, t * 400), 0.6))
+
+
+def alarm(seconds: float) -> np.ndarray:
+    """Alarma de la central: dos tonos que se alternan cada medio segundo (bucle exacto)."""
+    t = t_axis(seconds)
+    half = (t * 2.0).astype(int) % 2
+    freq = np.where(half == 0, 880.0, 660.0)
+    phase = 2 * np.pi * np.cumsum(freq) / RATE
+    tone = np.sin(phase) + 0.3 * np.sin(phase * 3) + 0.12 * np.sin(phase * 5)
+    gate = np.minimum(1.0, ((t * 2.0) % 1.0) * 40) * np.minimum(1.0, (1.0 - (t * 2.0) % 1.0) * 40)
+    return lowpass(tone * gate, 0.35)
+
+
+def boom(seconds: float) -> np.ndarray:
+    """Golpe grave del rótulo de la intro."""
+    t = t_axis(seconds)
+    rng = np.random.default_rng(11)
+    body = np.sin(2 * np.pi * (42 + 30 * np.exp(-t * 18)) * t) * np.exp(-t * 2.5)
+    hit = lowpass(rng.standard_normal(t.size), 0.9) * np.exp(-t * 25) * 2
+    return fade(body + hit, 0.004)
 
 
 def music(seconds: float, root: float, pulse: float, seed: int) -> np.ndarray:
@@ -229,13 +276,24 @@ def synthesize() -> dict:
         out["voice_listener_%d" % i] = ("enemies", shriek(rng, 0.9 + 0.2 * i))
     out["geiger_loop"] = ("enemies", geiger(rng, 4.0, 14.0))
     out["helicopter_loop"] = ("world", loop_seam(rotor(4.25)))
-    out["amb_ground"] = ("ambience", loop_seam(ambience(8.25, 50, 0.5, 1, False)))
-    out["amb_level_1"] = ("ambience", loop_seam(ambience(8.25, 60, 0.6, 2, False)))
-    out["amb_level_2"] = ("ambience", loop_seam(ambience(8.25, 45, 0.8, 3, False)))
-    out["amb_rooftop"] = ("ambience", loop_seam(ambience(8.25, 0, 0, 4, True)))
+    out["amb_ground"] = ("ambience", loop_seam(ambience(12.25, 50, 1, False)))
+    out["amb_level_1"] = ("ambience", loop_seam(ambience(12.25, 60, 2, False)))
+    out["amb_level_2"] = ("ambience", loop_seam(ambience(12.25, 45, 3, False)))
+    out["amb_rooftop"] = ("ambience", loop_seam(ambience(12.25, 0, 4, True)))
     out["music_tension"] = ("music", loop_seam(music(16.25, 55.0, 0.5, 5)))
     out["music_boss"] = ("music", loop_seam(music(16.25, 49.0, 1.5, 6)))
     out["music_rescue"] = ("music", loop_seam(music(16.25, 62.0, 1.0, 7)))
+    # Sonidos sueltos del ambiente (con su propia semilla: no cambian los de arriba).
+    extra = np.random.default_rng(20261121)
+    for i in range(3):
+        out["amb_drip_%d" % i] = ("ambience", drip(0.6, 700 + 180 * i))
+    for i in range(2):
+        out["amb_metal_%d" % i] = ("ambience", far_metal(1.6, 140 + 45 * i))
+        moan = groan(extra, 2.2 + 0.4 * i, 70 + 9 * i, 0.4, 1.2 + i)
+        out["amb_moan_%d" % i] = ("ambience", fade(lowpass(moan, 0.85)))
+    # Intro: alarma de la central (bucle de 2 s) y golpe del rótulo.
+    out["alarm_loop"] = ("world", alarm(2.0))
+    out["intro_boom"] = ("world", boom(1.8))
     return out
 
 

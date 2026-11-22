@@ -2,7 +2,9 @@ class_name EndScreen
 extends Control
 ## Pantalla final: rescate, rescate perdido (con su texto propio), muerte o conversión. Muestra
 ## las estadísticas y la nota, y ofrece volver al último autoguardado (si existe), empezar una
-## partida nueva o volver al menú principal. Funciona con ratón, teclado y toque.
+## partida nueva o volver al menú principal. Funciona con ratón, teclado y toque. Tras el
+## rescate (o su pérdida) sale encima de la escena final, con un fondo más claro para que se
+## vea el helicóptero detrás.
 
 signal restart_requested
 signal continue_requested
@@ -16,6 +18,14 @@ const TEXT_KEYS: Array[String] = [
 ]
 ## Segundos entre línea y línea al mostrar las estadísticas (de arriba abajo).
 const LINE_SECONDS: float = 0.35
+## Opacidad del fondo: sobre el juego parado o encima de la escena final.
+const SHADE_ALPHA: float = 0.85
+const SHADE_OVER_SCENE: float = 0.7
+## Encima de la escena final todo va en la parte izquierda (fracción del ancho) y la derecha
+## queda libre para ver el helicóptero.
+const SCENE_PANEL_WIDTH: float = 0.56
+const STORY_WIDTH: float = 760.0
+const STORY_WIDTH_OVER_SCENE: float = 600.0
 
 var _title: Label = null
 var _story: Label = null
@@ -24,27 +34,29 @@ var _continue_button: TapButton = null
 var _button: TapButton = null
 var _credits: CreditsView = null
 var _reveal: Tween = null
+var _shade: ColorRect = null
+var _center: CenterContainer = null
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
-	var shade := ColorRect.new()
-	shade.color = Color(0.0, 0.0, 0.0, 0.85)
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(shade)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	_shade = ColorRect.new()
+	_shade.color = Color(0.0, 0.0, 0.0, SHADE_ALPHA)
+	_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_shade)
+	_center = CenterContainer.new()
+	_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_center)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 16)
-	center.add_child(box)
+	box.add_theme_constant_override("separation", 10)
+	_center.add_child(box)
 	_title = _label(box, 44)
 	_story = _label(box, 22)
 	_story.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_story.custom_minimum_size = Vector2(760.0, 0.0)
-	_stats = _label(box, 22)
+	_story.custom_minimum_size = Vector2(STORY_WIDTH, 0.0)
+	_stats = _label(box, 20)
 	_continue_button = _button_in(box, "end_continue_save")
 	_continue_button.pressed.connect(func() -> void: continue_requested.emit())
 	_button = _button_in(box, "end_play_again")
@@ -59,8 +71,15 @@ func _ready() -> void:
 
 
 ## Muestra el desenlace con la dificultad jugada. can_continue habilita volver al último
-## autoguardado.
-func show_result(stats: RunStats, can_continue: bool, difficulty: Difficulty = null) -> void:
+## autoguardado; over_scene aclara el fondo (la escena final sigue detrás).
+func show_result(
+	stats: RunStats, can_continue: bool, difficulty: Difficulty = null, over_scene: bool = false
+) -> void:
+	_shade.color.a = SHADE_OVER_SCENE if over_scene else SHADE_ALPHA
+	var right := SCENE_PANEL_WIDTH if over_scene else 1.0
+	for part: Control in [_shade, _center]:
+		part.anchor_right = right
+	_story.custom_minimum_size.x = STORY_WIDTH_OVER_SCENE if over_scene else STORY_WIDTH
 	var outcome := clampi(stats.outcome, 0, TITLE_KEYS.size() - 1)
 	_title.text = tr(TITLE_KEYS[outcome])
 	_story.text = tr(TEXT_KEYS[outcome])
@@ -137,6 +156,9 @@ static func _text(key: String) -> String:
 func _label(parent: Control, font_size: int) -> Label:
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Borde oscuro: se lee también encima de la escena final.
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 6)
 	label.add_theme_font_size_override("font_size", font_size)
 	parent.add_child(label)
 	return label
@@ -145,7 +167,7 @@ func _label(parent: Control, font_size: int) -> Label:
 func _button_in(parent: Control, text_key: String) -> TapButton:
 	var button := TapButton.new()
 	button.text = tr(text_key)
-	button.custom_minimum_size = Vector2(360.0, 64.0)
+	button.custom_minimum_size = Vector2(360.0, 54.0)
 	button.add_theme_font_size_override("font_size", 24)
 	parent.add_child(button)
 	return button

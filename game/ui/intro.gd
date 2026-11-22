@@ -2,9 +2,10 @@ class_name Intro
 extends Node
 ## Escena de la intro antes de una partida nueva: la sala de control de la central con sus
 ## trabajadores, el fallo y la alarma, el aire que se vuelve verde y los trabajadores que se
-## desploman, el viaje de la nube por la carretera desde la central hasta el centro comercial,
-## «Dos horas después» y el guardia, dormido sobre la consola del cuarto de vigilancia, que
-## despierta y se levanta.
+## desploman, el viaje de la nube por la carretera desde la central hasta el centro comercial y
+## «Dos horas después». El guardia despierta ya en la partida, en primera persona, en la sala de
+## seguridad real (lo hace Game). Cada plano tiene su sonido (zumbido de la sala, alarma, apagón,
+## fuga, gemidos y caídas, viento y el golpe del rótulo).
 ## Todo se cuenta también con texto (se entiende sin sonido). Se salta con el botón «Saltar»,
 ## Esc, Espacio, Intro, clic o toque. Con «Reducir movimiento» la cámara no se mueve: cada plano
 ## es una imagen fija y se pasa de uno a otro fundiendo a negro. La luz de alarma late despacio
@@ -19,19 +20,39 @@ const MALL_OFFSET: Vector3 = Vector3(0.0, 0.0, 60.0)
 const FADE: float = 0.5
 ## Punto de partida del plano de viaje (sobre la central, mirando hacia el centro comercial).
 const TRAVEL_START: Vector3 = Vector3(-4.0, 15.0, -32.0)
-## Sitio del guardia dormido en el cuarto de vigilancia (respecto a MALL_OFFSET): sentado ante la
-## consola, que queda delante (-Z).
-const GUARD_SPOT: Vector3 = Vector3(-1.2, 0.0, -1.55)
 ## Latido de la luz de alarma (por segundo): muy por debajo del límite de 3 destellos.
 const ALARM_RATE: float = 0.5
+## Sonidos de cada momento: zumbido de la sala, apagón, alarma, fuga de gas, gemido y caída de
+## un trabajador, viento del viaje y golpe del rótulo.
+const SOUND_ROOM: String = "amb_level_1"
+const SOUND_POWER: String = "power_down"
+const SOUND_ALARM: String = "alarm_loop"
+const SOUND_GAS: String = "voice_stalker"
+const SOUND_GROAN: String = "voice_walker"
+const SOUND_THUD: String = "hit_soft"
+const SOUND_WIND: String = "amb_rooftop"
+const SOUND_TITLE: String = "intro_boom"
+const SOUNDS: Array[String] = [
+	SOUND_ROOM,
+	SOUND_POWER,
+	SOUND_ALARM,
+	SOUND_GAS,
+	SOUND_GROAN,
+	SOUND_THUD,
+	SOUND_WIND,
+	SOUND_TITLE
+]
+## Volumen (dB) de la alarma y de los gemidos y caídas de los trabajadores.
+const ALARM_DB: float = -6.0
+const WORKER_DB: float = -8.0
+## Segundos entre el gemido de un trabajador y el golpe de su caída.
+const THUD_DELAY: float = 0.9
 
 var _world: Node3D = null
 var _camera: Camera3D = null
 var _environment: Environment = null
 var _alarm: OmniLight3D = null
 var _workers: Array[EnemyModel] = []
-var _guard: EnemyModel = null
-var _guard_chair: Node3D = null
 var _caption: Label = null
 var _title: Label = null
 var _black: ColorRect = null
@@ -69,18 +90,26 @@ func skip() -> void:
 	if _done:
 		return
 	_done = true
+	AudioDirector.stop_loop(0.3)
+	AudioDirector.set_ambience("")
 	finished.emit()
 
 
 ## Planos de la intro, uno detrás de otro (cámara desde, hasta, a dónde mira, segundos, texto).
 func _run() -> void:
 	var still := Settings.get_bool("reduce_motion")
+	# Sala de control en calma: solo el zumbido de las máquinas.
+	AudioDirector.stop_music()
+	AudioDirector.set_ambience(SOUND_ROOM, false)
 	await _shot(
 		Vector3(-5, 2.4, 6), Vector3(-2, 2.0, 4.5), Vector3(0, 1.0, -1), 5.0, "intro_1", still
 	)
 	if _done:
 		return
+	# Fallo: cae la corriente y salta la alarma.
 	_alarm_on = true
+	AudioDirector.play(SOUND_POWER)
+	AudioDirector.play_loop(SOUND_ALARM, ALARM_DB)
 	for worker: EnemyModel in _workers:
 		worker.play_named("flinch", false)
 	await _shot(
@@ -88,6 +117,8 @@ func _run() -> void:
 	)
 	if _done:
 		return
+	# Fuga: el siseo del gas, y los trabajadores gimen y caen.
+	AudioDirector.play(SOUND_GAS, -2.0)
 	var tween := create_tween()
 	tween.tween_property(_environment, "fog_density", 0.25, 3.5)
 	tween.parallel().tween_property(_environment, "fog_light_color", Color(0.25, 0.45, 0.12), 3.5)
@@ -97,7 +128,10 @@ func _run() -> void:
 	)
 	if _done:
 		return
-	# Viaje: la nube avanza sobre la carretera desde la central hasta el centro comercial.
+	# Viaje: la nube avanza sobre la carretera desde la central hasta el centro comercial, con
+	# la alarma alejándose y el viento.
+	AudioDirector.stop_loop(2.0)
+	AudioDirector.set_ambience(SOUND_WIND, false)
 	_environment.fog_density = 0.012
 	_environment.fog_light_color = Color(0.12, 0.2, 0.08)
 	await _shot(
@@ -110,31 +144,10 @@ func _run() -> void:
 	)
 	if _done:
 		return
-	_environment.fog_density = 0.03
-	_environment.fog_light_color = Color(0.05, 0.05, 0.07)
-	var room := MALL_OFFSET
-	await _shot(
-		room + Vector3(1.5, 3.5, 3.0),
-		room + Vector3(0.6, 1.6, 0.6),
-		room + GUARD_SPOT + Vector3(0, 0.9, 0),
-		3.5,
-		"intro_4",
-		still
-	)
-	if _done:
-		return
-	await _title_card("intro_5", 2.5)
-	if _done:
-		return
-	_wake_guard()
-	await _shot(
-		room + Vector3(0.9, 1.4, 0.4),
-		room + Vector3(0.7, 1.5, 0.1),
-		room + GUARD_SPOT + Vector3(0, 1.1, 0),
-		5.0,
-		"intro_6",
-		still
-	)
+	# «Dos horas después» con un golpe grave; la partida empieza con el guardia dormido.
+	AudioDirector.set_ambience("")
+	AudioDirector.play(SOUND_TITLE)
+	await _title_card("intro_5", 3.5, "intro_4")
 	skip()
 
 
@@ -145,22 +158,15 @@ func _collapse_workers() -> void:
 		var worker := _workers[index]
 		get_tree().create_timer(0.5 + index * 0.8).timeout.connect(
 			func() -> void:
-				if not _done:
-					worker.play_named("collapse", false)
-		)
-
-
-## El guardia, dormido sobre la consola, se endereza despacio y se levanta de la silla.
-func _wake_guard() -> void:
-	if _guard == null:
-		return
-	var tween := create_tween()
-	tween.tween_method(_guard.set_lean, 1.0, 0.0, 1.4).set_trans(Tween.TRANS_SINE)
-	tween.tween_callback(func() -> void: _guard.play_named("stand_up", false))
-	# La silla se aparta hacia atrás mientras se levanta (no queda metido en ella).
-	if _guard_chair != null:
-		tween.parallel().tween_property(
-			_guard_chair, "position:z", _guard_chair.position.z + 0.55, 0.6
+				if _done:
+					return
+				worker.play_named("collapse", false)
+				AudioDirector.play(SOUND_GROAN, WORKER_DB)
+				get_tree().create_timer(THUD_DELAY).timeout.connect(
+					func() -> void:
+						if not _done:
+							AudioDirector.play(SOUND_THUD, WORKER_DB)
+				)
 		)
 
 
@@ -191,8 +197,9 @@ func _shot(
 		await _fade(1.0)
 
 
-func _title_card(text_key: String, seconds: float) -> void:
-	_caption.text = ""
+## Rótulo en el centro sobre negro, con una línea de texto debajo (vacía = ninguna).
+func _title_card(text_key: String, seconds: float, caption_key: String = "") -> void:
+	_caption.text = tr(caption_key) if not caption_key.is_empty() else ""
 	_title.text = tr(text_key)
 	_title.visible = true
 	await get_tree().create_timer(seconds).timeout
@@ -228,7 +235,6 @@ func _build_world() -> void:
 	_world.add_child(_camera)
 	_camera.make_current()
 	_build_control_room()
-	_build_guard_room()
 	_build_travel()
 
 
@@ -281,47 +287,6 @@ func _build_control_room() -> void:
 	_world.add_child(_alarm)
 
 
-## Cuarto de vigilancia del centro comercial: el guardia dormido sobre la consola y los monitores.
-func _build_guard_room() -> void:
-	var at := MALL_OFFSET
-	var builder := Kit.Builder.new()
-	builder.add_box(
-		at + Vector3(0, -0.05, 0),
-		Vector3(6, 0.1, 6),
-		Kit.surface("concrete_dark", Color(0.8, 0.8, 0.8))
-	)
-	builder.add_box(
-		at + Vector3(0, 1.5, -3),
-		Vector3(6, 3, 0.2),
-		Kit.surface("concrete_light", Color(0.7, 0.72, 0.75))
-	)
-	builder.add_box(
-		at + Vector3(-3, 1.5, 0),
-		Vector3(0.2, 3, 6),
-		Kit.surface("concrete_light", Color(0.7, 0.72, 0.75))
-	)
-	_world.add_child(builder.build("GuardRoom"))
-	_place(VEHICLES + "control_console.glb", at + Vector3(-1.2, 0, -2.4), 0.0)
-	# Silla delante de la consola y el guardia dormido en ella, caído sobre la mesa.
-	var chair := Kit.Builder.new()
-	chair.add_box(at + GUARD_SPOT + Vector3(0, 0.22, 0.12), Vector3(0.5, 0.44, 0.5), Kit.gray(0.18))
-	chair.add_box(at + GUARD_SPOT + Vector3(0, 0.75, 0.38), Vector3(0.5, 0.6, 0.06), Kit.gray(0.18))
-	_guard_chair = chair.build("GuardChair")
-	_world.add_child(_guard_chair)
-	_guard = EnemyModel.create_from(PEOPLE + "guard.glb")
-	if _guard != null:
-		_world.add_child(_guard)
-		_guard.position = at + GUARD_SPOT
-		_guard.play_named("sit")
-		_guard.set_lean(1.0)
-	var screen := OmniLight3D.new()
-	screen.position = at + Vector3(-1.2, 1.2, -1.8)
-	screen.light_color = Color(0.5, 0.7, 1.0)
-	screen.light_energy = 1.0
-	screen.omni_range = 5.0
-	_world.add_child(screen)
-
-
 ## Exterior para el plano de viaje: llanura, la carretera de la central al centro comercial,
 ## dos torres de refrigeración de la central (con el escape verde) y la fachada del centro
 ## comercial con algunas ventanas encendidas. Queda fuera de las salas de dentro.
@@ -335,7 +300,7 @@ func _build_travel() -> void:
 		builder.add_box(
 			Vector3(0, -0.1, -10 + index * 10.0), Vector3(0.25, 0.02, 3.0), Kit.gray(0.8), false
 		)
-	# Fachada del centro comercial (detrás del cuarto de vigilancia).
+	# Fachada del centro comercial, al final de la carretera.
 	var mall := MALL_OFFSET + Vector3(0, 4, 14)
 	builder.add_box(mall, Vector3(30, 8, 14), Kit.surface("concrete_light", Color(0.6, 0.62, 0.66)))
 	for column: int in 6:

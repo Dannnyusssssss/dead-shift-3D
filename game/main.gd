@@ -51,10 +51,12 @@ func _refresh_menu() -> void:
 		_play.grab_focus()
 
 
-func _start_game(data: Dictionary) -> void:
+## wake_up: partida nueva justo después de la intro (empieza con el guardia despertando).
+func _start_game(data: Dictionary, wake_up: bool = false) -> void:
 	_menu.visible = false
 	_game = GAME_SCRIPT.new()
 	_game.start_data = data
+	_game.wake_up_on_start = wake_up
 	_game.restart_requested.connect(_restart)
 	_game.continue_requested.connect(_continue_from_save)
 	_game.menu_requested.connect(_quit_to_menu)
@@ -93,7 +95,7 @@ func _play_intro() -> void:
 	intro.finished.connect(
 		func() -> void:
 			intro.queue_free()
-			_start_game({})
+			_start_game({}, true)
 	)
 	add_child(intro)
 

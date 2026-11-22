@@ -14,9 +14,18 @@ signal menu_requested
 const CAMERA_RANGE: float = 10.0
 ## Fundido a negro tras morir, antes de la pantalla final.
 const DEATH_FADE_SECONDS: float = 1.2
+## Despertar tras la intro: distancia (m) a los monitores de la sala de seguridad, fundido
+## desde negro, volumen de la alarma (dB) y lo que tarda en apagarse.
+const WAKE_DESK_DISTANCE: float = 1.1
+const WAKE_FADE_SECONDS: float = 0.8
+const WAKE_ALARM_DB: float = -14.0
+const WAKE_ALARM_FADE: float = 3.0
 
 ## Partida guardada ya validada con la que empezar (vacío = partida nueva).
 var start_data: Dictionary = {}
+## Partida nueva justo después de la intro: empieza con el guardia despertando en la sala de
+## seguridad (sin ventana no se hace).
+var wake_up_on_start: bool = false
 var level: Building = null
 var elapsed: float = 0.0
 var finished: bool = false
@@ -35,6 +44,8 @@ var _waves: WaveSpawner = null
 var _call_waves: WaveSpawner = null
 var _safe_room: String = ""
 var _started: bool = false
+var _wake_black: ColorRect = null
+var _wake_caption: Label = null
 
 
 func _ready() -> void:
@@ -89,6 +100,103 @@ func _ready() -> void:
 	InputRouter.gameplay_active = true
 	EventBus.floor_changed.emit(level.floor_data.id)
 	_started = true
+	if wake_up_on_start and start_data.is_empty() and DisplayServer.get_name() != "headless":
+		_begin_wake_up(ui)
+
+
+## El guardia despierta con la cabeza sobre la mesa de los monitores de la sala de seguridad
+## (la real, donde empieza la partida), se incorpora y se pone de pie, con la alarma sonando
+## y apagándose. Se salta con una tecla, clic o toque; con «Reducir movimiento» solo hay
+## fundido desde negro.
+func _begin_wake_up(ui: CanvasLayer) -> void:
+	var player := level.player
+	_face_security_desk(player)
+	_wake_black = ColorRect.new()
+	_wake_black.color = Color.BLACK
+	_wake_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wake_black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui.add_child(_wake_black)
+	_wake_caption = Label.new()
+	_wake_caption.text = tr("intro_6")
+	_wake_caption.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_wake_caption.offset_top = -140
+	_wake_caption.offset_bottom = -60
+	_wake_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wake_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_wake_caption.add_theme_font_size_override("font_size", 30)
+	_wake_caption.add_theme_color_override("font_outline_color", Color.BLACK)
+	_wake_caption.add_theme_constant_override("outline_size", 8)
+	ui.add_child(_wake_caption)
+	# La interfaz se esconde mientras despierta (parada: si no, se vuelve a mostrar sola).
+	_hud.visible = false
+	_hud.process_mode = Node.PROCESS_MODE_DISABLED
+	AudioDirector.play_loop("alarm_loop", WAKE_ALARM_DB)
+	var seconds := WAKE_FADE_SECONDS
+	if not Settings.get_bool("reduce_motion"):
+		seconds = maxf(player.play_wake_up(), WAKE_FADE_SECONDS)
+	else:
+		player.set_blocked(Player.WAKE_BLOCK, true)
+	var tween := create_tween()
+	tween.tween_property(_wake_black, "color:a", 0.0, WAKE_FADE_SECONDS)
+	tween.tween_interval(maxf(seconds - WAKE_FADE_SECONDS, 0.0))
+	tween.tween_callback(_end_wake_up)
+
+
+## Termina el despertar (al acabar o al saltarlo): controles, interfaz y la alarma se apaga.
+func _end_wake_up() -> void:
+	if _wake_black == null:
+		return
+	_wake_black.queue_free()
+	_wake_black = null
+	_wake_caption.queue_free()
+	_wake_caption = null
+	_hud.process_mode = Node.PROCESS_MODE_INHERIT
+	_hud.visible = true
+	level.player.finish_wake_up()
+	AudioDirector.stop_loop(WAKE_ALARM_FADE)
+
+
+## Coloca al jugador delante de los monitores de la sala de seguridad, mirándolos (si no hay
+## monitores en el piso, se queda donde está).
+func _face_security_desk(player: Player) -> void:
+	var best: SecurityMonitor = null
+	for node: Node in level.find_children("*", "SecurityMonitor", true, false):
+		var monitor := node as SecurityMonitor
+		var same_floor := absf(monitor.global_position.y - player.global_position.y) < 1.0
+		if not same_floor:
+			continue
+		if (
+			best == null
+			or (
+				monitor.global_position.distance_to(player.global_position)
+				< best.global_position.distance_to(player.global_position)
+			)
+		):
+			best = monitor
+	if best == null:
+		return
+	var desk := Vector3(best.global_position.x, player.global_position.y, best.global_position.z)
+	var toward_room := player.global_position - desk
+	toward_room.y = 0.0
+	if toward_room.length() < 0.01:
+		return
+	player.global_position = desk + toward_room.normalized() * WAKE_DESK_DISTANCE
+	var look := desk - player.global_position
+	player.rotation.y = atan2(-look.x, -look.z)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _wake_black == null:
+		return
+	var key := event as InputEventKey
+	var pressed := key != null and key.pressed and not key.echo
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		pressed = true
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		pressed = true
+	if pressed:
+		get_viewport().set_input_as_handled()
+		_end_wake_up()
 
 
 func _process(delta: float) -> void:
@@ -282,13 +390,15 @@ func _finish(outcome: int) -> void:
 	if died and DisplayServer.get_name() != "headless":
 		await _play_death()
 	if with_scene and DisplayServer.get_name() != "headless":
-		# Escena corta antes de las estadísticas (sin ventana, bot y tests, se omite).
+		# Escena final: las estadísticas salen encima de ella mientras el helicóptero vuela, y
+		# la escena sigue detrás hasta cerrar la partida (sin ventana, bot y tests, se omite).
 		_hud.visible = false
 		var outro := Outro.new()
 		outro.setup(level, level.helipad_point(), level.player.global_position, outcome)
 		add_child(outro)
-		await outro.finished
-		outro.queue_free()
+		await outro.results_time
+		_end_screen.show_result(stats, SaveStore.has_game(), GameState.difficulty, true)
+		return
 	_end_screen.show_result(stats, SaveStore.has_game(), GameState.difficulty)
 
 

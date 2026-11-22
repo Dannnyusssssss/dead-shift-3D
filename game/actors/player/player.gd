@@ -15,6 +15,17 @@ const DEATH_CAMERA_DROP: float = -1.25
 const DEATH_CAMERA_ROLL: float = 1.15
 const DEATH_FALL_SECONDS: float = 1.1
 const THROWN_SCRIPT: GDScript = preload("res://game/world/thrown_item.gd")
+## Despertar: motivo de bloqueo, cámara (respecto a la cabeza) con la cabeza caída sobre la
+## mesa y sentado, sus giros (grados) y lo que dura cada parte (segundos).
+const WAKE_BLOCK: String = "wake"
+const WAKE_HEAD_DOWN: Vector3 = Vector3(0.0, -0.55, -0.42)
+const WAKE_SITTING: Vector3 = Vector3(0.0, -0.42, -0.12)
+const WAKE_PITCH_DOWN_DEG: float = -62.0
+const WAKE_ROLL_DEG: float = 14.0
+const WAKE_PITCH_SIT_DEG: float = -10.0
+const WAKE_HOLD_SECONDS: float = 0.5
+const WAKE_RISE_SECONDS: float = 1.2
+const WAKE_STAND_SECONDS: float = 1.1
 
 ## Falso mientras algo bloquea los controles (combinar, inventario abierto, muerte):
 ## el jugador no se mueve ni ataca. Asignarlo pone o quita el bloqueo «manual».
@@ -46,6 +57,7 @@ var _blocks: Dictionary = {}
 ## Retroceso y sacudida de la cámara (se suman a la mirada y vuelven solos a cero).
 var _kick: float = 0.0
 var _shake: float = 0.0
+var _wake_tween: Tween = null
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera
@@ -104,6 +116,45 @@ func play_death_fall() -> float:
 	tween.tween_property(camera, "rotation:z", DEATH_CAMERA_ROLL, DEATH_FALL_SECONDS)
 	tween.tween_property(camera, "rotation:x", camera.rotation.x - 0.35, DEATH_FALL_SECONDS)
 	return DEATH_FALL_SECONDS
+
+
+## Despertar al empezar una partida nueva: la cámara parte con la cabeza caída sobre la mesa,
+## se incorpora y se pone de pie (los controles quedan bloqueados mientras tanto y los brazos
+## no se ven). finish_wake_up() lo termina ya (saltar). Devuelve lo que dura, en segundos.
+func play_wake_up() -> float:
+	set_blocked(WAKE_BLOCK, true)
+	arms.visible = false
+	camera.position = WAKE_HEAD_DOWN
+	camera.rotation = Vector3(deg_to_rad(WAKE_PITCH_DOWN_DEG), 0.0, deg_to_rad(WAKE_ROLL_DEG))
+	_wake_tween = create_tween()
+	_wake_tween.tween_interval(WAKE_HOLD_SECONDS)
+	_wake_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# Se incorpora en la silla mirando la consola.
+	_wake_tween.tween_property(camera, "position", WAKE_SITTING, WAKE_RISE_SECONDS)
+	_wake_tween.parallel().tween_property(
+		camera, "rotation", Vector3(deg_to_rad(WAKE_PITCH_SIT_DEG), 0.0, 0.0), WAKE_RISE_SECONDS
+	)
+	# Se pone de pie.
+	_wake_tween.tween_property(camera, "position", Vector3.ZERO, WAKE_STAND_SECONDS)
+	_wake_tween.parallel().tween_property(camera, "rotation", Vector3.ZERO, WAKE_STAND_SECONDS)
+	_wake_tween.tween_callback(finish_wake_up)
+	return WAKE_HOLD_SECONDS + WAKE_RISE_SECONDS + WAKE_STAND_SECONDS
+
+
+## Termina el despertar (al acabar o al saltarlo): cámara en su sitio, brazos y controles.
+func finish_wake_up() -> void:
+	if _wake_tween != null and _wake_tween.is_valid():
+		_wake_tween.kill()
+	_wake_tween = null
+	camera.position = Vector3.ZERO
+	camera.rotation = Vector3.ZERO
+	arms.visible = true
+	set_blocked(WAKE_BLOCK, false)
+
+
+## Verdadero mientras dura el despertar.
+func is_waking() -> bool:
+	return _blocks.has(WAKE_BLOCK)
 
 
 ## Recupera el retroceso y la sacudida poco a poco.

@@ -3,7 +3,10 @@ extends Node
 ## los sonidos de assets/audio (tools/blender/audio.py). Los sonidos con variantes (paso_0,
 ## paso_1…) se alternan. Hay un grupo de reproductores con posición (3D) y otro sin posición,
 ## que se reutilizan: nunca se crean nodos al reproducir. El ambiente cambia con el piso y la
-## música con la situación (tensión, jefe, espera del rescate), con fundidos.
+## música con la situación (tensión, jefe, espera del rescate), con fundidos. El fondo de cada
+## piso es casi mudo y de vez en cuando suena algo suelto y lejos (gotas, crujidos, metal,
+## gemidos), en una dirección al azar alrededor de quien escucha. Las escenas (intro) tienen
+## su propio bucle (la alarma).
 ## Los avisos importantes siguen teniendo subtítulo (el juego se completa sin sonido).
 ## Los canales Music, SFX y Ambience están definidos en res://default_bus_layout.tres y no se
 ## crean por código: en la web, los canales añadidos al arrancar no llegan a la cadena de
@@ -54,6 +57,20 @@ const CUE_SOUNDS: Dictionary = {
 	"cue_lure": "hit_glass",
 	"cue_toxic_cloud": "voice_stalker",
 }
+## Volumen extra (dB) del fondo de cada piso: casi mudo, por debajo de los sonidos sueltos.
+const BED_DB: float = -8.0
+## Bucle de ambiente -> sonidos sueltos que pueden sonar encima (vacío = ninguno).
+const AMBIENT_EVENTS: Dictionary = {
+	"amb_ground": ["creak", "amb_drip", "amb_metal", "amb_moan"],
+	"amb_level_1": ["creak", "amb_drip", "amb_metal", "amb_moan"],
+	"amb_level_2": ["creak", "amb_drip", "amb_metal", "amb_moan"],
+	"amb_rooftop": ["amb_metal", "amb_moan"],
+}
+## Segundos entre sonido suelto y sonido suelto (al azar entre los dos) y distancia (m) a la que
+## suenan respecto a quien escucha.
+const EVENT_GAP: Vector2 = Vector2(7.0, 16.0)
+const EVENT_DISTANCE: Vector2 = Vector2(6.0, 14.0)
+const EVENT_DB: float = -6.0
 ## Piso -> bucle de ambiente.
 const FLOOR_AMBIENCE: Dictionary = {
 	"ground_floor": "amb_ground",
@@ -79,6 +96,16 @@ var _next_2d: int = 0
 var _ambience: AudioStreamPlayer = null
 var _music: AudioStreamPlayer = null
 var _geiger: AudioStreamPlayer = null
+## Bucle propio de una escena (la alarma de la intro).
+var _scene: AudioStreamPlayer = null
+## Reproductores de los sonidos sueltos del ambiente (en el canal Ambience).
+var _event_players: Array[AudioStreamPlayer3D] = []
+var _next_event: int = 0
+var _event_timer: float = 0.0
+var _events_on: bool = true
+var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+## Fundido en curso de cada bucle (id del reproductor -> Tween): uno nuevo corta el anterior.
+var _fades: Dictionary = {}
 var _ambience_id: String = ""
 var _music_id: String = ""
 var _boss_level: int = 0
@@ -111,6 +138,16 @@ func _ready() -> void:
 	_ambience = _loop_player("Ambience")
 	_music = _loop_player("Music")
 	_geiger = _loop_player("SFX")
+	_scene = _loop_player("SFX")
+	for i: int in 2:
+		var event := AudioStreamPlayer3D.new()
+		event.bus = "Ambience"
+		event.max_distance = MAX_DISTANCE
+		event.unit_size = 5.0
+		add_child(event)
+		_event_players.append(event)
+	_rng.randomize()
+	_event_timer = _rng.randf_range(EVENT_GAP.x, EVENT_GAP.y)
 	_ray = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, Rules.LAYER_WORLD)
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.sound_cue.connect(_on_sound_cue)
@@ -233,10 +270,74 @@ func _on_surface_hit(point: Vector3, _normal: Vector3) -> void:
 
 func _on_floor_changed(floor_id: String) -> void:
 	var ambience: String = FLOOR_AMBIENCE.get(floor_id, "amb_ground")
-	if ambience != _ambience_id:
-		_ambience_id = ambience
-		_crossfade(_ambience, ambience)
+	set_ambience(ambience)
 	_refresh_music()
+
+
+## Cambia el bucle de ambiente con un fundido (vacío = silencio). También lo usa la intro, sin
+## los sonidos sueltos (with_events falso).
+func set_ambience(sound_id: String, with_events: bool = true) -> void:
+	_events_on = with_events
+	if sound_id == _ambience_id:
+		return
+	_ambience_id = sound_id
+	if sound_id.is_empty():
+		_fade_out(_ambience, FADE_SECONDS)
+	else:
+		_crossfade(_ambience, sound_id, BED_DB)
+
+
+## Para la música con un fundido (la intro empieza sin música).
+func stop_music() -> void:
+	_music_id = ""
+	_fade_out(_music, FADE_SECONDS)
+
+
+## Bucle de una escena (la alarma de la intro) hasta stop_loop; sustituye al anterior.
+func play_loop(sound_id: String, volume_db: float = 0.0) -> void:
+	var stream := loop_stream(sound_id)
+	if stream == null or _silent:
+		return
+	_stop_fade(_scene)
+	_scene.stream = stream
+	_scene.volume_db = _group_db(sound_id) + volume_db
+	_scene.play()
+
+
+## Apaga el bucle de la escena en los segundos dados.
+func stop_loop(seconds: float = 0.5) -> void:
+	_fade_out(_scene, seconds)
+
+
+## Sonidos sueltos del ambiente: de vez en cuando, uno al azar del piso, lejos y en una
+## dirección al azar alrededor de la cámara (no suenan con el juego en pausa).
+func _process(delta: float) -> void:
+	if _silent or GameState.paused or not _events_on:
+		return
+	var options: Array = AMBIENT_EVENTS.get(_ambience_id, [])
+	if options.is_empty():
+		return
+	_event_timer -= delta
+	if _event_timer > 0.0:
+		return
+	_event_timer = _rng.randf_range(EVENT_GAP.x, EVENT_GAP.y)
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var pick: String = options[_rng.randi() % options.size()]
+	var stream := _stream_for(pick)
+	if stream == null:
+		return
+	var angle := _rng.randf() * TAU
+	var distance := _rng.randf_range(EVENT_DISTANCE.x, EVENT_DISTANCE.y)
+	var player := _event_players[_next_event]
+	_next_event = (_next_event + 1) % _event_players.size()
+	player.stream = stream
+	player.volume_db = _group_db(pick) + EVENT_DB
+	player.global_position = (
+		camera.global_position + Vector3(cos(angle), 0.0, sin(angle)) * distance
+	)
+	player.play()
 
 
 ## El crepitar del contador Geiger sube al acercarse el jefe (0 = no se oye).
@@ -266,12 +367,12 @@ func _refresh_music() -> void:
 		_crossfade(_music, wanted)
 
 
-func _crossfade(player: AudioStreamPlayer, sound_id: String) -> void:
+func _crossfade(player: AudioStreamPlayer, sound_id: String, extra_db: float = 0.0) -> void:
 	var stream := loop_stream(sound_id)
 	if stream == null or _silent:
 		return
-	var target := _group_db(sound_id)
-	var tween := create_tween()
+	var target := _group_db(sound_id) + extra_db
+	var tween := _new_fade(player)
 	if player.playing:
 		tween.tween_property(player, "volume_db", -40.0, FADE_SECONDS * 0.5)
 	tween.tween_callback(
@@ -281,6 +382,28 @@ func _crossfade(player: AudioStreamPlayer, sound_id: String) -> void:
 			player.play()
 	)
 	tween.tween_property(player, "volume_db", target, FADE_SECONDS)
+
+
+func _fade_out(player: AudioStreamPlayer, seconds: float) -> Tween:
+	if _silent or not player.playing:
+		return null
+	var tween := _new_fade(player)
+	tween.tween_property(player, "volume_db", -40.0, seconds)
+	tween.tween_callback(player.stop)
+	return tween
+
+
+func _new_fade(player: AudioStreamPlayer) -> Tween:
+	_stop_fade(player)
+	var tween := create_tween()
+	_fades[player.get_instance_id()] = tween
+	return tween
+
+
+func _stop_fade(player: AudioStreamPlayer) -> void:
+	var previous := _fades.get(player.get_instance_id()) as Tween
+	if previous != null and previous.is_valid():
+		previous.kill()
 
 
 func _loop_player(bus_name: String) -> AudioStreamPlayer:
@@ -356,7 +479,10 @@ func _exit_tree() -> void:
 	for player: AudioStreamPlayer3D in _players_3d:
 		player.stop()
 		player.stream = null
-	for player: AudioStreamPlayer in [_ambience, _music, _geiger] + _players_2d:
+	for player: AudioStreamPlayer3D in _event_players:
+		player.stop()
+		player.stream = null
+	for player: AudioStreamPlayer in [_ambience, _music, _geiger, _scene] + _players_2d:
 		player.stop()
 		player.stream = null
 	_streams.clear()

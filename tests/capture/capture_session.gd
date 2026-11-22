@@ -9,8 +9,10 @@ extends Node
 ## con =objetos solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
 ## cerradas, con =decorado solo el decorado, con =luz las tiendas iluminadas y el apagón del
 ## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
-## intro, con =final las escenas finales, con =parpadeo los mismos sitios girando poco a poco en
-## las tres calidades y con =camaras el visor de cámaras (para revisar una parte sin recorrer todo).
+## intro, con =final las escenas finales, con =despertar el despertar del guardia al empezar,
+## con =parpadeo los mismos sitios girando poco a poco en
+## las tres calidades, con =camaras el visor de cámaras y con =linterna el coste de la linterna
+## y el fotograma más largo al encenderla (para revisar una parte sin recorrer todo).
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Nombre, posición en el edificio, giro y cabeceo (grados) de cada punto.
@@ -54,6 +56,8 @@ func _ready() -> void:
 	# La intro va antes de la partida: se captura sola, sin el edificio debajo.
 	if OS.get_environment("DEADSHIFT_CAPTURE_ONLY") != "intro":
 		_game = GAME_SCRIPT.new()
+		# El despertar del guardia solo ocurre en una partida nueva justo tras la intro.
+		_game.wake_up_on_start = OS.get_environment("DEADSHIFT_CAPTURE_ONLY") == "despertar"
 		add_child(_game)
 	_run.call_deferred()
 
@@ -73,14 +77,20 @@ func _run() -> void:
 		"camaras",
 		"intro",
 		"final",
+		"despertar",
+		"linterna",
 	]
 	if only in parts:
 		if only == "final":
 			await _capture_outros()
+		elif only == "despertar":
+			await _capture_wake_up()
 		elif only == "intro":
 			await _capture_intro()
 		elif only == "jefe":
 			await _capture_boss_throw()
+		elif only == "linterna":
+			await _measure_flashlight()
 		elif only == "brazos":
 			await _capture_arms()
 		elif only == "luz":
@@ -289,7 +299,74 @@ func _capture_boss_throw() -> void:
 			_save_image("47_jefe_bote")
 		elif frame == 190:
 			_save_image("47_jefe_nube")
+	await _capture_boss_views(boss, center)
 	GameState.player.flashlight.on = false
+	await _measure_flashlight()
+
+
+## El jefe de frente y de espaldas (el tanque va a la espalda) y tumbado durante un aturdido
+## largo (cae una vez y se queda en el suelo).
+func _capture_boss_views(boss: Boss, center: Vector3) -> void:
+	var player := _game.level.player
+	for cloud: Node in get_tree().get_nodes_in_group("toxic_cloud"):
+		cloud.queue_free()
+	boss.set_physics_process(false)
+	boss.global_position = center
+	for view: Array in [["48_jefe_frente", -1.0], ["48_jefe_espalda", 1.0]]:
+		boss.look_at(center + Vector3(0.0, 0.0, -1.0), Vector3.UP)
+		var side: float = view[1]
+		# Delante del jefe es -Z: de frente el jugador mira hacia +Z (giro de media vuelta).
+		player.global_position = center + Vector3(0.0, 0.0, 3.2 * side)
+		player.rotation.y = PI if side < 0.0 else 0.0
+		player.head.rotation.x = deg_to_rad(-8.0)
+		for _frame: int in 20:
+			await get_tree().process_frame
+		_save_image(view[0])
+	boss.set_physics_process(true)
+	boss.model.stun(5.0)
+	for _frame: int in 120:
+		await get_tree().physics_frame
+	_save_image("48_jefe_aturdido_suelo")
+
+
+## Coste de la linterna en dos sitios (tienda de electrónica y pasillo largo del Nivel 1), en
+## calidad Media y Alta (con sombras): llamadas de dibujo y tiempo de frame apagada y encendida.
+func _measure_flashlight() -> void:
+	var player := _game.level.player
+	var original := Settings.get_int("quality")
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		node.set_physics_process(false)
+	var spots: Array = [
+		["electronica", Vector3(8.0, 5.0, -6.8), 10.0],
+		["pasillo", Vector3(20.5, 5.0, 0.0), 90.0],
+	]
+	for quality: int in [SettingsSchema.QUALITY_MEDIUM, SettingsSchema.QUALITY_HIGH]:
+		Settings.set_value("quality", quality)
+		for spot: Array in spots:
+			player.global_position = spot[1]
+			player.rotation.y = deg_to_rad(spot[2])
+			player.head.rotation.x = deg_to_rad(-8.0)
+			for state: bool in [false, true]:
+				GameState.player.flashlight.on = state
+				# Fotograma más largo justo al encender (un parón saldría aquí).
+				var worst := 0.0
+				for _frame: int in SETTLE_FRAMES:
+					var before := Time.get_ticks_usec()
+					await get_tree().process_frame
+					worst = maxf(worst, float(Time.get_ticks_usec() - before) / 1000.0)
+				if state:
+					print(
+						(
+							"[captura] linterna %s q%d: peor fotograma al encender %.1f ms"
+							% [spot[0], quality, worst]
+						)
+					)
+				var label: String = "49_linterna_%s_%s" % [spot[0], "si" if state else "no"]
+				await _measure(label, quality)
+	GameState.player.flashlight.on = false
+	Settings.set_value("quality", original)
+	for line: String in _report.slice(-8):
+		print("[captura] " + line)
 
 
 ## La intro en sus momentos clave (segundos desde el principio).
@@ -302,9 +379,7 @@ func _capture_intro() -> void:
 		[11.5, "48_intro_caida"],
 		[13.5, "48_intro_caidos"],
 		[16.5, "48_intro_viaje"],
-		[21.5, "48_intro_guardia_dormido"],
-		[27.5, "48_intro_despierta"],
-		[29.5, "48_intro_de_pie"],
+		[22.5, "48_intro_dos_horas"],
 	]
 	var elapsed := 0.0
 	for moment: Array in moments:
@@ -320,26 +395,55 @@ func _capture_intro() -> void:
 		_game.level.player.camera.make_current()
 
 
-## Escenas finales (rescate y caída) en sus momentos clave, en la azotea.
+## Despertar del guardia en la sala de seguridad al empezar (primera persona), por momentos.
+func _capture_wake_up() -> void:
+	var moments: Array = [
+		[0.4, "50_despertar_cabeza"],
+		[1.2, "50_despertar_incorpora"],
+		[2.0, "50_despertar_sentado"],
+		[2.6, "50_despertar_levanta"],
+		[3.6, "50_despertar_de_pie"],
+	]
+	var elapsed := 0.0
+	for moment: Array in moments:
+		var at: float = moment[0]
+		await get_tree().create_timer(at - elapsed).timeout
+		elapsed = at
+		_save_image(moment[1])
+
+
+## Escenas finales (rescate, caída y rescate perdido) en sus momentos clave, en la azotea, con
+## la pantalla final encima en pleno vuelo (como en la partida).
 func _capture_outros() -> void:
 	var pad := _game.level.helipad_point()
-	for outcome: int in [RunStats.OUTCOME_RESCUED, RunStats.OUTCOME_CRASHED]:
+	var end_screen := _game.get("_end_screen") as EndScreen
+	var outcomes: Dictionary = {
+		RunStats.OUTCOME_RESCUED: "rescate",
+		RunStats.OUTCOME_CRASHED: "caida",
+		RunStats.OUTCOME_LOST: "perdido",
+	}
+	for outcome: int in outcomes:
 		var outro := Outro.new()
 		outro.setup(_game.level, pad, pad + Vector3(2.5, 0.0, 1.5), outcome)
+		outro.results_time.connect(
+			func() -> void:
+				var stats := RunStats.from_state(GameState.player, outcome, 600.0)
+				end_screen.show_result(stats, false, GameState.difficulty, true)
+		)
 		add_child(outro)
-		var name := "rescate" if outcome == RunStats.OUTCOME_RESCUED else "caida"
-		var moments: Array = [[1.8, "aterriza"], [3.6, "sube"], [6.5, "se_va"], [9.5, "final"]]
+		var name: String = outcomes[outcome]
+		var moments: Array = [
+			[1.8, "aterriza"], [3.6, "sube"], [6.5, "se_va"], [9.5, "final"], [14.0, "despues"]
+		]
 		var elapsed := 0.0
 		for moment: Array in moments:
 			var at: float = moment[0]
 			await get_tree().create_timer(at - elapsed).timeout
 			elapsed = at
-			if not is_instance_valid(outro) or outro.get("_done"):
-				break
 			_save_image("49_final_%s_%s" % [name, moment[1]])
-		if is_instance_valid(outro):
-			outro.skip()
-			outro.queue_free()
+		end_screen.visible = false
+		outro.queue_free()
+		await get_tree().process_frame
 	_game.level.player.camera.make_current()
 
 
