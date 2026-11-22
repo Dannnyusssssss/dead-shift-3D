@@ -3,19 +3,45 @@ extends RefCounted
 ## Inventario limitado por casillas. Los objetos apilables se juntan hasta su máximo;
 ## armas y chalecos ocupan una casilla cada uno con su propia durabilidad. Los materiales van
 ## a la bolsa (MaterialBag), que no ocupa casillas: añadir, contar y quitar los incluye.
+## Además de las casillas hay una posición fija, la última, para el objeto que va siempre con el
+## guardia (`ItemData.bound`, la porra): no cuenta para el espacio, no se guarda (se repone al
+## cargar) y solo la ocupa un objeto de ese tipo. capacity() cuenta las casillas y la posición
+## fija (para recorrerlas todas); space() solo las casillas.
 
 ## Bolsa de materiales.
 var bag: MaterialBag = MaterialBag.new()
 
 var _slots: Array[ItemStack] = []
+var _space: int = 1
 
 
-func _init(capacity: int = Rules.INVENTORY_SLOTS) -> void:
-	_slots.resize(maxi(capacity, 1))
+func _init(slots: int = Rules.INVENTORY_SLOTS) -> void:
+	_space = maxi(slots, 1)
+	_slots.resize(_space + 1)
 
 
+## Posiciones que se pueden recorrer: las casillas y la posición fija.
 func capacity() -> int:
 	return _slots.size()
+
+
+## Casillas para llevar cosas (sin la posición fija).
+func space() -> int:
+	return _space
+
+
+## Índice de la posición fija (la última).
+func fixed_slot() -> int:
+	return _space
+
+
+## Pone un objeto de los que van siempre con el guardia en la posición fija. Devuelve falso si
+## no es de ese tipo o la posición ya está ocupada.
+func put_fixed(stack: ItemStack) -> bool:
+	if stack == null or not stack.item.bound or _slots[_space] != null:
+		return false
+	_slots[_space] = stack
+	return true
 
 
 ## Casilla en la posición dada, o null si está vacía o fuera de rango.
@@ -25,16 +51,17 @@ func get_slot(index: int) -> ItemStack:
 	return _slots[index]
 
 
+## Casillas ocupadas (sin contar la posición fija).
 func used_slots() -> int:
 	var used := 0
-	for stack: ItemStack in _slots:
-		if stack != null:
+	for index: int in _space:
+		if _slots[index] != null:
 			used += 1
 	return used
 
 
 func is_full() -> bool:
-	return used_slots() >= _slots.size()
+	return used_slots() >= _space
 
 
 func count_of(item_id: String) -> int:
@@ -79,6 +106,8 @@ func add_item(data: ItemData, amount: int) -> int:
 
 ## Añade una casilla ya creada (arma con desgaste, chaleco). Devuelve falso si no cabe.
 func add_stack(stack: ItemStack) -> bool:
+	if stack.item.bound and put_fixed(stack):
+		return true
 	if stack.item.max_stack > 1 or MaterialBag.is_material(stack.item):
 		var leftover := add_item(stack.item, stack.count)
 		stack.count = leftover
@@ -115,7 +144,8 @@ func can_fit(data: ItemData, amount: int = 1) -> bool:
 	if MaterialBag.is_material(data):
 		return bag.space_for(data) >= amount
 	var room := 0
-	for stack: ItemStack in _slots:
+	for index: int in _space:
+		var stack: ItemStack = _slots[index]
 		if stack == null:
 			room += maxi(data.max_stack, 1)
 		elif stack.id() == data.id:
@@ -142,9 +172,10 @@ func take_slot(index: int) -> ItemStack:
 	return stack
 
 
-## Pone una casilla en una posición vacía concreta. Devuelve falso si está ocupada.
+## Pone una casilla en una posición vacía concreta (no la fija: put_fixed). Devuelve falso si
+## está ocupada o fuera de las casillas.
 func put_slot(index: int, stack: ItemStack) -> bool:
-	if index < 0 or index >= _slots.size() or _slots[index] != null:
+	if index < 0 or index >= _space or _slots[index] != null:
 		return false
 	_slots[index] = stack
 	return true
@@ -161,10 +192,11 @@ func remove_broken() -> int:
 	return removed
 
 
-## Representación para el guardado: lista de casillas ocupadas.
+## Representación para el guardado: lista de casillas ocupadas. La posición fija no se guarda:
+## su objeto se repone al cargar.
 func to_data() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for index: int in _slots.size():
+	for index: int in _space:
 		var stack: ItemStack = _slots[index]
 		if stack == null:
 			continue
@@ -199,13 +231,15 @@ func load_data(entries: Array[Dictionary], catalog: ItemCatalog) -> void:
 			var ammo: int = entry.get("ammo", 0)
 			stack.ammo_loaded = clampi(ammo, 0, data.weapon.magazine_size)
 		var slot: int = entry.get("slot", -1)
-		# Un material guardado en una casilla (partidas antiguas) pasa a la bolsa.
+		# Un material guardado en una casilla (partidas antiguas) pasa a la bolsa. La porra de
+		# una partida antigua se queda en su casilla: PlayerState.ensure_bound_items la pasa a la
+		# posición fija y mantiene el arma equipada.
 		if MaterialBag.is_material(data) or not put_slot(slot, stack):
 			add_stack(stack)
 
 
 func _free_slot() -> int:
-	for index: int in _slots.size():
+	for index: int in _space:
 		if _slots[index] == null:
 			return index
 	return -1

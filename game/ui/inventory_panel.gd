@@ -497,7 +497,10 @@ func _build_bag() -> Control:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	left.add_child(grid)
-	for index: int in Rules.INVENTORY_SLOTS:
+	# Las casillas de la mochila y, aparte, la posición fija de la porra (no ocupa casilla).
+	var fixed_row := HBoxContainer.new()
+	fixed_row.add_theme_constant_override("separation", 10)
+	for index: int in Rules.INVENTORY_SLOTS + 1:
 		var tile := TapButton.new()
 		tile.toggle_mode = true
 		tile.custom_minimum_size = TILE_SIZE
@@ -516,10 +519,19 @@ func _build_bag() -> Control:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		column.add_child(label)
-		grid.add_child(tile)
+		if index < Rules.INVENTORY_SLOTS:
+			grid.add_child(tile)
+		else:
+			fixed_row.add_child(tile)
 		_tiles.append(tile)
 		_tile_icons.append(icon)
 		_tile_labels.append(label)
+	var fixed_label := Label.new()
+	fixed_label.text = tr("inventory_fixed_slot")
+	fixed_label.add_theme_font_size_override("font_size", 16)
+	fixed_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	fixed_row.add_child(fixed_label)
+	left.add_child(fixed_row)
 	_bag_view = MaterialBagView.new()
 	_bag_view.material_selected.connect(_on_material_selected)
 	left.add_child(_bag_view)

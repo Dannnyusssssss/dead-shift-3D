@@ -1,7 +1,8 @@
 class_name CombineList
 extends ScrollContainer
-## Pestaña «Combinar» de la mochila: armar el teléfono, lo que se puede combinar ya (con las
-## cantidades que gasta cada receta, a un toque) y lo que falta para otras combinaciones.
+## Pestaña «Combinar» de la mochila: armar el teléfono, lo que se puede combinar ya (una fila por
+## receta, con las cantidades que gasta y cuántas veces se puede hacer, a un toque) y lo que
+## falta para otras combinaciones.
 
 signal combine_requested(recipe: RecipeData, slot: int)
 signal assemble_requested
@@ -19,7 +20,7 @@ func _ready() -> void:
 	add_child(_list)
 
 
-## Combinaciones disponibles ahora (para el contador de la pestaña).
+## Combinaciones disponibles ahora, sin repetir la misma receta (para el contador de la pestaña).
 func available_count() -> int:
 	var state := GameState.player
 	var count := _crafting.options(state.inventory).size()
@@ -92,6 +93,9 @@ func _option_row(option: Dictionary) -> Control:
 		InventoryRows.text(row, "→", 28)
 		InventoryRows.icon(row, recipe.result_id)
 		title = InventoryRows.item_name(recipe.result_id) + "\n" + tr("desc_" + recipe.result_id)
+	var times: int = option.get("times", 1)
+	if times > 1:
+		title += "\n" + tr("combine_times") % times
 	var label := InventoryRows.text(row, title, 18)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var button := InventoryRows.action(

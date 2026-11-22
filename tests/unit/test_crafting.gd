@@ -192,3 +192,56 @@ func test_real_catalog_recipes_are_coherent() -> void:
 		for item_id: String in wanted:
 			var amount: int = wanted[item_id]
 			assert_true(amount <= MaterialBag.cap_of(items.get_item(item_id)), "cabe en la bolsa")
+
+
+func test_options_show_each_recipe_once_with_times() -> void:
+	var inventory := Inventory.new(4)
+	inventory.add_stack(ItemStack.new(_bat, 1, 0.9))
+	inventory.add_stack(ItemStack.new(_bat, 1, 0.4))
+	inventory.add_item(_nails, 8)
+	inventory.add_item(_tape, 1)
+	var options := _crafting.options(inventory)
+	var by_recipe: Dictionary = {}
+	for option: Dictionary in options:
+		var recipe: RecipeData = option["recipe"]
+		assert_false(by_recipe.has(recipe.id), "una sola fila por receta: " + recipe.id)
+		by_recipe[recipe.id] = option
+	var upgrade: Dictionary = by_recipe[_bat_recipe.id]
+	assert_eq(upgrade["times"], 2, "dos bates y 8 clavos: dos veces")
+	assert_eq(upgrade["slot"], 0, "mejorar usa el bate menos gastado")
+	var repair: Dictionary = by_recipe[_repair.id]
+	assert_eq(repair["slot"], 1, "reparar usa el bate más gastado")
+	assert_eq(repair["times"], 1, "una cinta: una reparación")
+
+
+func test_options_times_limited_by_materials() -> void:
+	var inventory := Inventory.new(4)
+	inventory.add_stack(ItemStack.new(_bat))
+	inventory.add_stack(ItemStack.new(_bat))
+	inventory.add_item(_nails, 5)
+	var options := _crafting.options(inventory)
+	assert_eq(options.size(), 1)
+	assert_eq(options[0]["times"], 1, "5 clavos solo dan para un bate")
+
+
+func test_repair_options_one_per_weapon_type() -> void:
+	var inventory := Inventory.new(4)
+	inventory.add_stack(ItemStack.new(_bat, 1, 0.5))
+	inventory.add_stack(ItemStack.new(_bat_nails, 1, 0.5))
+	inventory.add_item(_tape, 2)
+	var repairs := 0
+	for option: Dictionary in _crafting.options(inventory):
+		var recipe: RecipeData = option["recipe"]
+		if recipe.is_repair():
+			repairs += 1
+	assert_eq(repairs, 2, "reparar el bate y reparar el bate con clavos")
+
+
+func test_options_prefer_slot_that_can_be_made_now() -> void:
+	var inventory := Inventory.new(1)
+	inventory.add_item(_rag, 4)
+	inventory.add_item(_tape, 2)
+	var options := _crafting.options(inventory)
+	assert_eq(options.size(), 1)
+	assert_eq(options[0]["slot"], -1)
+	assert_eq(options[0]["times"], 2, "4 trapos y 2 cintas: dos veces")

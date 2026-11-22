@@ -210,11 +210,16 @@ static func _read_vest(source: Dictionary, items: Dictionary) -> Dictionary:
 	return {"id": item_id, "durability": durability}
 
 
-## El arma equipada debe ser una casilla del inventario que contenga un arma; si no, ninguna.
+## El arma equipada debe ser una casilla del inventario que contenga un arma, o la posición fija
+## (índice = capacidad), que siempre tiene la porra porque se repone al cargar; si no, ninguna.
 static func _read_equipped(
 	source: Dictionary, inventory: Array[Dictionary], items: Dictionary, capacity: int
 ) -> int:
-	var slot := Validation.read_int(source, "equipped", -1, capacity - 1, -1)
+	var slot := Validation.read_int(source, "equipped", -1, capacity + 1, -1)
+	if slot > capacity:
+		return -1
+	if slot == capacity:
+		return slot
 	for entry: Dictionary in inventory:
 		if entry["slot"] == slot:
 			var info: Dictionary = items[entry["id"]]

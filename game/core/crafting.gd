@@ -89,17 +89,54 @@ func craft(inventory: Inventory, recipe: RecipeData, slot: int) -> String:
 	return ERROR_NONE
 
 
-## Combinaciones que se pueden hacer con lo que se lleva: una entrada por receta (y por casilla
-## que sirva) con "recipe", "slot" (-1 si no usa casilla) y "problem" (ERROR_NONE si se puede ya;
-## ERROR_NO_SPACE si falta sitio para el resultado). Las que no tienen todo, en hints().
+## Combinaciones que se pueden hacer con lo que se lleva, sin repetir: una entrada por receta y,
+## en las reparaciones, una por tipo de arma. Cada entrada lleva "recipe", "slot" (la casilla que
+## se usará; -1 si no usa casilla), "problem" (ERROR_NONE si se puede ya; ERROR_NO_SPACE si falta
+## sitio para el resultado) y "times" (cuántas veces seguidas se podría hacer con lo que se
+## lleva, contando casillas y materiales).
+## Casilla elegida cuando hay varias: primero las que se pueden hacer ya; al reparar, el arma más
+## gastada (la que más lo necesita); al mejorar un arma (agarre, clavos), la menos gastada,
+## porque el resultado hereda su desgaste. Las que no tienen todo, en hints().
 func options(inventory: Inventory) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for recipe: RecipeData in _recipes:
+		var groups: Dictionary = {}
+		var order: Array[String] = []
 		for slot: int in _candidate_slots(inventory, recipe):
 			var problem := check(inventory, recipe, slot)
-			if problem == ERROR_NONE or problem == ERROR_NO_SPACE:
-				result.append({"recipe": recipe, "slot": slot, "problem": problem})
+			if problem != ERROR_NONE and problem != ERROR_NO_SPACE:
+				continue
+			var key := inventory.get_slot(slot).id() if recipe.is_repair() else ""
+			if not groups.has(key):
+				order.append(key)
+				groups[key] = {"recipe": recipe, "slot": slot, "problem": problem, "times": 0}
+			var entry: Dictionary = groups[key]
+			var seen: int = entry["times"]
+			entry["times"] = seen + 1
+			if _better_slot(inventory, recipe, slot, problem, entry):
+				entry["slot"] = slot
+				entry["problem"] = problem
+		var by_materials := material_times(inventory, recipe)
+		for key: String in order:
+			var entry: Dictionary = groups[key]
+			var slots_used: int = entry["times"]
+			var uses_slot: int = entry["slot"]
+			entry["times"] = by_materials if uses_slot < 0 else mini(slots_used, by_materials)
+			result.append(entry)
 	return result
+
+
+## Veces que alcanzan los materiales de la bolsa para la receta (sin contar casillas).
+func material_times(inventory: Inventory, recipe: RecipeData) -> int:
+	var wanted := materials(recipe)
+	if wanted.is_empty():
+		return 1
+	var times := -1
+	for item_id: String in wanted:
+		var amount: int = wanted[item_id]
+		var enough := floori(float(inventory.bag.count(item_id)) / float(maxi(amount, 1)))
+		times = enough if times < 0 else mini(times, enough)
+	return maxi(times, 0)
 
 
 ## Recetas (no de reparación) de las que se lleva algo pero no todo: "recipe", "have" (un
@@ -182,6 +219,25 @@ func _check_result(inventory: Inventory, recipe: RecipeData) -> String:
 	if not slot_input(recipe).is_empty() or not inventory.is_full():
 		return ERROR_NONE
 	return ERROR_NO_SPACE
+
+
+## Verdadero si la casilla nueva es mejor elección que la guardada en la entrada (ver options).
+func _better_slot(
+	inventory: Inventory, recipe: RecipeData, slot: int, problem: String, entry: Dictionary
+) -> bool:
+	var current_slot: int = entry["slot"]
+	var current_problem: String = entry["problem"]
+	if slot == current_slot:
+		return false
+	if problem != current_problem:
+		return problem == ERROR_NONE
+	var new_stack := inventory.get_slot(slot)
+	var old_stack := inventory.get_slot(current_slot)
+	if new_stack == null or old_stack == null:
+		return false
+	var new_left := new_stack.durability.fraction()
+	var old_left := old_stack.durability.fraction()
+	return new_left < old_left if recipe.is_repair() else new_left > old_left
 
 
 func _is_material(item_id: String) -> bool:

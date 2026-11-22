@@ -71,6 +71,9 @@ static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
 		if entry is Dictionary:
 			entries.append(entry)
 	state.inventory.load_data(entries, items)
+	# El arma equipada se fija antes de reponer la porra: si una partida antigua la guardó en una
+	# casilla normal y la llevaba en la mano, sigue en la mano al pasar a su posición fija.
+	state.equipped_slot = data.get("equipped", -1)
 	state.ensure_bound_items()
 	var vest: Dictionary = data.get("vest", {})
 	var vest_id: String = vest.get("id", "")
@@ -78,7 +81,6 @@ static func restore_player(data: Dictionary, items: ItemCatalog) -> PlayerState:
 	var vest_item := items.get_item(vest_id)
 	if vest_item != null and vest_item.vest != null:
 		state.vest = ItemStack.new(vest_item, 1, vest_fraction)
-	state.equipped_slot = data.get("equipped", -1)
 	if state.equipped() == null:
 		state.equipped_slot = -1
 		state.cycle_weapon(1)

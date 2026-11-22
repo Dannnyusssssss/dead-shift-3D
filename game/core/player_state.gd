@@ -39,9 +39,9 @@ var flashlight: Flashlight = Flashlight.new()
 var _items: ItemCatalog = null
 
 
-func _init(items: ItemCatalog, capacity: int = Rules.INVENTORY_SLOTS) -> void:
+func _init(items: ItemCatalog, slots: int = Rules.INVENTORY_SLOTS) -> void:
 	_items = items
-	inventory = Inventory.new(capacity)
+	inventory = Inventory.new(slots)
 
 
 func give_starting_kit() -> void:
@@ -58,15 +58,27 @@ func give_starting_kit() -> void:
 	equipped_slot = inventory.find_slot(STARTING_WEAPON)
 
 
-## Pone la porra en la mochila si no está (partidas nuevas y guardadas antes de que existiera).
-## Devuelve falso si no cabe.
+## Pone la porra en su posición fija, que no ocupa casilla (partidas nuevas y guardadas antes
+## de que existiera). Si estaba en una casilla normal, la pasa a la fija y libera la casilla; si
+## estaba equipada, sigue equipada. Devuelve falso si no se pudo.
 func ensure_bound_items() -> bool:
-	if inventory.find_slot(BOUND_WEAPON) >= 0:
+	var fixed := inventory.fixed_slot()
+	var current := inventory.get_slot(fixed)
+	if current != null and current.id() == BOUND_WEAPON:
+		return true
+	var index := inventory.find_slot(BOUND_WEAPON)
+	if index >= 0:
+		var moved := inventory.take_slot(index)
+		if not inventory.put_fixed(moved):
+			inventory.put_slot(index, moved)
+			return false
+		if equipped_slot == index:
+			equipped_slot = fixed
 		return true
 	var data := _items.get_item(BOUND_WEAPON)
 	if data == null:
 		return false
-	return inventory.add_stack(ItemStack.new(data))
+	return inventory.put_fixed(ItemStack.new(data))
 
 
 func is_dead() -> bool:

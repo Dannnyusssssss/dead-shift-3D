@@ -87,3 +87,27 @@ func test_load_ignores_unknown_items() -> void:
 	var entries: Array[Dictionary] = [{"slot": 0, "id": "rocket", "count": 1}]
 	inventory.load_data(entries, catalog)
 	assert_eq(inventory.used_slots(), 0)
+
+
+func test_bound_item_uses_fixed_slot_not_space() -> void:
+	var inventory := Inventory.new(2)
+	var baton := Fixtures.melee("baton")
+	baton.bound = true
+	assert_true(inventory.add_stack(ItemStack.new(baton)))
+	assert_eq(inventory.find_slot("baton"), inventory.fixed_slot())
+	assert_eq(inventory.used_slots(), 0, "la porra no ocupa casilla")
+	assert_true(inventory.add_stack(ItemStack.new(Fixtures.melee("pipe"))))
+	assert_true(inventory.add_stack(ItemStack.new(Fixtures.melee("bat"))))
+	assert_true(inventory.is_full())
+	assert_false(inventory.add_stack(ItemStack.new(Fixtures.melee("knife"))))
+	assert_eq(inventory.capacity(), inventory.space() + 1, "se recorre con la posición fija")
+
+
+func test_fixed_slot_only_takes_bound_items_and_is_not_saved() -> void:
+	var inventory := Inventory.new(2)
+	assert_false(inventory.put_fixed(ItemStack.new(Fixtures.melee("pipe"))))
+	assert_false(inventory.put_slot(inventory.fixed_slot(), ItemStack.new(Fixtures.melee("pipe"))))
+	var baton := Fixtures.melee("baton")
+	baton.bound = true
+	inventory.add_stack(ItemStack.new(baton))
+	assert_eq(inventory.to_data().size(), 0, "la porra se repone al cargar, no se guarda")

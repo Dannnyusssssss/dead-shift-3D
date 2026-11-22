@@ -34,9 +34,19 @@ const BOSS_HEAL_FRACTION: float = 0.5
 ## cercano está a esta distancia o más.
 const FIGHT_HEAL_FRACTION: float = 0.4
 const FIGHT_HEAL_DISTANCE: float = 6.0
+## Salud crítica (fracción) y distancia al enemigo con la que entonces ya se venda.
+const CRITICAL_FRACTION: float = 0.25
+const CRITICAL_HEAL_DISTANCE: float = 3.0
+## Jefe a menos de esta distancia y sin poder apartarse: el bot devuelve los golpes.
+const CORNERED_DISTANCE: float = 1.8
+## Distancia al jefe a partir de la que recarga un arma de fuego vacía.
+const RELOAD_SAFE_DISTANCE: float = 4.0
+## Radio en el que dos o más enemigos cuentan como un grupo (con solo la porra, huye).
+const SWARM_RANGE: float = 4.0
 ## Enemigos que tiene en cuenta al huir sin armas.
 const THREAT_RANGE: float = 14.0
 const BOSS_HEAL_DISTANCE: float = 5.0
+const STUNNED_HEAL_MARGIN: float = 2.3  # Aturdido casi lo que tarda una venda (2,5 s): se cura.
 const INTERACT_RANGE: float = 1.6
 ## Distancia delante de un contenedor a la que se pone el bot para abrirlo.
 const BOX_FRONT: float = 1.0
@@ -300,21 +310,26 @@ func _fight_boss(boss: Boss, delta: float) -> void:
 		print("[bot] enciende la linterna")
 	var distance := _flat(boss.global_position).distance_to(_flat(_player.global_position))
 	var cloud := _cloud_here()
-	var hurt := (
-		GameState.player.health < Rules.PLAYER_MAX_HEALTH * BOSS_HEAL_FRACTION
-		and distance > BOSS_HEAL_DISTANCE
-	)
+	var low := GameState.player.health < Rules.PLAYER_MAX_HEALTH * BOSS_HEAL_FRACTION
+	var safe_heal := low and boss.model.stun_left > STUNNED_HEAL_MARGIN
 	var too_close := distance < boss.data.boss.charge_min_distance
+	if distance > RELOAD_SAFE_DISTANCE:
+		_reload_if_empty()
 	if boss.boss_state == Boss.B_CHARGING:
 		_dodge_charge(boss)
+	elif safe_heal and not _player.healing.active and _try_heal():
+		pass
 	elif boss.model.is_stunned() or boss.model.health <= FINISH_HEALTH:
 		# Aturdido o casi vencido: ataca aunque sea de frente (hace la mitad de daño).
+		_punish(boss, distance, delta)
+	elif distance < CORNERED_DISTANCE and boss.boss_state != Boss.B_CHARGE_WINDUP:
+		# Encima y sin poder apartarse: devuelve los golpes en vez de quedarse quieto.
 		_punish(boss, distance, delta)
 	elif cloud != null:
 		_leave_cloud(cloud, delta)
 	elif boss.boss_state == Boss.B_CHARGE_WINDUP:
 		_aim_at(boss.global_position + Vector3.UP * CHEST_HEIGHT)
-	elif hurt and _try_heal():
+	elif low and distance > BOSS_HEAL_DISTANCE and _try_heal():
 		pass
 	elif _best_panel(boss) != null and not too_close:
 		var bait := _panel_bait_point(_best_panel(boss))
@@ -334,24 +349,7 @@ func _fight_boss(boss: Boss, delta: float) -> void:
 ## alcanzable (en un círculo a su alrededor) que más lo aleja de ella sin acabar en una nube;
 ## así no se arrincona.
 func _open_distance(threat: Vector3, delta: float) -> void:
-	var map := _player.get_world_3d().navigation_map
-	var best := Vector3.INF
-	var best_score := -INF
-	for step: int in 12:
-		var angle := TAU * float(step) / 12.0
-		var candidate := _player.global_position + Vector3(cos(angle), 0.0, sin(angle)) * 4.0
-		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
-		if absf(reachable.y - _player.global_position.y) > 1.0:
-			continue
-		var score := _flat(reachable).distance_to(_flat(threat))
-		score += _flat(reachable).distance_to(_flat(_player.global_position)) * 0.5
-		for node: Node in get_tree().get_nodes_in_group("toxic_cloud"):
-			var other := node as ToxicCloud
-			if other != null and other.contains(reachable):
-				score -= 10.0
-		if score > best_score:
-			best = reachable
-			best_score = score
+	var best := BotHelpers.open_distance_point(_player, threat)
 	if best == Vector3.INF:
 		_hold("move_back")
 		return
@@ -378,24 +376,16 @@ func _flee(threat: Vector3, delta: float) -> void:
 ## Prueba varias direcciones y elige la salida alcanzable más cercana (contra una pared, la
 ## dirección contraria al centro puede no tener suelo).
 func _leave_cloud(cloud: ToxicCloud, delta: float) -> void:
-	var map := _player.get_world_3d().navigation_map
-	var best := Vector3.INF
-	var best_distance := INF
-	for step: int in 12:
-		var angle := TAU * float(step) / 12.0
-		var candidate := (
-			cloud.global_position + Vector3(cos(angle), 0.0, sin(angle)) * (cloud.radius + 1.5)
-		)
-		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
-		if _flat(reachable).distance_to(_flat(cloud.global_position)) < cloud.radius + 0.8:
-			continue
-		var distance := _flat(reachable).distance_to(_flat(_player.global_position))
-		if distance < best_distance:
-			best = reachable
-			best_distance = distance
-	if best == Vector3.INF:
-		best = _player.global_position + Vector3.RIGHT * (cloud.radius + 1.5)
-	_walk_to(best, delta)
+	_walk_to(BotHelpers.cloud_exit_point(_player, cloud), delta)
+
+
+## Recarga el arma de fuego equipada si está vacía y le quedan balas.
+func _reload_if_empty() -> void:
+	var stack := GameState.player.equipped()
+	if stack == null or stack.item.weapon.kind != WeaponData.KIND_RANGED:
+		return
+	if stack.ammo_loaded == 0 and BotHelpers.ammo_for(stack) > 0 and not _player.combat.is_busy():
+		_tap("reload")
 
 
 func _dodge_charge(boss: Boss) -> void:
@@ -526,8 +516,11 @@ func _fight(enemy: Enemy, delta: float) -> void:
 	var ranged := stack != null and stack.item.weapon.kind == WeaponData.KIND_RANGED
 	var height := HEAD_AIM_HEIGHT if ranged else CHEST_HEIGHT
 	_aim_at(enemy.global_position + Vector3.UP * height)
-	if not BotHelpers.has_usable_weapon():
-		# Sin armas: sigue su camino si el enemigo está lejos; si no, corre hacia espacio abierto.
+	var swarmed := BotHelpers.enemies_near(_player, SWARM_RANGE, SAME_FLOOR) >= 2
+	var outmatched := BotHelpers.only_bound_weapon() and swarmed
+	if not BotHelpers.has_usable_weapon() or outmatched:
+		# Sin armas (o solo la porra contra varios): sigue su camino si el enemigo está lejos; si
+		# no, corre hacia espacio abierto.
 		if distance > RETREAT_RANGE:
 			_follow_route(delta)
 		else:
@@ -607,9 +600,13 @@ func _choose_weapon(enemy: Enemy) -> void:
 ## En plena pelea, se cura si la salud está baja y el enemigo no está encima (camina despacio
 ## hacia atrás mientras venda). Devuelve verdadero si empezó a curarse.
 func _should_heal_in_fight(enemy: Enemy) -> bool:
-	if GameState.player.health >= Rules.PLAYER_MAX_HEALTH * FIGHT_HEAL_FRACTION:
+	var health := GameState.player.health
+	if health >= Rules.PLAYER_MAX_HEALTH * FIGHT_HEAL_FRACTION:
 		return false
-	if enemy.global_position.distance_to(_player.global_position) < FIGHT_HEAL_DISTANCE:
+	# Con la salud crítica se arriesga a vendarse con el enemigo más cerca.
+	var critical := health < Rules.PLAYER_MAX_HEALTH * CRITICAL_FRACTION
+	var needed := CRITICAL_HEAL_DISTANCE if critical else FIGHT_HEAL_DISTANCE
+	if enemy.global_position.distance_to(_player.global_position) < needed:
 		return false
 	return _try_heal()
 
@@ -849,7 +846,7 @@ func _level_nodes() -> Array[Node]:
 ## van a la bolsa y no ocupan casillas.
 func _make_room() -> void:
 	var inventory := GameState.player.inventory
-	if inventory.capacity() - inventory.used_slots() >= 2:
+	if inventory.space() - inventory.used_slots() >= 2:
 		return
 	var melee: Array[int] = []
 	for index: int in inventory.capacity():

@@ -86,6 +86,20 @@ static func has_usable_weapon() -> bool:
 	return false
 
 
+## Verdadero si la única arma que sirve es la porra (no se rompe, pero golpea poco).
+static func only_bound_weapon() -> bool:
+	var state := GameState.player
+	for index: int in state.inventory.capacity():
+		var stack := state.inventory.get_slot(index)
+		if stack == null or not stack.is_weapon() or stack.item.bound:
+			continue
+		if stack.durability.is_broken():
+			continue
+		if stack.item.weapon.kind == WeaponData.KIND_MELEE or ammo_for(stack) > 0:
+			return false
+	return true
+
+
 static func weapon_count() -> int:
 	var count := 0
 	for index: int in GameState.player.inventory.capacity():
@@ -376,3 +390,55 @@ static func close_notes(game: Node) -> void:
 		var view := node as NoteView
 		if view.is_open():
 			view.close()
+
+
+## Punto alcanzable (en un círculo de 4 m) que más aleja de la amenaza sin acabar en una nube;
+## INF si no hay ninguno.
+static func open_distance_point(player: Player, threat: Vector3) -> Vector3:
+	var map := player.get_world_3d().navigation_map
+	var here := player.global_position
+	var best := Vector3.INF
+	var best_score := -INF
+	for step: int in 12:
+		var angle := TAU * float(step) / 12.0
+		var candidate := here + Vector3(cos(angle), 0.0, sin(angle)) * 4.0
+		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
+		if absf(reachable.y - here.y) > 1.0:
+			continue
+		var score := _flat(reachable).distance_to(_flat(threat))
+		score += _flat(reachable).distance_to(_flat(here)) * 0.5
+		for node: Node in player.get_tree().get_nodes_in_group("toxic_cloud"):
+			var other := node as ToxicCloud
+			if other != null and other.contains(reachable):
+				score -= 10.0
+		if score > best_score:
+			best = reachable
+			best_score = score
+	return best
+
+
+## Salida alcanzable más cercana de una nube (contra una pared, la dirección contraria al
+## centro puede no tener suelo).
+static func cloud_exit_point(player: Player, cloud: ToxicCloud) -> Vector3:
+	var map := player.get_world_3d().navigation_map
+	var best := Vector3.INF
+	var best_distance := INF
+	for step: int in 12:
+		var angle := TAU * float(step) / 12.0
+		var candidate := (
+			cloud.global_position + Vector3(cos(angle), 0.0, sin(angle)) * (cloud.radius + 1.5)
+		)
+		var reachable := NavigationServer3D.map_get_closest_point(map, candidate)
+		if _flat(reachable).distance_to(_flat(cloud.global_position)) < cloud.radius + 0.8:
+			continue
+		var distance := _flat(reachable).distance_to(_flat(player.global_position))
+		if distance < best_distance:
+			best = reachable
+			best_distance = distance
+	if best == Vector3.INF:
+		best = player.global_position + Vector3.RIGHT * (cloud.radius + 1.5)
+	return best
+
+
+static func _flat(point: Vector3) -> Vector2:
+	return Vector2(point.x, point.z)
