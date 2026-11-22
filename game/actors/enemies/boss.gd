@@ -20,6 +20,9 @@ const THROW_WINDUP: float = 0.9
 const THROW_FLIGHT: float = 0.9
 ## Altura de la mano desde la que sale el bote.
 const THROW_HAND_HEIGHT: float = 2.2
+## Diferencia de altura (m) entre los pies del jefe y los del jugador por debajo de la cual están
+## en el mismo piso: solo entonces lanza la nube (nunca a otro piso ni al atrio de abajo).
+const THROW_SAME_LEVEL: float = 1.5
 
 ## Distancia a la que empieza el combate si ve al jugador, y a la que deja de perseguirlo.
 const ENGAGE_DISTANCE: float = 16.0
@@ -52,6 +55,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if boss_state == B_DEAD:
+		_settle_corpse(delta)
 		return
 	# Sus tiempos solo corren en combate (quieto no prepara ataques).
 	if boss_state != B_IDLE and boss_state != B_RETURN:
@@ -95,7 +99,7 @@ func _physics_process(delta: float) -> void:
 	if boss_state == B_CHARGING:
 		_check_charge_collisions()
 	if _model != null:
-		_model.update(_visual_state(), Vector2(velocity.x, velocity.z).length())
+		_model.update(_visual_state(), Vector2(velocity.x, velocity.z).length(), model.stun_left)
 
 
 ## Animación del modelo según lo que hace: golpe y gesto de lanzar como ataque, aturdido, y el
@@ -148,7 +152,7 @@ func _boss_think() -> void:
 		_engage()
 	if boss_state == B_CHASE:
 		_agent.target_position = _player.global_position
-		if model.can_cloud():
+		if model.can_cloud() and can_throw_at(_player.global_position):
 			_begin_throw()
 
 
@@ -262,12 +266,13 @@ func _check_charge_collisions() -> void:
 ## hace el gesto quieto; el bote sale al terminar el gesto y vuela hasta la marca. Hay tiempo
 ## para apartarse: gesto, vuelo y el aviso de la nube antes de que haga daño.
 func _begin_throw() -> void:
-	if _player == null:
+	if _player == null or not can_throw_at(_player.global_position):
 		return
 	model.start_cloud()
 	boss_state = B_THROW
 	_boss_timer = THROW_WINDUP
-	throw_target = Vector3(_player.global_position.x, global_position.y, _player.global_position.z)
+	# En el suelo bajo el jugador (en una rampa del mismo piso puede estar algo más alto).
+	throw_target = _player.global_position
 	var cloud := ToxicCloud.new()
 	cloud.radius = data.boss.cloud_radius
 	cloud.warning = data.boss.cloud_warning
@@ -278,6 +283,11 @@ func _begin_throw() -> void:
 	cloud.launch_origin = global_position + Vector3.UP * THROW_HAND_HEIGHT
 	get_parent().add_child(cloud)
 	cloud.global_position = throw_target
+
+
+## Verdadero si el punto está en su mismo piso (para lanzarle la nube).
+func can_throw_at(point: Vector3) -> bool:
+	return absf(point.y - global_position.y) <= THROW_SAME_LEVEL
 
 
 ## Gesto de lanzar: quieto, de cara al punto marcado.
@@ -372,10 +382,11 @@ func _build_visual() -> void:
 	_tank_mesh.mesh = mesh
 	if _model != null:
 		# Colgado de la espalda: sigue al cuerpo encorvado de las animaciones.
-		mesh.height = 0.6
+		# Más bajo que la cabeza: entre los omóplatos y la cintura, sin taparla por detrás.
+		mesh.height = 0.5
 		mesh.top_radius = 0.17
 		mesh.bottom_radius = 0.17
-		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 1.3, 0.24))
+		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 0.92, 0.26))
 		return
 	_tank_mesh.position = Vector3(0.0, 1.25, 0.38)
 	_visual.add_child(_tank_mesh)

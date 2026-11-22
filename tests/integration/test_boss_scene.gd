@@ -157,3 +157,99 @@ func test_toxic_cloud_is_telegraphed_and_avoidable() -> void:
 	assert_eq(GameState.player.health, health, "el jugador se apartó a tiempo")
 	var lead := Boss.THROW_WINDUP + Boss.THROW_FLIGHT + TECHNICIAN.boss.cloud_warning
 	assert_gte(lead, 2.5, "tiempo de sobra para apartarse")
+
+
+## La nube solo daña en su piso: el jugador justo encima (otro piso) no recibe daño aunque esté
+## dentro del círculo en el plano.
+func test_toxic_cloud_does_not_reach_another_floor() -> void:
+	_add_box(Vector3(0.0, Rules.FLOOR_HEIGHT - 0.5, 0.0), Vector3(6.0, 1.0, 6.0))
+	_player.position = Vector3(0.0, Rules.FLOOR_HEIGHT, 0.0)
+	await wait_physics_frames(3)
+	var cloud := ToxicCloud.new()
+	cloud.warning = 0.1
+	cloud.duration = 1.0
+	cloud.dps = 10.0
+	_world.add_child(cloud)
+	cloud.global_position = Vector3.ZERO
+	assert_false(cloud.contains(_player.global_position), "otro piso: fuera")
+	assert_false(cloud.contains(Vector3(0.0, -Rules.FLOOR_HEIGHT, 0.0)), "piso de abajo: fuera")
+	assert_true(cloud.contains(Vector3(0.5, 0.3, 0.0)), "mismo piso: dentro")
+	await wait_physics_frames(50)
+	assert_eq(GameState.player.health, Rules.PLAYER_MAX_HEALTH, "sin daño desde otro piso")
+
+
+## El jefe no lanza la nube si el jugador está en otro piso (encima, al otro lado del atrio).
+func test_boss_does_not_throw_to_another_floor() -> void:
+	_add_box(Vector3(0.0, Rules.FLOOR_HEIGHT - 0.5, 0.0), Vector3(6.0, 1.0, 6.0))
+	_player.position = Vector3(0.0, Rules.FLOOR_HEIGHT, 0.0)
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
+	await wait_physics_frames(3)
+	boss.call("_engage")
+	boss.set("_player", _player)
+	assert_false(boss.can_throw_at(_player.global_position))
+	boss.call("_begin_throw")
+	assert_ne(boss.boss_state, Boss.B_THROW, "no lanza a otro piso")
+	assert_eq(get_tree().get_nodes_in_group("toxic_cloud").size(), 0)
+
+
+## Aturdido contra una pared (2,5 s) o un tablero (5 s): cae una sola vez, se queda en el suelo
+## y se levanta una sola vez al final (antes repetía caer y levantarse en bucle).
+func test_long_stun_falls_and_rises_once() -> void:
+	for seconds: float in [TECHNICIAN.boss.wall_stun, TECHNICIAN.boss.panel_stun]:
+		var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
+		await wait_physics_frames(3)
+		boss.call("_engage")
+		var view := boss.get("_model") as EnemyModel
+		boss.model.stun(seconds)
+		var phases: Array[int] = []
+		while boss.model.is_stunned():
+			await wait_physics_frames(1)
+			var phase := view.stun_phase()
+			if phase != EnemyModel.STUN_NONE and (phases.is_empty() or phases[-1] != phase):
+				phases.append(phase)
+		await wait_physics_frames(2)
+		assert_eq(
+			phases,
+			[EnemyModel.STUN_DOWN, EnemyModel.STUN_RISE] as Array[int],
+			"cae y se levanta una vez (%.1f s)" % seconds
+		)
+		assert_eq(view.stun_phase(), EnemyModel.STUN_NONE, "vuelve a moverse")
+		boss.queue_free()
+		await wait_physics_frames(1)
+
+
+## El tanque (punto débil) va a la espalda: detrás del pecho, del lado por el que los golpes
+## llegan al tanque, y a la altura del torso.
+func test_tank_hangs_on_the_back() -> void:
+	var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
+	await wait_physics_frames(10)
+	var tank := boss.get("_tank_mesh") as Node3D
+	var local := boss.to_local(tank.global_position)
+	var view := boss.get("_model") as EnemyModel
+	var skeleton := view.get("_skeleton") as Skeleton3D
+	var spine := boss.to_local(
+		(
+			skeleton.global_transform
+			* skeleton.get_bone_global_pose(skeleton.find_bone("spine_03")).origin
+		)
+	)
+	assert_gt(local.z, spine.z + 0.2, "detrás de la columna (+Z es la espalda)")
+	assert_almost_eq(local.x, spine.x, 0.2, "centrado en la espalda (sigue el balanceo del torso)")
+	assert_almost_eq(local.y, spine.y, 0.35, "a la altura del torso")
+	var head := boss.to_local(
+		skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Head")).origin
+	)
+	var top := local.y + (tank as MeshInstance3D).mesh.get_aabb().size.y * 0.5
+	assert_lt(top, head.y - 0.1, "no tapa la cabeza por detrás")
+
+
+## Si muere en el aire (bajando una escalera, en plena embestida), el cuerpo cae al suelo en vez
+## de quedarse flotando rígido en la pose de muerte.
+func test_dead_body_falls_to_the_floor() -> void:
+	var boss := _spawn_boss(Vector3(0.0, 3.0, -6.0))
+	await wait_physics_frames(2)
+	while not boss.is_dead():
+		boss.model.stun(1.0)
+		boss.take_hit(400.0, boss.global_position, true)
+	await wait_physics_frames(90)
+	assert_almost_eq(boss.global_position.y, 0.0, 0.1, "en el suelo")

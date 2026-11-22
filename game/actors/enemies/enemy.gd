@@ -64,6 +64,8 @@ var _unseen_time: float = 0.0
 var _attack_timer: float = 0.0
 var _attack_cooldown: float = 0.0
 var _stun_timer: float = 0.0
+## El cuerpo ya llegó al suelo tras morir (deja de moverse).
+var _corpse_settled: bool = false
 var _stagger_timer: float = 0.0
 var _stagger_push: Vector3 = Vector3.ZERO
 var _sight_query: PhysicsRayQueryParameters3D = null
@@ -108,6 +110,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if state == STATE_DEAD:
+		_settle_corpse(delta)
 		return
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
 	hearing.tick(delta)
@@ -148,7 +151,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	move_and_slide()
 	if _model != null:
-		_model.update(state, Vector2(velocity.x, velocity.z).length())
+		_model.update(state, Vector2(velocity.x, velocity.z).length(), _stun_timer)
 	_update_voice(delta)
 
 
@@ -396,6 +399,21 @@ func _die() -> void:
 	var tween := create_tween()
 	tween.tween_property(_visual, "rotation:x", -PI * 0.5, 0.5)
 	tween.parallel().tween_property(_visual, "position:y", 0.25, 0.5)
+
+
+## Muerto en el aire (en una escalera, en plena embestida o cayendo por un hueco): el cuerpo cae
+## hasta el suelo en vez de quedarse flotando en la pose de muerte. Después ya no se mueve.
+func _settle_corpse(delta: float) -> void:
+	if _corpse_settled:
+		return
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if is_on_floor():
+		_corpse_settled = true
+		velocity.y = 0.0
+		return
+	velocity.y -= GRAVITY * delta
+	move_and_slide()
 
 
 func _zone_at(point: Vector3) -> int:

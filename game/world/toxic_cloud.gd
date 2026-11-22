@@ -8,13 +8,16 @@ extends Node3D
 ##   3. Aviso (warning): la nube crece sobre la marca; todavía no hace daño.
 ##   4. Daño (duration): daña al jugador mientras esté dentro del círculo, hasta disiparse.
 ## El borde late despacio (menos de un latido por segundo) y con «Reducir destellos» queda fijo.
-## No contagia.
+## No contagia. Solo daña dentro de su piso: arriba o abajo (otro piso, el atrio) no llega.
 
 ## Latidos por segundo del borde de la marca (muy por debajo de 3) y altura del arco del bote.
 const BORDER_PULSE_RATE: float = 0.8
 const ARC_HEIGHT: float = 2.5
 const BORDER_COLOR: Color = Color(0.85, 1.0, 0.3)
 const CLOUD_COLOR: Color = Color(0.45, 0.75, 0.25)
+## Altura (m) por encima y por debajo del suelo de la nube que todavía cuenta como dentro; menos
+## de medio piso (Rules.FLOOR_HEIGHT), así que nunca alcanza el piso de arriba ni el de abajo.
+const VERTICAL_REACH: float = 2.0
 
 var radius: float = 3.0
 var warning: float = 1.0
@@ -69,8 +72,11 @@ func is_flying() -> bool:
 	return _time >= lead_time and landed_time() < 0.0
 
 
-## Verdadero si el punto está dentro de la nube (en el plano).
+## Verdadero si el punto (los pies del jugador) está dentro de la nube: dentro del círculo y a
+## la altura de su piso.
 func contains(point: Vector3) -> bool:
+	if absf(point.y - global_position.y) > VERTICAL_REACH:
+		return false
 	var flat := Vector2(point.x - global_position.x, point.z - global_position.z)
 	return flat.length() <= radius
 

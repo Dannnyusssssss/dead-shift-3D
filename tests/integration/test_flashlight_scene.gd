@@ -27,9 +27,16 @@ func test_action_fades_the_light_in_and_out() -> void:
 	add_child_autofree(world)
 	var player: Player = PLAYER_SCENE.instantiate()
 	world.add_child(player)
-	await wait_physics_frames(3)
 	var light := player.flashlight.light
+	# Al entrar en escena la luz se calienta unos fotogramas con un brillo que no se ve (prepara
+	# los sombreadores para que encenderla luego no congele el juego).
+	assert_true(player.flashlight.is_warming_up(), "se calienta al entrar en escena")
+	assert_true(light.visible, "en escena durante el calentamiento")
+	assert_lte(light.light_energy, PlayerFlashlight.WARMUP_ENERGY + 0.0001, "sin brillo visible")
+	await wait_process_frames(PlayerFlashlight.WARMUP_FRAMES + 2)
+	assert_false(player.flashlight.is_warming_up())
 	assert_eq(light.light_energy, 0.0, "empieza apagada")
+	assert_false(light.visible, "sin la luz en escena mientras está apagada")
 	await _tap_flashlight()
 	assert_true(GameState.player.flashlight.on)
 	assert_lt(light.light_energy, PlayerFlashlight.ENERGY, "no se enciende de golpe")

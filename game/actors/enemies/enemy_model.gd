@@ -12,6 +12,16 @@ const FOLDER: String = "res://assets/generated/enemies/"
 const WALK_ANIM_SPEED: float = 1.2
 const RUN_FROM_SPEED: float = 2.6
 const BLEND: float = 0.18
+## Aturdido largo (segundos o más): cae al suelo una vez, se queda tumbado y se levanta una vez
+## al final (la caída es la animación de muerte; levantarse, la misma hacia atrás). Más corto:
+## un solo retroceso. Parte del aturdido que dura la caída y la que dura levantarse.
+const DOWN_STUN_MIN: float = 2.0
+const STUN_FALL_SHARE: float = 0.3
+const STUN_RISE_SHARE: float = 0.3
+const STUN_NONE: int = 0
+const STUN_KNOCK: int = 1
+const STUN_DOWN: int = 2
+const STUN_RISE: int = 3
 
 var material: StandardMaterial3D = null
 
@@ -22,6 +32,9 @@ var _skeleton: Skeleton3D = null
 var _one_shot: String = ""
 var _dead: bool = false
 var _lean: LeanModifier = null
+## Fase del aturdido en curso (STUN_*) y segundos que dura levantarse.
+var _stun_phase: int = STUN_NONE
+var _rise_time: float = 0.0
 
 
 ## Crea el aspecto del enemigo, o null si no hay modelo para ese id.
@@ -65,15 +78,20 @@ func _setup(root: Node) -> void:
 		_play("idle")
 
 
-## Elige la animación según el estado del enemigo y su velocidad horizontal.
-func update(state: int, speed: float) -> void:
+## Elige la animación según el estado del enemigo y su velocidad horizontal. Aturdido, usa los
+## segundos que le quedan (negativo si no se saben) para caer y levantarse una sola vez.
+func update(state: int, speed: float, stun_left: float = -1.0) -> void:
 	if _player == null or _dead:
 		return
+	if state == Enemy.STATE_STUNNED:
+		_update_stun(stun_left)
+		return
+	if _stun_phase != STUN_NONE:
+		_stun_phase = STUN_NONE
+		_one_shot = ""
+		_player.speed_scale = 1.0
 	if state == Enemy.STATE_ATTACK:
 		_once("attack")
-		return
-	if state == Enemy.STATE_STUNNED:
-		_once("stun")
 		return
 	if not _one_shot.is_empty():
 		return
@@ -87,7 +105,7 @@ func update(state: int, speed: float) -> void:
 
 ## Golpe recibido (en la cabeza si el golpe fue alto).
 func play_hit(high: bool) -> void:
-	if _player == null or _dead or _one_shot == "attack":
+	if _player == null or _dead or _one_shot == "attack" or _stun_phase != STUN_NONE:
 		return
 	_one_shot = ""
 	_once("hit_head" if high else "hit")
@@ -138,6 +156,11 @@ func lean() -> float:
 	return 0.0 if _lean == null else _lean.amount
 
 
+## Fase del aturdido (STUN_*), para las pruebas.
+func stun_phase() -> int:
+	return _stun_phase
+
+
 ## Animación que se está viendo ("" sin animaciones).
 func current_animation() -> String:
 	return "" if _player == null else _player.current_animation
@@ -157,8 +180,36 @@ func attach_to_bone(node: Node3D, bone: String, spot: Vector3) -> void:
 	_skeleton.add_child(attachment)
 	attachment.add_child(node)
 	var target := global_transform * Transform3D(Basis.IDENTITY, spot)
-	var bone_rest := _skeleton.global_transform * _skeleton.get_bone_global_rest(index)
-	node.transform = bone_rest.affine_inverse() * target
+	# Con la pose animada, no la de reposo: los huesos de las animaciones están girados respecto
+	# al reposo del cuerpo (hasta 90°) y con el reposo la pieza quedaba lejos de su sitio (el
+	# tanque del jefe salía por el pecho).
+	if _player != null and not _player.current_animation.is_empty():
+		_player.advance(0.0)
+	var bone_pose := _skeleton.global_transform * _skeleton.get_bone_global_pose(index)
+	node.transform = bone_pose.affine_inverse() * target
+
+
+## Aturdido: un retroceso si es corto o no se sabe cuánto dura; si es largo, cae una vez, se
+## queda en el suelo (la animación termina y conserva la última pose) y se levanta al final.
+func _update_stun(stun_left: float) -> void:
+	if _stun_phase == STUN_NONE:
+		_one_shot = ""
+		if stun_left >= DOWN_STUN_MIN and _player.has_animation("death"):
+			var length := _player.get_animation("death").length
+			var fall := minf(length, stun_left * STUN_FALL_SHARE)
+			_rise_time = minf(length, stun_left * STUN_RISE_SHARE)
+			_stun_phase = STUN_DOWN
+			_player.get_animation("death").loop_mode = Animation.LOOP_NONE
+			_player.speed_scale = 1.0
+			_player.play("death", BLEND, length / maxf(fall, 0.05))
+		else:
+			_stun_phase = STUN_KNOCK
+			_once("stun")
+		return
+	if _stun_phase == STUN_DOWN and stun_left >= 0.0 and stun_left <= _rise_time:
+		_stun_phase = STUN_RISE
+		var length := _player.get_animation("death").length
+		_player.play("death", BLEND, -length / maxf(_rise_time, 0.05), true)
 
 
 func _once(anim_name: String) -> void:

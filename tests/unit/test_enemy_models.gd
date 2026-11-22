@@ -78,3 +78,25 @@ func test_models_face_minus_z_like_look_at() -> void:
 		)
 		assert_lt(toe.z, ankle.z - 0.1, "la punta del pie mira a -Z: " + path)
 		assert_lt(ankle.x, 0.0, "el pie izquierdo queda a la izquierda: " + path)
+
+
+## Aturdido corto: un solo retroceso que no se repite; largo: cae (animación de muerte) y al
+## final se levanta (la misma hacia atrás); al acabar vuelve a andar.
+func test_stun_plays_once() -> void:
+	var model := EnemyModel.create("walker")
+	add_child_autofree(model)
+	model.update(Enemy.STATE_STUNNED, 0.0, 1.2)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_KNOCK)
+	assert_eq(model.current_animation(), "stun")
+	model.update(Enemy.STATE_CHASE, 1.5)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_NONE)
+	model.update(Enemy.STATE_STUNNED, 0.0, 3.0)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_DOWN)
+	assert_eq(model.current_animation(), "death", "cae al suelo")
+	model.update(Enemy.STATE_STUNNED, 0.0, 2.0)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_DOWN, "sigue en el suelo")
+	model.update(Enemy.STATE_STUNNED, 0.0, 0.5)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_RISE, "se levanta al final")
+	model.update(Enemy.STATE_CHASE, 1.5)
+	assert_eq(model.stun_phase(), EnemyModel.STUN_NONE)
+	assert_eq(model.current_animation(), "walk")
