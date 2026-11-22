@@ -3,7 +3,7 @@
 Uso: blender --background --factory-startup --python tools/blender/enemies.py
 
 Para cada enemigo: importa el cuerpo base (assets/third_party/quaternius-ubc), quita ojos y
-cejas, lo simplifica (unos 3000 triángulos, para el celular), pinta la ropa y la piel en el
+cejas, une las costuras (sin grietas al adelgazar), lo simplifica (unos 3000 triángulos, para el celular), pinta la ropa y la piel en el
 color de vértice según el hueso que mueve cada vértice (cabeza, torso, brazos, piernas, pies),
 lo adelgaza hacia el eje de sus huesos, le alisa el relieve de músculos y le acerca los brazos
 al cuerpo (el cuerpo base es de complexión de superhéroe; El Técnico se queda corpulento),
@@ -153,6 +153,31 @@ def import_body(filename: str):
         else:
             body = obj
     return armature, body
+
+
+# Distancia (m) a la que se unen los vértices repetidos de las costuras del modelo base.
+WELD_DISTANCE = 0.0001
+
+
+def weld(body) -> None:
+    """Une los vértices repetidos de las costuras: el cuerpo base viene partido en piezas (cada
+    costura con sus vértices duplicados y sin unir). Sin esto, al simplificar y al alisar cada
+    lado de una costura se mueve por su cuenta y se abren grietas en hombros, cintura y piernas."""
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=WELD_DISTANCE)
+    bm.to_mesh(body.data)
+    bm.free()
+
+
+def check_closed(body, name: str) -> None:
+    """Falla si la malla del cuerpo tiene bordes abiertos (una grieta se vería en el juego)."""
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    open_edges = sum(1 for e in bm.edges if e.is_boundary)
+    bm.free()
+    if open_edges:
+        raise RuntimeError("%s: %d bordes abiertos en el cuerpo" % (name, open_edges))
 
 
 def simplify(body) -> None:
@@ -399,6 +424,7 @@ def build(enemy_id: str, spec: dict, out_dir: str = OUT) -> None:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     armature, body = import_body(spec["body"])
     body.data.materials.clear()
+    weld(body)
     simplify(body)
     paint(body, spec)
     # Después de pintar: los rotos y manchas quedan en los mismos sitios del cuerpo.
@@ -411,6 +437,7 @@ def build(enemy_id: str, spec: dict, out_dir: str = OUT) -> None:
         for v in body.data.vertices:
             v.co.x *= spec["lean"]
             v.co.y *= spec["lean"]
+    check_closed(body, enemy_id)
     if spec.get("cap"):
         add_rigid(body, armature, cap, spec["cap"])
     if spec.get("mask"):
