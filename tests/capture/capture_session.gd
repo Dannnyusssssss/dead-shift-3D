@@ -6,7 +6,8 @@ extends Node
 ## por buena la estética. Restaura la calidad que tenía el jugador al terminar.
 ## Con la variable de entorno DEADSHIFT_CAPTURE_ONLY=enemigos solo hace las capturas de los
 ## enemigos en movimiento, con =angulos solo las de un mismo sitio desde ángulos casi iguales y
-## con =objetos solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
+## con =cuerpos cada enemigo de cerca (frente, lado y corriendo: chaleco y pelo), con =objetos
+## solo el catálogo de objetos y los contenedores, con =tiendas solo las tiendas
 ## cerradas, con =decorado solo el decorado, con =luz las tiendas iluminadas y el apagón del
 ## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
 ## intro, con =final las escenas finales, con =despertar el despertar del guardia al empezar,
@@ -66,6 +67,7 @@ func _run() -> void:
 	var only := OS.get_environment("DEADSHIFT_CAPTURE_ONLY")
 	var parts: Array[String] = [
 		"enemigos",
+		"cuerpos",
 		"angulos",
 		"objetos",
 		"tiendas",
@@ -117,6 +119,8 @@ func _run() -> void:
 			await _capture_closed_stores()
 		elif only == "enemigos":
 			await _capture_enemies_moving()
+		elif only == "cuerpos":
+			await _capture_bodies_close()
 		elif only == "angulos":
 			await _capture_angles()
 		else:
@@ -611,6 +615,43 @@ func _capture_enemies_moving() -> void:
 			player.head.rotation.x = deg_to_rad(-4.0)
 			enemy.set_physics_process(false)
 			enemy.global_position = home
+
+
+## Cada enemigo de cerca, quieto en el pasillo este del Nivel 1: de frente, de lado y corriendo
+## de lado (el chaleco del policía, el pelo y la silueta).
+func _capture_bodies_close() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	GameState.player.flashlight.on = true
+	var seen: Dictionary = {}
+	var spot := Vector3(21.0, 5.0, -1.0)
+	for floor_id: String in ["ground_floor", "level_1", "level_2"]:
+		for enemy: Enemy in _game.level.enemies_on_floor(floor_id):
+			if enemy is Boss or seen.has(enemy.data.model_id):
+				continue
+			seen[enemy.data.model_id] = true
+			for node: Node in get_tree().get_nodes_in_group("enemy"):
+				node.set_physics_process(false)
+			var home := enemy.global_position
+			enemy.global_position = spot
+			enemy.look_at(spot + Vector3(1.0, 0.0, 0.0), Vector3.UP)
+			var model := enemy.get("_model") as EnemyModel
+			var views: Array = [
+				["frente", Vector3(2.2, 0.0, 0.0), 90.0, "idle"],
+				["lado", Vector3(0.0, 0.0, 2.2), 0.0, "idle"],
+				["corriendo", Vector3(0.0, 0.0, 2.2), 0.0, "run"],
+			]
+			for view: Array in views:
+				if model != null:
+					model.play_named(view[3] as String)
+				player.global_position = spot + (view[1] as Vector3)
+				player.rotation.y = deg_to_rad(view[2] as float)
+				player.head.rotation.x = deg_to_rad(-6.0)
+				for _frame: int in 15:
+					await get_tree().process_frame
+				_save_image("31_cuerpo_%s_%s" % [enemy.data.model_id, view[0]])
+			enemy.global_position = home
+	GameState.player.flashlight.on = false
 
 
 ## Golpes y una muerte delante del jugador en el pasillo este del Nivel 1: salpicaduras,

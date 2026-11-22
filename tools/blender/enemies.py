@@ -7,7 +7,8 @@ cejas, une las costuras (sin grietas al adelgazar), lo simplifica (unos 3000 tri
 color de vértice según el hueso que mueve cada vértice (cabeza, torso, brazos, piernas, pies),
 lo adelgaza hacia el eje de sus huesos, le alisa el relieve de músculos y le acerca los brazos
 al cuerpo (el cuerpo base es de complexión de superhéroe; El Técnico se queda corpulento),
-añade accesorios rígidos en la cabeza (gorra, máscara) y le pone las animaciones de
+añade pelo con volumen (una capa sobre el cuero cabelludo, con los pesos de la cabeza) y
+accesorios rígidos en la cabeza (gorra, máscara, moño) y le pone las animaciones de
 assets/third_party/quaternius-ual1/2 con nombres propios (idle, walk, run, attack, hit,
 hit_head, stun, death). Escribe assets/generated/enemies/<id>.glb. Siluetas distintas:
 caminante (civil roto), oyente (capucha), policía (uniforme y gorra), acechador (delgado,
@@ -82,6 +83,7 @@ ENEMIES = {
                    "hips": (0.22, 0.27, 0.38), "legs": (0.22, 0.27, 0.38),
                    "feet": (0.12, 0.1, 0.09)},
         "tears": 0.18,
+        "hair": {"color": (0.17, 0.12, 0.08), "messy": 1.2, "thickness": 0.013},
     },
     "listener": {
         "body": "Superhero_Female_FullBody.gltf",
@@ -99,6 +101,8 @@ ENEMIES = {
                    "feet": (0.05, 0.05, 0.05)},
         "cap": (0.1, 0.13, 0.22),
         "tears": 0.08,
+        "hair": {"color": (0.09, 0.08, 0.07), "under_cap": True, "low": 0.38,
+                 "thickness": 0.01},
     },
     "stalker": {
         "body": "Superhero_Female_FullBody.gltf",
@@ -107,6 +111,7 @@ ENEMIES = {
                    "hips": (0.16, 0.16, 0.18), "legs": BLUE_SKIN, "feet": (0.1, 0.1, 0.1)},
         "lean": 0.86,
         "tears": 0.15,
+        "hair": {"color": (0.36, 0.14, 0.07), "long": 0.05, "messy": 0.8, "thickness": 0.016},
     },
     "technician": {
         "body": "Superhero_Male_FullBody.gltf",
@@ -389,6 +394,80 @@ def mask(bm) -> None:
                           @ Matrix.Rotation(math.radians(90), 4, "X"))
 
 
+# Pelo: una capa sobre el cuero cabelludo sacada de la propia cabeza (mismos pesos de hueso, así
+# sigue a la cabeza en las animaciones). Alturas en fracción de la cabeza (0 = giro del cuello,
+# 1 = coronilla) y profundidad en fracción hacia la nuca (-1 = la cara, 1 = la nuca).
+HAIR_FRINGE = 0.8
+HAIR_FACE = -0.45
+
+
+def _in_hair(z: float, y: float, style: dict) -> bool:
+    """Si un punto de la cabeza (altura z, profundidad y, en fracciones) queda bajo el pelo."""
+    if style.get("under_cap") and z > 0.72:
+        return False
+    if y < HAIR_FACE and z < style.get("fringe", HAIR_FRINGE):
+        return False
+    low = style.get("low", 0.42)
+    if style.get("long") and y > -0.1:
+        low = style["long"]
+    return z >= low
+
+
+def hair(body, armature, style: dict) -> None:
+    """Pelo con volumen: duplica las caras del cuero cabelludo, las separa hacia fuera (más
+    revuelto con «messy») y pinta capa y cuero cabelludo del color del pelo. Con «long» baja
+    por la nuca (melena); el moño o la coleta se añaden aparte como piezas rígidas."""
+    groups = {g.index: g.name for g in body.vertex_groups}
+    mesh = body.data
+    to_world = body.matrix_world
+    pivot = head_matrix(armature).translation
+    allowed = ("Head", "neck") if style.get("long") else ("Head",)
+    candidates = {}
+    for v in mesh.vertices:
+        best = max(v.groups, key=lambda g: g.weight, default=None)
+        if best is not None and groups[best.group].startswith(allowed):
+            candidates[v.index] = to_world @ v.co
+    heads = [w for i, w in candidates.items()
+             if groups[max(mesh.vertices[i].groups, key=lambda g: g.weight).group]
+             .startswith("Head")]
+    top = max(w.z for w in heads) - pivot.z
+    face = pivot.y - min(w.y for w in heads)
+    covered = set()
+    for index, w in candidates.items():
+        if _in_hair((w.z - pivot.z) / top, (w.y - pivot.y) / face, style):
+            covered.add(index)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.verts.ensure_lookup_table()
+    bm.normal_update()
+    color = bm.verts.layers.float_color.get("Color")
+    faces = [f for f in bm.faces if all(v.index in covered for v in f.verts)]
+    rgba = tuple(srgb_to_linear(c) for c in style["color"]) + (1.0,)
+    root = tuple(srgb_to_linear(c * 0.7) for c in style["color"]) + (1.0,)
+    scalp = {v for f in faces for v in f.verts}
+    normals = {v: v.normal.copy() for v in scalp}
+    for v in scalp:
+        v[color] = root
+    made = bmesh.ops.duplicate(bm, geom=faces)
+    mapping = made["vert_map"]
+    thickness = style.get("thickness", 0.012)
+    messy = style.get("messy", 0.0)
+    for old, new in mapping.items():
+        if not isinstance(old, bmesh.types.BMVert) or old not in normals:
+            continue
+        lift = thickness * (1.0 + messy * (noise(old.index * 13 + 5) - 0.3))
+        new.co = old.co + normals[old] * lift
+        new[color] = tuple(c * (0.9 + 0.2 * noise(old.index * 3 + 1)) for c in rgba[:3]) + (1.0,)
+    bm.to_mesh(mesh)
+    bm.free()
+
+
+def bun(bm) -> None:
+    # Moño en la parte alta de la nuca.
+    bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=7, radius=0.05,
+                              matrix=Matrix.Translation((0, 0.1, 0.17)))
+
+
 def bring_animations(armature, animations=None) -> None:
     """Importa las bibliotecas de UAL, se queda con las acciones necesarias renombradas y
     borra sus objetos."""
@@ -438,6 +517,10 @@ def build(enemy_id: str, spec: dict, out_dir: str = OUT) -> None:
             v.co.x *= spec["lean"]
             v.co.y *= spec["lean"]
     check_closed(body, enemy_id)
+    if spec.get("hair"):
+        hair(body, armature, spec["hair"])
+        if spec["hair"].get("bun"):
+            add_rigid(body, armature, bun, spec["hair"]["color"])
     if spec.get("cap"):
         add_rigid(body, armature, cap, spec["cap"])
     if spec.get("mask"):
@@ -473,6 +556,7 @@ HUMANS = {
                    "upperarm": (0.85, 0.42, 0.1), "torso": (0.85, 0.42, 0.1),
                    "hips": (0.85, 0.42, 0.1), "legs": (0.85, 0.42, 0.1), "feet": (0.1, 0.1, 0.1)},
         "animations": HUMAN_ANIMATIONS,
+        "hair": {"color": (0.1, 0.08, 0.06), "messy": 0.4},
     },
     "worker_f": {
         "body": "Superhero_Female_FullBody.gltf",
@@ -480,6 +564,7 @@ HUMANS = {
                    "upperarm": (0.86, 0.88, 0.9), "torso": (0.86, 0.88, 0.9),
                    "hips": (0.2, 0.25, 0.4), "legs": (0.2, 0.25, 0.4), "feet": (0.1, 0.1, 0.1)},
         "animations": HUMAN_ANIMATIONS,
+        "hair": {"color": (0.08, 0.06, 0.05), "low": 0.5, "bun": True, "thickness": 0.011},
     },
     "guard": {
         "body": "Superhero_Male_FullBody.gltf",
@@ -489,6 +574,8 @@ HUMANS = {
                    "feet": (0.05, 0.05, 0.05)},
         "cap": (0.1, 0.13, 0.22),
         "animations": HUMAN_ANIMATIONS,
+        "hair": {"color": (0.2, 0.14, 0.09), "under_cap": True, "low": 0.38,
+                 "thickness": 0.01},
     },
 }
 
