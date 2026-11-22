@@ -168,8 +168,10 @@ func current_animation() -> String:
 
 ## Cuelga un nodo de un hueso para que siga la animación, colocado en el punto dado en el
 ## espacio del enemigo (x a la derecha, y arriba, z hacia su espalda). Debe estar ya en el
-## árbol. Sin esqueleto, queda en ese punto sin moverse.
-func attach_to_bone(node: Node3D, bone: String, spot: Vector3) -> void:
+## árbol. Sin esqueleto, queda en ese punto sin moverse. Con «along_bone» la pieza se orienta
+## con el hueso (su eje Y a lo largo del hueso y su +Z hacia la espalda): así una pieza larga,
+## como el tanque del jefe, va siempre pegada a lo largo de la espalda, se incline o gire.
+func attach_to_bone(node: Node3D, bone: String, spot: Vector3, along_bone: bool = false) -> void:
 	var index := -1 if _skeleton == null else _skeleton.find_bone(bone)
 	if index < 0:
 		node.position = spot
@@ -187,6 +189,30 @@ func attach_to_bone(node: Node3D, bone: String, spot: Vector3) -> void:
 		_player.advance(0.0)
 	var bone_pose := _skeleton.global_transform * _skeleton.get_bone_global_pose(index)
 	node.transform = bone_pose.affine_inverse() * target
+	if along_bone:
+		var back := (bone_pose.basis.inverse() * global_transform.basis.z).normalized()
+		var up := _bone_direction(index)
+		var z := (back - up * back.dot(up)).normalized()
+		var x := up.cross(z).normalized()
+		var scale_kept := node.transform.basis.get_scale()
+		node.transform.basis = Basis(x, up, z).scaled(scale_kept)
+
+
+## Dirección del hueso en sus propias coordenadas: hacia su primer hijo (en estos esqueletos el
+## eje Y del hueso no siempre va a lo largo de él).
+func _bone_direction(index: int) -> Vector3:
+	var children := _skeleton.get_bone_children(index)
+	if children.is_empty():
+		return Vector3.UP
+	var child := children[0]
+	for candidate: int in children:
+		if _skeleton.get_bone_name(candidate).begins_with("neck"):
+			child = candidate
+	var local := (
+		_skeleton.get_bone_global_pose(index).affine_inverse()
+		* _skeleton.get_bone_global_pose(child).origin
+	)
+	return local.normalized() if local.length() > 0.0001 else Vector3.UP
 
 
 ## Aturdido: un retroceso si es corto o no se sabe cuánto dura; si es largo, cae una vez, se

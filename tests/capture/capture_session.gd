@@ -304,8 +304,8 @@ func _capture_boss_throw() -> void:
 	await _measure_flashlight()
 
 
-## El jefe de frente y de espaldas (el tanque va a la espalda) y tumbado durante un aturdido
-## largo (cae una vez y se queda en el suelo).
+## El jefe de frente y de espaldas (el tanque va a la espalda), corriendo, y tumbado durante un
+## aturdido largo (cae una vez y se queda en el suelo).
 func _capture_boss_views(boss: Boss, center: Vector3) -> void:
 	var player := _game.level.player
 	for cloud: Node in get_tree().get_nodes_in_group("toxic_cloud"):
@@ -320,6 +320,18 @@ func _capture_boss_views(boss: Boss, center: Vector3) -> void:
 		player.rotation.y = PI if side < 0.0 else 0.0
 		player.head.rotation.x = deg_to_rad(-8.0)
 		for _frame: int in 20:
+			await get_tree().process_frame
+		_save_image(view[0])
+	# Corriendo, de espaldas y de lado: el tanque tiene que ir pegado a lo largo de la espalda.
+	(boss.get("_model") as EnemyModel).play_named("run")
+	for view: Array in [
+		["48_jefe_corriendo_espalda", Vector3(0.0, 0.0, 3.2), 0.0],
+		["48_jefe_corriendo_lado", Vector3(3.2, 0.0, 0.0), 90.0]
+	]:
+		player.global_position = center + (view[1] as Vector3)
+		player.rotation.y = deg_to_rad(view[2] as float)
+		player.head.rotation.x = deg_to_rad(-8.0)
+		for _frame: int in 17:
 			await get_tree().process_frame
 		_save_image(view[0])
 	boss.set_physics_process(true)
@@ -566,7 +578,7 @@ func _capture_angles() -> void:
 
 
 ## Un enemigo de cada tipo persiguiendo al jugador por el pasillo este del Nivel 1, en dos
-## momentos: tiene que verse de frente (la cara), no de espaldas.
+## momentos (tiene que verse de frente, la cara, no de espaldas) y después muerto en el suelo.
 func _capture_enemies_moving() -> void:
 	var player := _game.level.player
 	player.set_blocked("capture", true)
@@ -590,6 +602,13 @@ func _capture_enemies_moving() -> void:
 				if frame == 6:
 					_save_image("30_enemigo_%s_a" % enemy.data.model_id)
 			_save_image("30_enemigo_%s_b" % enemy.data.model_id)
+			# Muerto en el suelo, mirando hacia abajo: sin grietas entre las partes del cuerpo.
+			enemy.call("_die")
+			player.head.rotation.x = deg_to_rad(-45.0)
+			for _frame: int in 120:
+				await get_tree().physics_frame
+			_save_image("30_enemigo_%s_c_muerto" % enemy.data.model_id)
+			player.head.rotation.x = deg_to_rad(-4.0)
 			enemy.set_physics_process(false)
 			enemy.global_position = home
 

@@ -381,12 +381,12 @@ func _build_visual() -> void:
 	_tank_mesh = MeshInstance3D.new()
 	_tank_mesh.mesh = mesh
 	if _model != null:
-		# Colgado de la espalda: sigue al cuerpo encorvado de las animaciones.
+		# Colgado de la espalda y a lo largo de ella: sigue al cuerpo encorvado al andar y correr.
 		# Más bajo que la cabeza: entre los omóplatos y la cintura, sin taparla por detrás.
 		mesh.height = 0.5
 		mesh.top_radius = 0.17
 		mesh.bottom_radius = 0.17
-		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 0.92, 0.26))
+		_model.attach_to_bone(_tank_mesh, "spine_03", Vector3(0.0, 0.92, 0.26), true)
 		return
 	_tank_mesh.position = Vector3(0.0, 1.25, 0.38)
 	_visual.add_child(_tank_mesh)
