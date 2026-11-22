@@ -15,6 +15,12 @@ const LIGHT_PANEL_COLOR: Color = Color(0.92, 0.95, 1.0)
 const EXIT_SIGN_COLOR: Color = Color(0.2, 0.85, 0.35)
 ## Distancia de cada luz al techo (bajo su panel) y altura de las farolas de la azotea.
 const LIGHT_DROP: float = 1.1
+## Medidas de la carcasa de las cámaras de seguridad (mitad del alto y del fondo) y grosor de la
+## varilla que la cuelga del techo o del poste que la sostiene al aire libre.
+const CAMERA_HALF_HEIGHT: float = 0.08
+const CAMERA_HALF_DEPTH: float = 0.17
+const CAMERA_ROD: float = 0.04
+const CAMERA_POLE: float = 0.09
 const OUTDOOR_LAMP_HEIGHT: float = 3.6
 const OUTDOOR_LAMP_INSET: float = 0.8
 const BROKEN_LIGHT_ONE_IN: int = 4
@@ -591,6 +597,7 @@ func _place_loot(room: RoomData, loot: Difficulty.FloorLoot) -> void:
 			container.contents = loot.adjust_contents(spot.contents, GameState.items)
 			if world.has_container(floor_id, key):
 				container.contents = world.container_contents(floor_id, key)
+				container.searched = true
 			container.used.connect(
 				func(_by: Player) -> void:
 					world.set_container(floor_id, key, container.remaining_entries())
@@ -656,6 +663,7 @@ func _build_decor(spec: PropSpec, builders: Dictionary, loose: Kit.Builder) -> b
 				Color(0.12, 0.12, 0.13),
 				false
 			)
+			_add_camera_support(spec, basis, _builder_at(spec.position, builders, loose))
 		PropSpec.KIND_SIGN:
 			var label := Label3D.new()
 			label.text = tr(spec.text_key)
@@ -670,6 +678,34 @@ func _build_decor(spec: PropSpec, builders: Dictionary, loose: Kit.Builder) -> b
 		_:
 			return false
 	return true
+
+
+## Soporte de una cámara de seguridad, para que no flote: dentro, una varilla hasta el techo de
+## la sala; al aire libre, un poste hasta el suelo. Va detrás de la carcasa (+Z local, la cámara
+## mira hacia -Z), fuera de su imagen.
+func _add_camera_support(spec: PropSpec, basis: Basis, builder: Kit.Builder) -> void:
+	var room := _room_at(spec.position)
+	var color := Color(0.16, 0.16, 0.17)
+	if room == null or room.outdoor:
+		var back := spec.position + basis * Vector3(0.0, 0.0, CAMERA_HALF_DEPTH + CAMERA_POLE * 0.5)
+		builder.add_colored_box(
+			Transform3D(basis, Vector3(back.x, spec.position.y * 0.5, back.z)),
+			Vector3(CAMERA_POLE, spec.position.y + CAMERA_HALF_HEIGHT, CAMERA_POLE),
+			color,
+			false
+		)
+		return
+	var top := spec.position.y + CAMERA_HALF_HEIGHT
+	var length := room.height - top
+	if length <= 0.01:
+		return
+	var rod := spec.position + basis * Vector3(0.0, 0.0, CAMERA_HALF_DEPTH * 0.5)
+	builder.add_colored_box(
+		Transform3D(basis, Vector3(rod.x, top + length * 0.5, rod.z)),
+		Vector3(CAMERA_ROD, length, CAMERA_ROD),
+		color,
+		false
+	)
 
 
 ## Accesorios: los de decorado se funden con la malla de su sala; los que tienen función son

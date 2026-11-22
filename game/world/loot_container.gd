@@ -27,6 +27,10 @@ static var _material: StandardMaterial3D = null
 @export var kind: int = KIND_DRAWER
 ## Contenido: lista de "id:cantidad" (por ejemplo "pistol_ammo:6").
 @export var contents: PackedStringArray = PackedStringArray()
+## Ya registrado en esta partida (lo recuerda el estado del mundo). Solo entonces aparece
+## abierto; uno que sale vacío desde el principio (por el reparto o la dificultad) aparece
+## cerrado y al abrirlo avisa de que no hay nada.
+@export var searched: bool = false
 
 ## Giro (radianes) de lo que se ve: el frente mira hacia aquí (lo fija el piso: hacia el centro
 ## de la sala). No gira la colisión.
@@ -47,7 +51,7 @@ func _ready() -> void:
 		if stack != null:
 			_remaining.append(stack)
 	_build()
-	if _remaining.is_empty():
+	if _remaining.is_empty() and searched:
 		# Registrado en una visita anterior: aparece abierto y vacío.
 		enabled = false
 		_open_visual(false)
@@ -72,6 +76,14 @@ func remaining_entries() -> PackedStringArray:
 
 func interact(player: Player) -> void:
 	if not enabled:
+		return
+	if _remaining.is_empty():
+		# Vacío desde el principio: se abre, avisa y queda registrado.
+		enabled = false
+		searched = true
+		_open_visual(true)
+		EventBus.user_message.emit("msg_container_empty")
+		used.emit(player)
 		return
 	var state := GameState.player
 	var kept: Array[ItemStack] = []

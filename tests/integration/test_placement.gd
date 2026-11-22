@@ -12,6 +12,10 @@ const CLEARANCE: float = 1.0
 ## Radio de la consulta de solape del botín y altura de su centro sobre el suelo (m).
 const LOOT_PROBE_RADIUS: float = 0.12
 const LOOT_PROBE_HEIGHT: float = 0.3
+## Distancia a la carcasa de una cámara a la que se busca su soporte y separación entre los
+## segmentos de la búsqueda (más fina que la varilla más delgada, de 4 cm) (m).
+const CAMERA_SUPPORT_PROBE: float = 0.3
+const CAMERA_PROBE_STEP: float = 0.025
 
 var _game: Game
 
@@ -57,6 +61,38 @@ func test_signs_are_mounted_on_a_surface() -> void:
 				)
 			)
 	assert_gt(checked, 10, "rótulos revisados")
+
+
+## Ninguna cámara de seguridad flota: a 30 cm por encima de la carcasa (colgada del techo) o
+## por debajo (en un poste) hay algo que la sostiene. Se cruzan segmentos horizontales a esa
+## altura, de 60 cm, que cubren el cuadrado alrededor de la cámara.
+func test_security_cameras_are_supported() -> void:
+	var checked := 0
+	for section: FloorSection in _game.level.sections:
+		var meshes: Array[MeshInstance3D] = []
+		for node: Node in section.find_children("*", "MeshInstance3D", true, false):
+			var mesh := node as MeshInstance3D
+			if mesh.mesh != null:
+				meshes.append(mesh)
+		for prop: PropSpec in section.floor_data.props:
+			if prop.kind != PropSpec.KIND_CAMERA:
+				continue
+			checked += 1
+			var supported := false
+			for height: float in [CAMERA_SUPPORT_PROBE, -CAMERA_SUPPORT_PROBE]:
+				var center := section.to_global(prop.position + Vector3.UP * height)
+				var half := Vector3.RIGHT * CAMERA_SUPPORT_PROBE
+				# Segmentos en x, uno cada CAMERA_PROBE_STEP en z: cubren el cuadrado alrededor.
+				var offset := -CAMERA_SUPPORT_PROBE
+				while offset <= CAMERA_SUPPORT_PROBE and not supported:
+					var row := center + Vector3.BACK * offset
+					supported = _segment_hits(meshes, row - half, row + half)
+					offset += CAMERA_PROBE_STEP
+			assert_true(
+				supported,
+				"%s: la cámara «%s» en %s flota" % [section.name, prop.text_key, prop.position]
+			)
+	assert_gt(checked, 4, "cámaras revisadas")
 
 
 ## Si el segmento toca algún triángulo de esas mallas.

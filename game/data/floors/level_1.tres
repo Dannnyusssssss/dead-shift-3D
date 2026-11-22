@@ -336,7 +336,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_110"]
 script = ExtResource("11_prop_spe")
 kind = 3
-position = Vector3(-8, 0, -14)
+position = Vector3(-8.45, 0, -14)
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 collision_only = true
@@ -352,7 +352,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_112"]
 script = ExtResource("11_prop_spe")
 kind = 3
-position = Vector3(-0.8, 0, -14)
+position = Vector3(-0.35, 0, -14)
 size = Vector3(3, 1.8, 0.6)
 shade = 0.45
 collision_only = true
@@ -783,7 +783,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_166"]
 script = ExtResource("11_prop_spe")
 kind = 3
-position = Vector3(13.2, 0, -12.6)
+position = Vector3(13.3, 0, -12.6)
 size = Vector3(0.7, 0.5, 0.55)
 shade = 0.5
 collision_only = true
@@ -791,7 +791,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_167"]
 script = ExtResource("11_prop_spe")
 kind = 3
-position = Vector3(13.25, 0.5, -12.58)
+position = Vector3(13.35, 0.5, -12.58)
 size = Vector3(0.55, 0.42, 0.45)
 shade = 0.58
 collision_only = true
@@ -799,7 +799,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_168"]
 script = ExtResource("11_prop_spe")
 kind = 3
-position = Vector3(13.16, 0.92, -12.6)
+position = Vector3(13.26, 0.92, -12.6)
 size = Vector3(0.45, 0.35, 0.4)
 shade = 0.46
 collision_only = true
@@ -1609,7 +1609,7 @@ text_key = "shelf_small"
 [sub_resource type="Resource" id="Resource_prop_283"]
 script = ExtResource("11_prop_spe")
 kind = 9
-position = Vector3(-8, 0, -14)
+position = Vector3(-8.45, 0, -14)
 text_key = "shelf_large"
 
 [sub_resource type="Resource" id="Resource_prop_284"]
@@ -1621,7 +1621,7 @@ text_key = "shelf_large"
 [sub_resource type="Resource" id="Resource_prop_285"]
 script = ExtResource("11_prop_spe")
 kind = 9
-position = Vector3(-0.8, 0, -14)
+position = Vector3(-0.35, 0, -14)
 text_key = "shelf_large"
 
 [sub_resource type="Resource" id="Resource_prop_286"]
@@ -1765,7 +1765,7 @@ text_key = "screen_counter"
 [sub_resource type="Resource" id="Resource_prop_308"]
 script = ExtResource("11_prop_spe")
 kind = 9
-position = Vector3(13.2, 0, -12.6)
+position = Vector3(13.3, 0, -12.6)
 text_key = "boxes_3"
 
 [sub_resource type="Resource" id="Resource_prop_309"]

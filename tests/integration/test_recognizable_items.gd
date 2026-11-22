@@ -71,6 +71,7 @@ func test_container_opens_reveals_and_reports_each_item() -> void:
 func test_searched_container_appears_open() -> void:
 	var box := LootContainer.new()
 	box.kind = LootContainer.KIND_LOCKER
+	box.searched = true
 	_world.add_child(box)
 	await wait_physics_frames(1)
 	assert_true(box.is_open())

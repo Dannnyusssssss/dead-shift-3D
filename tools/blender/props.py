@@ -370,21 +370,30 @@ def shelf(m: Model, length: float, height: float, depth: float, levels: int) -> 
                 k += 1
 
 
+# Sillas de la mesa: centro del asiento a 0,72 m del centro de la mesa, asiento de 0,4 m y
+# respaldo en el borde exterior (llega a 0,92 m), igual que sus bloques de colisión en
+# floorgen (table_set): entre mesas vecinas queda paso de verdad.
+TABLE_CHAIR_DISTANCE = 0.72
+TABLE_CHAIR_SEAT = 0.4
+
+
 def table_set(m: Model) -> None:
     m.cylinder(0.55, 0.55, 0.04, 0, 0.71, 0, (0.72, 0.7, 0.66), segments=14)
     m.cylinder(0.04, 0.04, 0.69, 0, 0.02, 0, CHROME, segments=6)
     m.cylinder(0.3, 0.3, 0.02, 0, 0, 0, DARK, segments=10)
+    half = TABLE_CHAIR_SEAT / 2
     for angle in range(0, 360, 90):
         a = math.radians(angle)
-        x, z = math.sin(a) * 0.95, math.cos(a) * 0.95
-        m.box(0.42, 0.04, 0.42, x, 0.42, z, RED, rot_y=angle)
-        for dx in (-0.18, 0.18):
-            for dz in (-0.18, 0.18):
+        x, z = math.sin(a) * TABLE_CHAIR_DISTANCE, math.cos(a) * TABLE_CHAIR_DISTANCE
+        m.box(TABLE_CHAIR_SEAT, 0.04, TABLE_CHAIR_SEAT, x, 0.42, z, RED, rot_y=angle)
+        for dx in (-half + 0.03, half - 0.03):
+            for dz in (-half + 0.03, half - 0.03):
                 lx = x + dx * math.cos(a) + dz * math.sin(a)
                 lz = z - dx * math.sin(a) + dz * math.cos(a)
                 m.box(0.025, 0.42, 0.025, lx, 0, lz, CHROME)
-        bx, bz = math.sin(a) * 1.15, math.cos(a) * 1.15
-        m.box(0.42, 0.4, 0.03, bx, 0.46, bz, RED, rot_y=angle)
+        back = TABLE_CHAIR_DISTANCE + half - 0.015
+        bx, bz = math.sin(a) * back, math.cos(a) * back
+        m.box(TABLE_CHAIR_SEAT, 0.4, 0.03, bx, 0.46, bz, RED, rot_y=angle)
 
 
 def kiosk(m: Model) -> None:

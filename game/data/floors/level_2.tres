@@ -308,32 +308,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_98"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20.95, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20.72, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_99"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-19.05, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-19.28, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_100"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20, 0, -13.45)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20, 0, -13.22)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_101"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20, 0, -11.55)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20, 0, -11.78)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -348,32 +348,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_103"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20.95, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20.72, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_104"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-19.05, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-19.28, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_105"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20, 0, -9.95)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20, 0, -9.72)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_106"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-20, 0, -8.05)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-20, 0, -8.28)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -388,32 +388,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_108"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15.95, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15.72, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_109"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-14.05, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-14.28, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_110"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15, 0, -13.45)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15, 0, -13.22)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_111"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15, 0, -11.55)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15, 0, -11.78)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -428,32 +428,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_113"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15.95, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15.72, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_114"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-14.05, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-14.28, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_115"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15, 0, -9.95)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15, 0, -9.72)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_116"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-15, 0, -8.05)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-15, 0, -8.28)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -468,32 +468,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_118"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10.95, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10.72, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_119"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-9.05, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-9.28, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_120"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10, 0, -13.45)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10, 0, -13.22)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_121"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10, 0, -11.55)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10, 0, -11.78)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -508,32 +508,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_123"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10.95, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10.72, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_124"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-9.05, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-9.28, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_125"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10, 0, -9.95)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10, 0, -9.72)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_126"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10, 0, -8.05)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-10, 0, -8.28)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -548,32 +548,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_128"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5.95, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5.72, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_129"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-4.05, 0, -12.5)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-4.28, 0, -12.5)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_130"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5, 0, -13.45)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5, 0, -13.22)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_131"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5, 0, -11.55)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5, 0, -11.78)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -588,32 +588,32 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_133"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5.95, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5.72, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_134"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-4.05, 0, -9)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-4.28, 0, -9)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_135"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5, 0, -9.95)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5, 0, -9.72)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_136"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5, 0, -8.05)
-size = Vector3(0.45, 0.45, 0.45)
+position = Vector3(-5, 0, -8.28)
+size = Vector3(0.4, 0.45, 0.4)
 shade = 0.3
 collision_only = true
 
@@ -697,7 +697,7 @@ text_key = "floor_level_2"
 [sub_resource type="Resource" id="Resource_prop_149"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-21, 0, -15.2)
+position = Vector3(-21, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -705,7 +705,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_150"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-21, 0.68, -15.2)
+position = Vector3(-21, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -713,7 +713,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_151"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-19.9, 0, -15.2)
+position = Vector3(-19.5, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -721,7 +721,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_152"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-19.9, 0.68, -15.2)
+position = Vector3(-19.5, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -729,7 +729,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_153"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-18.8, 0, -15.2)
+position = Vector3(-18, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -737,7 +737,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_154"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-18.8, 0.68, -15.2)
+position = Vector3(-18, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -745,7 +745,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_155"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-13, 0, -15.2)
+position = Vector3(-13, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -753,7 +753,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_156"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-13, 0.68, -15.2)
+position = Vector3(-13, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -761,7 +761,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_157"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-11.9, 0, -15.2)
+position = Vector3(-11.5, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -769,7 +769,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_158"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-11.9, 0.68, -15.2)
+position = Vector3(-11.5, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -777,7 +777,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_159"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10.8, 0, -15.2)
+position = Vector3(-10, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -785,7 +785,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_160"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-10.8, 0.68, -15.2)
+position = Vector3(-10, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -793,7 +793,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_161"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-9.7, 0, -15.2)
+position = Vector3(-8.5, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -801,7 +801,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_162"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-9.7, 0.68, -15.2)
+position = Vector3(-8.5, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -809,7 +809,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_163"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5.6, 0, -15.2)
+position = Vector3(-5.6, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -817,7 +817,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_164"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-5.6, 0.68, -15.2)
+position = Vector3(-5.6, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -825,7 +825,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_165"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-4.5, 0, -15.2)
+position = Vector3(-4.1, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -833,7 +833,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_166"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-4.5, 0.68, -15.2)
+position = Vector3(-4.1, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -841,7 +841,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_167"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-3.4, 0, -15.2)
+position = Vector3(-2.6, 0, -15.25)
 size = Vector3(0.08, 0.68, 0.08)
 shade = 0.25
 collision_only = true
@@ -849,7 +849,7 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_168"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(-3.4, 0.68, -15.2)
+position = Vector3(-2.6, 0.68, -15.25)
 size = Vector3(0.38, 0.06, 0.38)
 shade = 0.4
 collision_only = true
@@ -1089,27 +1089,24 @@ collision_only = true
 [sub_resource type="Resource" id="Resource_prop_201"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(3, 0, -4.2)
+position = Vector3(1.5, 0, -5.7)
 size = Vector3(0.95, 0.6, 0.55)
-rotation_deg = 110.0
 shade = 0.6
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_202"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(2.812, 0.45, -4.717)
+position = Vector3(2.05, 0.45, -5.7)
 size = Vector3(0.06, 0.06, 0.55)
-rotation_deg = 110.0
 shade = 0.3
 collision_only = true
 
 [sub_resource type="Resource" id="Resource_prop_203"]
 script = ExtResource("12_prop_spe")
 kind = 3
-position = Vector3(3.352, 0.05, -4.168)
+position = Vector3(1.35, 0.05, -5.38)
 size = Vector3(0.7, 0.05, 0.05)
-rotation_deg = 110.0
 shade = 0.3
 collision_only = true
 
@@ -1238,61 +1235,61 @@ text_key = "shelf_large"
 [sub_resource type="Resource" id="Resource_prop_224"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-21, 0, -15.2)
+position = Vector3(-21, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_225"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-19.9, 0, -15.2)
+position = Vector3(-19.5, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_226"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-18.8, 0, -15.2)
+position = Vector3(-18, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_227"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-13, 0, -15.2)
+position = Vector3(-13, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_228"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-11.9, 0, -15.2)
+position = Vector3(-11.5, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_229"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-10.8, 0, -15.2)
+position = Vector3(-10, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_230"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-9.7, 0, -15.2)
+position = Vector3(-8.5, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_231"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-5.6, 0, -15.2)
+position = Vector3(-5.6, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_232"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-4.5, 0, -15.2)
+position = Vector3(-4.1, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_233"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(-3.4, 0, -15.2)
+position = Vector3(-2.6, 0, -15.25)
 text_key = "stool"
 
 [sub_resource type="Resource" id="Resource_prop_234"]
@@ -1396,8 +1393,7 @@ text_key = "planter"
 [sub_resource type="Resource" id="Resource_prop_250"]
 script = ExtResource("12_prop_spe")
 kind = 9
-position = Vector3(3, 0, -4.2)
-rotation_deg = 110.0
+position = Vector3(1.5, 0, -5.7)
 text_key = "fallen_cart"
 
 [sub_resource type="Resource" id="Resource_pci6w"]
