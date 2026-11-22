@@ -219,7 +219,7 @@ func test_long_stun_falls_and_rises_once() -> void:
 
 
 ## El tanque (punto débil) va a la espalda: detrás del pecho, del lado por el que los golpes
-## llegan al tanque, y a la altura del torso.
+## llegan al tanque, a la altura del torso y sin llegar a la cabeza.
 func test_tank_hangs_on_the_back() -> void:
 	var boss := _spawn_boss(Vector3(0.0, 0.0, -6.0))
 	await wait_physics_frames(10)
@@ -239,15 +239,15 @@ func test_tank_hangs_on_the_back() -> void:
 	var head := boss.to_local(
 		skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Head")).origin
 	)
-	# El tanque va a lo largo de la columna (inclinado con el cuerpo): su punto más alto es el
-	# más alto de sus dos extremos.
+	# El tanque va tumbado sobre la espalda a lo largo de la columna: no llega a la cabeza (la
+	# distancia del eje del tanque a la cabeza supera su radio con margen).
 	var half := (tank as MeshInstance3D).mesh.get_aabb().size.y * 0.5
-	var axis := tank.global_transform.basis.y.normalized() * half
-	var ends := [
-		boss.to_local(tank.global_position + axis), boss.to_local(tank.global_position - axis)
-	]
-	var top := maxf((ends[0] as Vector3).y, (ends[1] as Vector3).y)
-	assert_lt(top, head.y - 0.1, "no tapa la cabeza por detrás")
+	var radius := (tank as MeshInstance3D).mesh.get_aabb().size.x * 0.5
+	var axis := boss.global_transform.basis.inverse() * tank.global_transform.basis.y.normalized()
+	var closest := Geometry3D.get_closest_point_to_segment(
+		head, local - axis * half, local + axis * half
+	)
+	assert_gt(head.distance_to(closest), radius + 0.1, "no toca la cabeza")
 
 
 ## Si muere en el aire (bajando una escalera, en plena embestida), el cuerpo cae al suelo en vez

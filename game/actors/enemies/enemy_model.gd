@@ -189,17 +189,6 @@ func attach_to_bone(node: Node3D, bone: String, spot: Vector3) -> void:
 	node.transform = bone_pose.affine_inverse() * target
 
 
-## Posición de un hueso en coordenadas del modelo, en la pose actual (para colocar piezas
-## respecto a él con attach_to_bone).
-func bone_position(bone: String) -> Vector3:
-	var index := -1 if _skeleton == null else _skeleton.find_bone(bone)
-	if index < 0:
-		return Vector3.ZERO
-	if _player != null and not _player.current_animation.is_empty():
-		_player.advance(0.0)
-	return to_local(_skeleton.global_transform * _skeleton.get_bone_global_pose(index).origin)
-
-
 ## Cuelga un nodo de un hueso colocado respecto al propio hueso, no al cuerpo: «along» metros a
 ## lo largo del hueso (hacia su hijo) y «back» metros hacia la espalda, orientado con el hueso
 ## (eje Y a lo largo de él, +Z hacia la espalda). Sirve con cualquier pose: el chaleco queda
