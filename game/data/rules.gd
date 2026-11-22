@@ -50,6 +50,8 @@ const ANTIBIOTIC_BONUS: float = 90.0
 ## Teléfono y helicóptero: piezas necesarias, segundos de llegada tras la llamada y de espera en
 ## la azotea.
 const PHONE_PARTS: Array[String] = ["phone_antenna", "phone_battery", "phone_board"]
+## Segundos que tarda armar el teléfono (con las manos, como combinar: hace ruido y no se ataca).
+const PHONE_ASSEMBLE_TIME: float = 4.0
 const HELICOPTER_ARRIVAL_TIME: float = 150.0
 const HELICOPTER_WAIT_TIME: float = 75.0
 

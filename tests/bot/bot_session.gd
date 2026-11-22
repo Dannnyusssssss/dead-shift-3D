@@ -280,7 +280,10 @@ func _helicopter_waiting() -> bool:
 ## jefe (o al llegar a la azotea): así espera menos arriba, donde llegan las oleadas.
 func _handle_phone() -> void:
 	var keys := GameState.player.keys
-	if Discovery.can_assemble_phone(GameState.world, keys) and keys.assemble_phone():
+	if (
+		Discovery.can_assemble_phone(GameState.world, keys)
+		and _player.crafting.start_phone() == Crafting.ERROR_NONE
+	):
 		print("[bot] arma el teléfono")
 	var on_roof := _game.level.floor_data.has_helipad
 	var boss_beaten := keys.has("roof_key")

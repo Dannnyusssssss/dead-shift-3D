@@ -102,7 +102,8 @@ func _show_crafting(parts: Array[String], progress: float) -> void:
 
 func _name(item_id: String) -> String:
 	var item := GameState.items.get_item(item_id)
-	return tr(item.name_key) if item != null else item_id
+	# El teléfono armado no es un objeto de la mochila: su nombre va por su clave de texto.
+	return tr(item.name_key) if item != null else tr("item_" + item_id)
 
 
 func _show_item(item: ItemData) -> void:

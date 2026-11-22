@@ -17,6 +17,8 @@ var _duration: float = 0.0
 var _noise_timer: float = 0.0
 var _recipe: RecipeData = null
 var _slot: int = -1
+## Si lo que se está haciendo es armar el teléfono (no usa receta).
+var _phone: bool = false
 ## Lo que se está combinando: los dos objetos y el resultado ("" si es una reparación).
 var _description: Array[String] = []
 
@@ -44,9 +46,8 @@ func start(recipe: RecipeData, slot: int) -> String:
 	active = true
 	_recipe = recipe
 	_slot = slot
-	_duration = recipe.craft_time
-	_timer = _duration
-	_noise_timer = 0.0
+	_phone = false
+	_begin(recipe.craft_time)
 	var first := recipe.input_a
 	var second := recipe.input_b
 	if recipe.is_repair():
@@ -55,6 +56,29 @@ func start(recipe: RecipeData, slot: int) -> String:
 	_player.arms.start_craft(first, second)
 	EventBus.crafting_changed.emit(true)
 	return Crafting.ERROR_NONE
+
+
+## Empieza a armar el teléfono con las tres piezas: las manos encajan la batería en la placa.
+## Devuelve un código de error o "" si empezó.
+func start_phone() -> String:
+	if active:
+		return ERROR_BUSY
+	if not Discovery.can_assemble_phone(GameState.world, GameState.player.keys):
+		return Crafting.ERROR_NO_RECIPE
+	active = true
+	_recipe = null
+	_slot = -1
+	_phone = true
+	_begin(Rules.PHONE_ASSEMBLE_TIME)
+	_description = ["phone_board", "phone_battery", "phone"]
+	_player.arms.start_craft("phone_board", "phone_battery")
+	EventBus.crafting_changed.emit(true)
+	return Crafting.ERROR_NONE
+
+
+## Si lo que se está haciendo ahora es armar el teléfono.
+func is_phone() -> bool:
+	return active and _phone
 
 
 ## Objetos de la combinación en curso: [primero, segundo, resultado] (resultado "" si repara).
@@ -87,7 +111,16 @@ func _physics_process(delta: float) -> void:
 		_finish()
 
 
+func _begin(duration: float) -> void:
+	_duration = duration
+	_timer = _duration
+	_noise_timer = 0.0
+
+
 func _finish() -> void:
+	if _phone:
+		_finish_phone()
+		return
 	var state := GameState.player
 	var was_equipped := _slot >= 0 and _slot == state.equipped_slot
 	var result := _crafting.craft(state.inventory, _recipe, _slot)
@@ -106,7 +139,17 @@ func _finish() -> void:
 	EventBus.weapon_changed.emit()
 
 
+func _finish_phone() -> void:
+	var keys := GameState.player.keys
+	var done := Discovery.can_assemble_phone(GameState.world, keys) and keys.assemble_phone()
+	_end()
+	if done:
+		EventBus.user_message.emit("msg_phone_assembled")
+		EventBus.key_items_changed.emit()
+
+
 func _end() -> void:
 	active = false
+	_phone = false
 	_player.arms.stop_craft()
 	EventBus.crafting_changed.emit(false)

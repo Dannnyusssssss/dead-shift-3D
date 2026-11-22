@@ -114,6 +114,45 @@ func test_crafting_takes_time_blocks_and_makes_noise() -> void:
 	assert_eq(GameState.player.items_crafted, 1)
 
 
+func test_phone_is_assembled_by_hand_over_time() -> void:
+	var keys := GameState.player.keys
+	assert_eq(_player.crafting.start_phone(), Crafting.ERROR_NO_RECIPE, "sin piezas no se arma")
+	for part: String in Rules.PHONE_PARTS:
+		keys.add(part)
+	GameState.world.set_flag(Discovery.NOTE_FLAG)
+	NoiseSystem.last_level = -1
+	assert_eq(_player.crafting.start_phone(), Crafting.ERROR_NONE)
+	assert_eq(_player.crafting.start_phone(), PlayerCrafting.ERROR_BUSY, "ya está armándolo")
+	await wait_physics_frames(3)
+	assert_true(_player.crafting.is_phone())
+	assert_true(_player.hands_busy, "manos ocupadas mientras lo arma")
+	assert_eq(_player.arms.current_action(), "craft_assemble", "las manos lo ensamblan")
+	assert_eq(NoiseSystem.last_level, Rules.NOISE_CRAFT, "armarlo hace ruido")
+	assert_false(keys.phone_assembled, "todavía no terminó")
+	assert_eq(_player.crafting.description()[2], "phone")
+	for _step: int in 60:
+		await wait_physics_frames(10)
+		if not _player.crafting.active:
+			break
+	assert_false(_player.crafting.active)
+	assert_true(keys.phone_assembled)
+	assert_false(_player.crafting.is_phone())
+
+
+func test_cancelled_phone_stays_in_parts() -> void:
+	var keys := GameState.player.keys
+	for part: String in Rules.PHONE_PARTS:
+		keys.add(part)
+	GameState.world.set_flag(Discovery.NOTE_FLAG)
+	assert_eq(_player.crafting.start_phone(), Crafting.ERROR_NONE)
+	await wait_physics_frames(3)
+	_player.crafting.cancel()
+	assert_false(_player.crafting.active)
+	assert_false(keys.phone_assembled, "cancelado: sigue en piezas")
+	assert_eq(_player.crafting.start_phone(), Crafting.ERROR_NONE, "se puede volver a empezar")
+	_player.crafting.cancel()
+
+
 func test_crafting_rejects_missing_material_and_wrong_slot() -> void:
 	var inventory := GameState.player.inventory
 	inventory.add_item(GameState.items.get_item("rag"), 1)

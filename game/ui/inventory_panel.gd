@@ -405,13 +405,13 @@ func _on_combine(recipe: RecipeData, slot: int) -> void:
 
 
 func _on_assemble() -> void:
-	var keys := GameState.player.keys
-	if not Discovery.can_assemble_phone(GameState.world, keys):
+	if _player == null:
 		return
-	if keys.assemble_phone():
-		_info.text = tr("msg_phone_assembled")
-		EventBus.key_items_changed.emit()
-		_show_tab(TAB_BAG)
+	# Se arma con las manos unos segundos (como combinar); el mensaje sale al terminar.
+	if _player.crafting.start_phone() == Crafting.ERROR_NONE:
+		close()
+	else:
+		_info.text = tr("msg_cannot_combine")
 
 
 # --- Común ----------------------------------------------------------------------------------
