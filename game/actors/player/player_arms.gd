@@ -15,36 +15,25 @@ const LEFT_SHOULDER: Vector3 = Vector3(-0.2, -0.24, 0.12)
 const UPPER_LENGTH: float = 0.28
 const FOREARM_LENGTH: float = 0.26
 ## Colocación de cada arma en la mano, en coordenadas de la muñeca: su eje de agarre va por el
-## hueco del puño y su punto de agarre al centro. La calcula tools/blender/arms.py a partir de
-## la malla de la mano (la imprime al exportar). Las de cuerpo a cuerpo y los objetos apuntan a
-## -Z desde su origen y salen por el lado del pulgar; pistola y escopeta, por su empuñadura.
+## hueco del puño y su punto de agarre al centro. La calcula tools/blender/arms.py a partir del
+## hueco con el que se construye cada guante (la imprime al exportar). Las de cuerpo a cuerpo y
+## los objetos apuntan a -Z desde su origen y salen por el lado del pulgar; pistola y escopeta,
+## por su empuñadura.
 const HOLD_FRAMES: Dictionary = {
 	"melee":
 	Transform3D(
-		Basis(
-			Vector3(1.0, 0.0040, -0.0031),
-			Vector3(0.0, 0.6077, 0.7942),
-			Vector3(0.0051, -0.7942, 0.6076)
-		),
-		Vector3(-0.0014, -0.0356, -0.0723)
+		Basis(Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.6112, 0.7915), Vector3(0.0, -0.7915, 0.6112)),
+		Vector3(-0.034, 0.0, -0.07)
 	),
 	"pistol":
 	Transform3D(
-		Basis(
-			Vector3(0.9984, 0.0551, 0.0077),
-			Vector3(-0.0540, 0.9930, -0.1049),
-			Vector3(-0.0135, 0.1043, 0.9944)
-		),
-		Vector3(-0.0607, 0.0664, -0.1048)
+		Basis(Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.9946, -0.1037), Vector3(0.0, 0.1037, 0.9946)),
+		Vector3(-0.036, 0.0649, -0.0943)
 	),
 	"shotgun":
 	Transform3D(
-		Basis(
-			Vector3(0.9984, 0.0551, 0.0077),
-			Vector3(-0.0557, 0.9888, 0.1388),
-			Vector3(0.0, -0.1390, 0.9903)
-		),
-		Vector3(-0.0606, 0.0679, -0.1242)
+		Basis(Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.9901, 0.14), Vector3(0.0, -0.14, 0.9901)),
+		Vector3(-0.036, 0.0759, -0.0991)
 	),
 }
 ## Armas de fuego: se sujetan con el puño de empuñadura vertical (índice en el gatillo).

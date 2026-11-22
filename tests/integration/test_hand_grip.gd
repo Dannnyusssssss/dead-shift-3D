@@ -51,10 +51,12 @@ func test_melee_fist_leaves_the_handle_free() -> void:
 		assert_eq(_inside(vertices, point, axis, -0.06, 0.06), 0, "dedos dentro del mango: " + side)
 
 
-## El puño de arma de fuego deja libre la empuñadura de la pistola (inclinada 14 grados).
+## El puño de arma de fuego deja libre la empuñadura de la pistola (inclinada 14 grados): su
+## eje pasa por el centro de la empuñadura del modelo (tools/blender/items.py) y se mide a lo
+## largo de toda ella.
 func test_pistol_fist_leaves_the_grip_free() -> void:
 	var frame: Transform3D = PlayerArms.HOLD_FRAMES["pistol"]
-	var point := frame * Vector3(0.0, -0.045, 0.01)
+	var point := frame * Vector3(0.0, -0.1, 0.01)
 	var axis := frame.basis * Vector3(0.0, cos(deg_to_rad(14.0)), sin(deg_to_rad(14.0)))
 	for side: String in ["right", "left"]:
 		var side_point := point
@@ -64,7 +66,7 @@ func test_pistol_fist_leaves_the_grip_free() -> void:
 			side_axis.x = -side_axis.x
 		var vertices := _vertices(ARMS + "hand_pistol_%s.glb" % side)
 		assert_eq(
-			_inside(vertices, side_point, side_axis, -0.05, 0.03),
+			_inside(vertices, side_point, side_axis, -0.05, 0.05),
 			0,
 			"dedos dentro de la empuñadura: " + side
 		)

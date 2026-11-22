@@ -7,9 +7,9 @@ Escribe en assets/generated/arms/:
   - forearm_right.glb y forearm_left.glb: antebrazo con la manga larga hasta cerca de la muñeca
     y su puño (origen en el codo); el izquierdo lleva el reloj.
   - hand_grip_right/left.glb (puño alrededor de un mango), hand_pistol_right/left.glb (empuñadura
-    de arma de fuego, índice en el gatillo) y hand_open_right/left.glb (mano relajada): la mano
-    modelada del maniquí de Quaternius colocada con sus huesos (tools/blender/hands.py), con
-    origen en la muñeca. Al exportar imprime dónde va cada arma en la mano (HOLD_FRAMES de
+    de arma de fuego, índice en el gatillo) y hand_open_right/left.glb (mano relajada): guantes
+    de piezas sencillas hechos alrededor del hueco del puño (tools/blender/hands.py), con origen
+    en la muñeca. Al exportar imprime dónde va cada arma en la mano (HOLD_FRAMES de
     game/actors/player/player_arms.gd).
 El juego monta el esqueleto (hombro -> codo -> muñeca) con estas piezas y lo anima por código.
 Medidas de un adulto delgado; reproducible.
@@ -69,7 +69,7 @@ def main() -> int:
     os.makedirs(out_dir, exist_ok=True)
     for name in sorted(MODELS):
         export(name, MODELS[name], out_dir)
-    # Las manos salen del maniquí (hands.py), que carga su propia escena: van al final.
+    # Guantes (hands.py): triángulos propios con normal por esquina.
     shapes, info = hands.build_all()
     for shape in sorted(shapes):
         right = shapes[shape]
