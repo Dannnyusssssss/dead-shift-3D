@@ -4,7 +4,7 @@
 Nada. El juego no tiene cuentas, formularios, analítica, publicidad, cookies ni contenido embebido de terceros, y no envía datos a ningún servidor.
 
 ## Qué se guarda en el dispositivo
-Solo en el almacenamiento del navegador, para el sitio del juego, y nunca sale del dispositivo:
+Solo en el almacenamiento del navegador (IndexedDB, en una carpeta propia del juego), para el sitio del juego, y nunca sale del dispositivo. No se usan cookies ni `localStorage`:
 
 | Dato | Para qué | Cuándo se borra |
 |---|---|---|
@@ -16,6 +16,9 @@ Si el navegador no permite guardar (por ejemplo, en una ventana privada), el jue
 
 ## Terceros
 - **Hosting de archivos estáticos:** al descargar el juego, el servidor puede registrar la dirección IP y datos técnicos de la petición, como cualquier sitio web. El juego no recibe ni usa esos datos.
+
+## Datos que lee de la página
+- **Zona segura de la pantalla:** la página del juego mide los márgenes de la muesca del celular y el juego los lee (cuatro números validados) para no tapar la interfaz. No se guarda ni sale del dispositivo.
 
 ## Parámetros de la dirección
 - `seed`: número entero opcional que fija el azar de la partida (por ejemplo, el reparto del botín). No identifica a nadie.

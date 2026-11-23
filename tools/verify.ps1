@@ -136,11 +136,11 @@ function Step-Bot {
     }
     # --fixed-fps hace la simulacion determinista y mas rapida que el tiempo real.
     # Escenarios: la partida completa hasta el rescate, el jefe con y sin escopeta, el rescate
-    # perdido y la muerte.
+    # perdido, la muerte y la prueba larga de memoria (30 min de oleadas sin crecer).
     # La partida completa se juega con varias semillas fijas en Facil y con una en Medio
     # (la 7: con el reparto del botin por semilla, en la 20261114 el bot muere ante el jefe)
     # (escenario:semilla:dificultad; sin dificultad, Facil).
-    $runs = @('full:20261114', 'full:7', 'full:31337', 'full:7:medium', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114')
+    $runs = @('full:20261114', 'full:7', 'full:31337', 'full:7:medium', 'boss_shotgun:20261114', 'boss_melee:20261114', 'lost:20261114', 'death:20261114', 'soak:20261114')
     foreach ($run in $runs) {
         $parts = $run.Split(':')
         $scenario = $parts[0]
@@ -166,6 +166,9 @@ function Step-Export {
     else {
         New-Item -ItemType Directory -Path $BuildWeb | Out-Null
     }
+    # El motor no debe importar lo que hay en build/ (dejaba archivos .import en la web publicada).
+    $ignore = Join-Path $Root 'build\.gdignore'
+    if (-not (Test-Path -LiteralPath $ignore)) { New-Item -ItemType File -Path $ignore | Out-Null }
     $out = Join-Path $BuildWeb 'index.html'
     $r = Invoke-Tool $script:Godot @('--headless', '--path', $Root, '--export-release', 'Web', $out)
     $problems = @(Get-EngineProblems $r.Lines)
@@ -177,6 +180,17 @@ function Step-Export {
     # Archivos propios de la pagina contenedora (sin scripts en linea).
     Copy-Item -LiteralPath (Join-Path $Root 'web\boot.js') -Destination $BuildWeb
     Copy-Item -LiteralPath (Join-Path $Root 'web\boot.css') -Destination $BuildWeb
+    $cover = Join-Path $Root 'web\cover.png'
+    if (Test-Path -LiteralPath $cover) { Copy-Item -LiteralPath $cover -Destination $BuildWeb }
+    # Aviso de licencias (juego, recursos de terceros y motor con sus componentes) junto al juego.
+    $notices = Join-Path $BuildWeb 'LICENCIAS.txt'
+    $n = Invoke-Tool $script:Godot @('--headless', '--path', $Root, '-s', 'res://tools/notices.gd', '--', $notices)
+    if ($n.Code -ne 0 -or -not (Test-Path -LiteralPath $notices) -or (Get-Item -LiteralPath $notices).Length -lt 10000) {
+        Show-Lines $n.Lines 20
+        Add-Failure 'no se genero LICENCIAS.txt'
+    }
+    $extra = @(Get-ChildItem -LiteralPath $BuildWeb -File | Where-Object { $_.Extension -eq '.import' })
+    if ($extra.Count -gt 0) { Add-Failure ('archivos del editor en build/web: ' + ($extra.Name -join ', ')) }
     Write-Host ('  generado en ' + $BuildWeb)
 }
 

@@ -36,4 +36,4 @@ Cada pack vive en `assets/third_party/<pack>/` con su archivo de licencia, una t
 
 Los packs se guardan como fuente: el juego solo incluye lo que se usa, ya procesado (atlas de texturas, modelos y sonidos elegidos).
 
-El resto del arte (escenario, mobiliario, rótulos con marcas inventadas y armas) se genera con scripts propios de Blender y forma parte del juego.
+El resto del arte (escenario, mobiliario, rótulos con marcas inventadas y armas) se genera con scripts propios de Blender y forma parte del juego. La portada (`web/cover.png`) es una captura del propio juego.

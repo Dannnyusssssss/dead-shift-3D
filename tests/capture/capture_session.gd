@@ -83,6 +83,7 @@ func _run() -> void:
 		"final",
 		"despertar",
 		"linterna",
+		"portada",
 	]
 	if only in parts:
 		if only == "final":
@@ -127,6 +128,8 @@ func _run() -> void:
 			await _capture_crafting()
 		elif only == "angulos":
 			await _capture_angles()
+		elif only == "portada":
+			await _capture_cover()
 		else:
 			await _capture_catalog()
 		print("[captura] %s en %s" % [only, _out_dir])
@@ -619,6 +622,48 @@ func _capture_enemies_moving() -> void:
 			player.head.rotation.x = deg_to_rad(-4.0)
 			enemy.set_physics_process(false)
 			enemy.global_position = home
+
+
+## Candidatas a portada (1280 × 720, sin interfaz): enemigos que vienen por un pasillo con la
+## linterna encendida, desde varios sitios. Se elige una a mano.
+func _capture_cover() -> void:
+	var player := _game.level.player
+	player.set_blocked("capture", true)
+	(_game.get_node("UI") as CanvasLayer).visible = false
+	GameState.player.flashlight.on = true
+	var shots: Array = [
+		["portada_n1_pasillo", Vector3(23.5, 5.0, -1.0), 90.0, -2.0, Vector3(-1.0, 0.0, 0.0)],
+		["portada_pb_pasillo", Vector3(-20.0, 0.0, 0.5), -90.0, 2.0, Vector3(1.0, 0.0, 0.0)],
+		["portada_n2_patio", Vector3(-6.0, 10.0, -4.5), 90.0, -2.0, Vector3(-1.0, 0.0, 0.0)],
+		["portada_n2_patio_b", Vector3(-6.0, 10.0, -5.6), 85.0, -3.0, Vector3(-1.0, 0.0, 0.0)],
+		["portada_n2_patio_c", Vector3(-5.0, 10.0, -6.2), 80.0, -4.0, Vector3(-1.0, 0.0, 0.0)],
+	]
+	var enemies: Array[Enemy] = []
+	for floor_id: String in ["ground_floor", "level_1", "level_2"]:
+		for enemy: Enemy in _game.level.enemies_on_floor(floor_id):
+			if not enemy is Boss and enemies.size() < 3:
+				enemies.append(enemy)
+	for shot: Array in shots:
+		var spot: Vector3 = shot[1]
+		var ahead: Vector3 = shot[4]
+		player.global_position = spot
+		player.rotation.y = deg_to_rad(shot[2] as float)
+		player.head.rotation.x = deg_to_rad(shot[3] as float)
+		var side := ahead.cross(Vector3.UP)
+		for index: int in enemies.size():
+			var enemy := enemies[index]
+			enemy.global_position = (
+				spot + ahead * (4.5 + 2.2 * index) + side * (0.9 * (index - 1)) + Vector3.UP * 0.1
+			)
+			enemy.set_physics_process(true)
+			enemy.call("_start_chase")
+		for _frame: int in 14:
+			await get_tree().physics_frame
+		_save_image(shot[0] as String)
+		for enemy: Enemy in enemies:
+			enemy.set_physics_process(false)
+	(_game.get_node("UI") as CanvasLayer).visible = true
+	GameState.player.flashlight.on = false
 
 
 ## Cada enemigo de cerca, quieto en el pasillo este del Nivel 1: de frente, de lado y corriendo

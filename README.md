@@ -55,7 +55,7 @@ En desarrollo. El juego completo se puede jugar de principio a fin, con su arte,
 
 ## Datos y privacidad
 
-El juego no recolecta datos, no tiene cuentas, analítica ni publicidad, y no se conecta a ningún servidor. Solo guarda los ajustes, una partida y la mejor nota en el almacenamiento del navegador, en el propio dispositivo; el menú principal tiene «Borrar datos guardados». Detalle en [docs/PRIVACY-INVENTORY.md](docs/PRIVACY-INVENTORY.md).
+El juego no recolecta datos, no tiene cuentas, analítica ni publicidad, y no se conecta a ningún servidor. Solo guarda los ajustes, una partida y la mejor nota en el almacenamiento del navegador, en el propio dispositivo; el menú principal tiene «Borrar datos guardados». La política de privacidad y los términos de uso se leen desde el menú principal. Detalle en [docs/PRIVACY-INVENTORY.md](docs/PRIVACY-INVENTORY.md).
 
 ## Desarrollo
 
@@ -79,8 +79,9 @@ tools/.venv/Scripts/python -m playwright install chromium
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify.ps1 quick
 
 # Lo anterior más el bot de recorrido (la partida completa con varias semillas, el jefe
-# con y sin escopeta, el rescate perdido y la muerte), el export web, los pesos, la
-# búsqueda de secretos y la prueba de humo en Chromium (directa, en iframe y táctil)
+# con y sin escopeta, el rescate perdido, la muerte y una prueba larga de memoria con
+# 30 minutos de oleadas), el export web con su aviso de licencias, los pesos, la búsqueda
+# de secretos y la prueba de humo en Chromium (directa, en iframe y táctil)
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify.ps1 full
 
 # Licencias de terceros y auditoría de las herramientas de Python
