@@ -51,6 +51,7 @@ func _ready() -> void:
 		if stack != null:
 			_remaining.append(stack)
 	_build()
+	DrawDistance.mark(self, DrawDistance.SMALL)
 	if _remaining.is_empty() and searched:
 		# Registrado en una visita anterior: aparece abierto y vacío.
 		enabled = false

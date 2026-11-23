@@ -512,6 +512,7 @@ func _add_sign(room: RoomData, builder: Kit.Builder) -> void:
 		label.position = center + outward * 0.14
 		label.rotation.y = yaw
 		add_child(label)
+		DrawDistance.mark(label, DrawDistance.LARGE)
 		return
 	var plate := Transform3D(Basis(Vector3.UP, yaw), center + outward * 0.14)
 	builder.add_colored_box(
@@ -521,10 +522,12 @@ func _add_sign(room: RoomData, builder: Kit.Builder) -> void:
 	title.position = center + outward * 0.18 + Vector3.UP * 0.09
 	title.rotation.y = yaw
 	add_child(title)
+	DrawDistance.mark(title, DrawDistance.LARGE)
 	var category := _sign_label(tr(room.name_key), 0.0032, Color(0.78, 0.78, 0.76))
 	category.position = center + outward * 0.18 + Vector3.UP * -0.21
 	category.rotation.y = yaw
 	add_child(category)
+	DrawDistance.mark(category, DrawDistance.SMALL)
 
 
 func _sign_label(text: String, pixel: float, color: Color) -> Label3D:
@@ -675,6 +678,7 @@ func _build_decor(spec: PropSpec, builders: Dictionary, loose: Kit.Builder) -> b
 			# Solo por delante: un rótulo que se lee por los dos lados lleva dos copias en los datos.
 			label.double_sided = false
 			add_child(label)
+			DrawDistance.mark(label, DrawDistance.SMALL)
 		_:
 			return false
 	return true

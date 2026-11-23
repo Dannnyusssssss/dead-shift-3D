@@ -47,6 +47,7 @@ func build() -> void:
 		else:
 			_add_body(index)
 	_rebuild()
+	DrawDistance.mark(self, DrawDistance.LARGE)
 
 
 ## Rompe un panel entero: ruido alto, aviso sonoro, trozos y anotación en el mundo. Devuelve

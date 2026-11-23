@@ -117,3 +117,8 @@ const ACTIVE_FLOOR_RANGE: int = 1
 const QUALITY_RENDER_SCALE: Array[float] = [0.6, 0.8, 1.0]
 const QUALITY_MSAA: Array[int] = [0, 0, 1]
 const QUALITY_FOG: Array[bool] = [false, true, true]
+## Distancia (m) a partir de la que no se dibujan las piezas de cada tamaño, por calidad
+## (0 = sin límite). Pequeñas: objetos, cajas, monitores, estantes y rótulos pequeños; grandes:
+## rejas, cristales y rótulos de tienda. Los enemigos y la estructura se dibujan siempre.
+const DRAW_DISTANCE_SMALL: Array[float] = [16.0, 24.0, 0.0]
+const DRAW_DISTANCE_LARGE: Array[float] = [28.0, 40.0, 0.0]

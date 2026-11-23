@@ -50,6 +50,7 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position.y = 1.0 + SIZE.y * 0.5
 	add_child(shape)
+	DrawDistance.mark(self, DrawDistance.SMALL)
 
 
 func interact(player: Player) -> void:

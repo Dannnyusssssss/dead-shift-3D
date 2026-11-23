@@ -42,6 +42,7 @@ func _ready() -> void:
 		post.mesh = post_mesh
 		post.position = Vector3(x, size.y * 0.5, 0.0)
 		_visual.add_child(post)
+	DrawDistance.mark(_visual, DrawDistance.SMALL)
 
 
 ## Rompe la estantería (solo una vez).

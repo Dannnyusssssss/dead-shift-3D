@@ -1,19 +1,14 @@
 extends Node
 @warning_ignore_start("unsafe_call_argument")
-## Bot de recorrido: juega con semilla fija, sin ventana, a través de las acciones del InputMap
-## (moverse, mirar, disparar, recargar, golpear). Sigue una ruta por piso: en la planta baja
-## recoge el chaleco, curas y armas; en el Nivel 1 las piezas del teléfono, curas, la llave y
-## el puesto de seguridad (escopeta); en el Nivel 2 la zona segura, la última pieza, vence al
-## jefe y abre la puerta de la azotea. Demuestra que los pisos son completables; no que sean
-## divertidos.
+## Bot de recorrido: juega con semilla fija, sin ventana, con las acciones del InputMap. Sigue
+## una ruta por piso (chaleco, curas, armas, piezas del teléfono, llave, jefe y azotea).
+## Demuestra que los pisos son completables; no que sean divertidos.
 ##
-## Escenarios (argumento tras «--»): «full» (por defecto: la partida desde el principio hasta
-## el rescate; arma el teléfono, llama al llegar a la azotea y espera en el helipuerto),
-## «boss_shotgun» y «boss_melee» (empiezan en el Nivel 2 frente al almacén, sin los demás
-## enemigos, con o sin escopeta, y terminan en la puerta de la azotea), «lost» (en la azotea con
-## el helicóptero ya ido: oleadas hasta el final de rescate perdido) y «death» (en el Nivel 2
-## casi sin salud ni armas: el final de muerte). «--difficulty=medium» (o easy, hard) elige la
-## dificultad; por defecto, Fácil.
+## Escenarios (tras «--»): «full» (por defecto: la partida entera hasta el rescate), «boss_shotgun»
+## y «boss_melee» (Nivel 2 frente al almacén, con o sin escopeta, hasta la puerta de la azotea),
+## «lost» (azotea con el helicóptero ido: rescate perdido), «death» (Nivel 2 casi sin salud: muerte)
+## y «soak» (prueba larga de memoria: BotSoak). «--difficulty=medium» (o easy, hard); por
+## defecto, Fácil.
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Tiempo máximo de juego antes de darlo por fallido.
@@ -110,6 +105,7 @@ var _wanted: Dictionary = {}
 ## Punto al que mirar este fotograma (se aplica una sola vez al final: el último pedido gana).
 var _aim_point: Vector3 = Vector3.ZERO
 var _has_aim: bool = false
+var _soak: BotSoak = BotSoak.new()
 
 
 func _ready() -> void:
@@ -144,6 +140,8 @@ func _ready() -> void:
 		_prepare_boss_scenario.call_deferred()
 	elif scenario == "lost":
 		_prepare_lost_scenario.call_deferred()
+	elif scenario == "soak":
+		_soak.prepare.call_deferred(_game)
 	elif scenario == "death":
 		_prepare_death_scenario.call_deferred()
 
@@ -222,7 +220,10 @@ func _give_fight_kit(with_shotgun: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if _done:
 		return
-	if _game.elapsed > TIME_LIMIT:
+	if scenario == "soak":
+		if _soak.tick(_game, _finish):
+			return
+	elif _game.elapsed > TIME_LIMIT:
 		_finish(false, "tiempo agotado en el objetivo %d" % _route_index)
 		return
 	_wanted.clear()

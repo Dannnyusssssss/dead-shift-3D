@@ -18,6 +18,8 @@ var _bars: Node3D = null
 func _ready() -> void:
 	super._ready()
 	_build()
+	DrawDistance.mark(self, DrawDistance.LARGE)
+	DrawDistance.mark(self, DrawDistance.LARGE)
 	if not spec.flag.is_empty() and GameState.world.has_flag(spec.flag):
 		_set_open(false)
 
@@ -76,25 +78,22 @@ func _build() -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = BAR_COLOR
 	material.metallic = 0.6
+	# Barras y rieles en una sola malla: una llamada de dibujo por reja en vez de una por barra.
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var count := maxi(int(size.x / BAR_SPACING), 2)
 	for index: int in count + 1:
-		var bar := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.05, size.y, 0.05)
-		mesh.material = material
-		bar.mesh = mesh
-		bar.position = Vector3(
-			-size.x * 0.5 + size.x * float(index) / float(count), size.y * 0.5, 0.0
-		)
-		_bars.add_child(bar)
+		var spot := Vector3(-size.x * 0.5 + size.x * float(index) / float(count), size.y * 0.5, 0.0)
+		tool.append_from(_box(Vector3(0.05, size.y, 0.05)), 0, Transform3D(Basis.IDENTITY, spot))
 	for height: float in [0.15, size.y - 0.15]:
-		var rail := MeshInstance3D.new()
-		var rail_mesh := BoxMesh.new()
-		rail_mesh.size = Vector3(size.x, 0.08, 0.08)
-		rail_mesh.material = material
-		rail.mesh = rail_mesh
-		rail.position = Vector3(0.0, height, 0.0)
-		_bars.add_child(rail)
+		var rail_spot := Vector3(0.0, height, 0.0)
+		tool.append_from(
+			_box(Vector3(size.x, 0.08, 0.08)), 0, Transform3D(Basis.IDENTITY, rail_spot)
+		)
+	tool.set_material(material)
+	var bars := MeshInstance3D.new()
+	bars.mesh = tool.commit()
+	_bars.add_child(bars)
 	# Zona de interacción algo más gruesa que la reja, para apuntarla con facilidad.
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -112,3 +111,9 @@ func _build() -> void:
 	solid_shape.position.y = size.y * 0.5
 	_solid.add_child(solid_shape)
 	add_child(_solid)
+
+
+static func _box(size: Vector3) -> BoxMesh:
+	var box := BoxMesh.new()
+	box.size = size
+	return box

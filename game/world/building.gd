@@ -326,6 +326,7 @@ func _on_settings_changed(key: String) -> void:
 	if key == "quality":
 		_environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
 		_environment.glow_enabled = Settings.get_int("quality") >= 1
+		DrawDistance.refresh(get_tree())
 
 
 func _bake_navigation() -> void:

@@ -208,3 +208,24 @@ func test_security_post_gate_needs_the_key() -> void:
 	GameState.player.keys.add("security_key")
 	gate.interact(_game.level.player)
 	assert_true(gate.is_open)
+
+
+func test_props_have_draw_distance_by_quality() -> void:
+	var gate := _gate("ground_floor", "shortcut_gate")
+	var bars := gate.find_children("*", "MeshInstance3D", true, false)
+	assert_eq(bars.size(), 1, "la reja se dibuja de una vez (barras y rieles en una malla)")
+	var quality := Settings.get_int("quality")
+	var mesh := bars[0] as MeshInstance3D
+	assert_eq(
+		mesh.visibility_range_end, DrawDistance.range_for(DrawDistance.LARGE, quality), "reja"
+	)
+	var pickup := _game.level.find_children("*", "Pickup", true, false)[0] as Pickup
+	var pickup_mesh := pickup.find_children("*", "GeometryInstance3D", true, false)[0]
+	assert_eq(
+		(pickup_mesh as GeometryInstance3D).visibility_range_end,
+		DrawDistance.range_for(DrawDistance.SMALL, quality),
+		"objeto suelto"
+	)
+	Settings.set_value("quality", SettingsSchema.QUALITY_LOW)
+	assert_eq(mesh.visibility_range_end, Rules.DRAW_DISTANCE_LARGE[0], "cambia con la calidad")
+	Settings.set_value("quality", quality)

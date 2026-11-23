@@ -20,6 +20,11 @@ const CALL_CAP: int = 6
 const SPAWN_INTERVAL: float = 0.8
 const WAVE_PAUSE: float = 6.0
 const CALL_WAVE_PAUSE: float = 20.0
+## Cuerpos de enemigos de oleadas que se dejan en el suelo a la vez (de todos los generadores):
+## al pasar del tope se quita el más antiguo, para que una espera larga no llene la memoria.
+const MAX_BODIES: int = 20
+
+static var _bodies: Array[Enemy] = []
 
 var spawn_points: Array[Vector3] = []
 ## Oleadas de este generador y respiro entre ellas.
@@ -95,6 +100,7 @@ func _spawn_one() -> void:
 	enemy.rng_seed = 500 + _spawned_total
 	enemy.position = spawn_points[_spawned_total % spawn_points.size()]
 	get_parent().add_child(enemy)
+	enemy.died.connect(WaveSpawner.keep_body.bind(enemy))
 	_alive.append(enemy)
 	_spawned_total += 1
 	_pending -= 1
@@ -105,3 +111,24 @@ func _prune() -> void:
 		var enemy := _alive[index]
 		if not is_instance_valid(enemy) or enemy.is_dead():
 			_alive.remove_at(index)
+
+
+## Anota el cuerpo de un enemigo de oleada y quita los más antiguos si pasan del tope.
+static func keep_body(enemy: Enemy) -> void:
+	for index: int in range(_bodies.size() - 1, -1, -1):
+		if not is_instance_valid(_bodies[index]):
+			_bodies.remove_at(index)
+	_bodies.append(enemy)
+	while _bodies.size() > MAX_BODIES:
+		var oldest: Enemy = _bodies.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+
+
+## Cuerpos de oleadas que siguen en el suelo.
+static func body_count() -> int:
+	var count := 0
+	for body: Enemy in _bodies:
+		if is_instance_valid(body):
+			count += 1
+	return count

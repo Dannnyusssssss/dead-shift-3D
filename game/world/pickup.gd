@@ -52,6 +52,7 @@ func _ready() -> void:
 		stack = ItemStack.new(data, count, durability_fraction)
 	_build()
 	add_to_group("pickup")
+	DrawDistance.mark(self, DrawDistance.SMALL)
 
 
 ## Escala del modelo en el suelo: las armas y el chaleco casi a su tamaño; lo pequeño (curas,
