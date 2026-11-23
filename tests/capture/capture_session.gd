@@ -43,6 +43,14 @@ const POINTS: Array = [
 const QUALITIES: Array[int] = [SettingsSchema.QUALITY_LOW, SettingsSchema.QUALITY_MEDIUM]
 const SETTLE_FRAMES: int = 30
 const MEASURE_FRAMES: int = 120
+## Tomas de la portada: nombre, posición, giro y cabeceo (grados), y distancia del primer enemigo.
+const COVER_SHOTS: Array = [
+	["portada_pb_pasillo_oeste", Vector3(-14.5, 0.0, 0.5), -90.0, 3.0, 4.0],
+	["portada_pb_pasillo_oeste_b", Vector3(-15.5, 0.0, -0.6), -84.0, 2.0, 4.5],
+	["portada_n1_pasillo_este", Vector3(22.0, 5.0, 0.0), 90.0, -4.0, 3.5],
+]
+const COVER_ENEMIES: int = 5
+const COVER_TAGLINE: String = "Centro comercial · Zombis · Sube hasta la azotea"
 
 var _game: Game = null
 var _out_dir: String = ""
@@ -624,46 +632,95 @@ func _capture_enemies_moving() -> void:
 			enemy.global_position = home
 
 
-## Candidatas a portada (1280 × 720, sin interfaz): enemigos que vienen por un pasillo con la
-## linterna encendida, desde varios sitios. Se elige una a mano.
+## Candidatas a portada (1280 × 720, sin interfaz): enemigos que vienen hacia el guardia con la
+## linterna encendida, desde sitios abiertos y sin paredes pegadas a la cámara. De cada toma se
+## guarda la imagen limpia y otra con el título abajo a la derecha. Se elige una a mano.
 func _capture_cover() -> void:
 	var player := _game.level.player
 	player.set_blocked("capture", true)
 	(_game.get_node("UI") as CanvasLayer).visible = false
 	GameState.player.flashlight.on = true
-	var shots: Array = [
-		["portada_n1_pasillo", Vector3(23.5, 5.0, -1.0), 90.0, -2.0, Vector3(-1.0, 0.0, 0.0)],
-		["portada_pb_pasillo", Vector3(-20.0, 0.0, 0.5), -90.0, 2.0, Vector3(1.0, 0.0, 0.0)],
-		["portada_n2_patio", Vector3(-6.0, 10.0, -4.5), 90.0, -2.0, Vector3(-1.0, 0.0, 0.0)],
-		["portada_n2_patio_b", Vector3(-6.0, 10.0, -5.6), 85.0, -3.0, Vector3(-1.0, 0.0, 0.0)],
-		["portada_n2_patio_c", Vector3(-5.0, 10.0, -6.2), 80.0, -4.0, Vector3(-1.0, 0.0, 0.0)],
-	]
 	var enemies: Array[Enemy] = []
 	for floor_id: String in ["ground_floor", "level_1", "level_2"]:
 		for enemy: Enemy in _game.level.enemies_on_floor(floor_id):
-			if not enemy is Boss and enemies.size() < 3:
+			if not enemy is Boss and enemies.size() < COVER_ENEMIES:
 				enemies.append(enemy)
-	for shot: Array in shots:
+	var title := _cover_title()
+	for shot: Array in COVER_SHOTS:
 		var spot: Vector3 = shot[1]
-		var ahead: Vector3 = shot[4]
-		player.global_position = spot
-		player.rotation.y = deg_to_rad(shot[2] as float)
-		player.head.rotation.x = deg_to_rad(shot[3] as float)
+		var yaw := deg_to_rad(shot[2] as float)
+		var ahead := Vector3(-sin(yaw), 0.0, -cos(yaw))
 		var side := ahead.cross(Vector3.UP)
+		player.global_position = spot
+		player.rotation.y = yaw
+		player.head.rotation.x = deg_to_rad(shot[3] as float)
+		# Escalonados en cuña: el más cercano un poco a la izquierda, el resto abriéndose.
+		var offsets: Array[float] = [-0.5, 1.0, -1.6, 2.0, 0.3]
 		for index: int in enemies.size():
 			var enemy := enemies[index]
 			enemy.global_position = (
-				spot + ahead * (4.5 + 2.2 * index) + side * (0.9 * (index - 1)) + Vector3.UP * 0.1
+				spot
+				+ ahead * ((shot[4] as float) + 1.7 * index)
+				+ side * offsets[index % offsets.size()]
+				+ Vector3.UP * 0.1
 			)
 			enemy.set_physics_process(true)
 			enemy.call("_start_chase")
 		for _frame: int in 14:
 			await get_tree().physics_frame
-		_save_image(shot[0] as String)
 		for enemy: Enemy in enemies:
 			enemy.set_physics_process(false)
+		title.visible = false
+		await RenderingServer.frame_post_draw
+		_save_image(shot[0] as String)
+		title.visible = true
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		_save_image((shot[0] as String) + "_titulo")
+	title.queue_free()
 	(_game.get_node("UI") as CanvasLayer).visible = true
 	GameState.player.flashlight.on = false
+
+
+## Título de la portada, como en las demás del portal: nombre grande con contorno y un brillo
+## rojizo y una línea corta debajo, abajo a la derecha. Usa la fuente del motor, en negrita.
+func _cover_title() -> CanvasLayer:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	var bold := FontVariation.new()
+	bold.base_font = ThemeDB.fallback_font
+	bold.variation_embolden = 1.2
+	var big := LabelSettings.new()
+	big.font = bold
+	big.font_size = 92
+	big.font_color = Color(1.0, 0.92, 0.8)
+	big.outline_size = 14
+	big.outline_color = Color(0.45, 0.03, 0.02)
+	big.shadow_size = 40
+	big.shadow_color = Color(0.9, 0.08, 0.04, 0.6)
+	big.shadow_offset = Vector2.ZERO
+	var small := LabelSettings.new()
+	small.font = bold
+	small.font_size = 26
+	small.font_color = Color(0.95, 0.93, 0.9)
+	small.outline_size = 8
+	small.outline_color = Color(0.0, 0.0, 0.0, 0.85)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_END
+	box.add_theme_constant_override("separation", -10)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_right = -48.0
+	box.offset_bottom = -34.0
+	var lines: Array = [["DEAD SHIFT 3D", big], [COVER_TAGLINE, small]]
+	for pair: Array in lines:
+		var label := Label.new()
+		label.text = pair[0]
+		label.label_settings = pair[1]
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		box.add_child(label)
+	layer.add_child(box)
+	add_child(layer)
+	return layer
 
 
 ## Cada enemigo de cerca, quieto en el pasillo este del Nivel 1: de frente, de lado y corriendo
