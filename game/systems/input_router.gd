@@ -165,6 +165,13 @@ func _input(event: InputEvent) -> void:
 			request_capture()
 
 
+func _notification(what: int) -> void:
+	# La pestaña o la ventana pasó a segundo plano (o en el portal se tocó fuera del juego): la
+	# partida se pausa para que el mundo no siga sin el jugador.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and gameplay_active:
+		EventBus.pause_requested.emit()
+
+
 func _process(_delta: float) -> void:
 	if _swallow_click and not _mouse_buttons_down():
 		_swallow_click = false

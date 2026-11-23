@@ -146,8 +146,17 @@ func test_escape_leaves_difficulty_choice() -> void:
 	cancel.pressed = true
 	menu.call("_unhandled_input", cancel)
 	assert_true(main_box.visible, "Esc vuelve al menú principal")
-	for label: Label in labels:
-		assert_true(label.visible)
+	assert_true((labels[0] as Label).visible, "el aviso de edad vuelve siempre")
+	# Los controles vuelven solo si caben en la pantalla (en un celular en horizontal, no).
+	var column: Control = menu.get("_menu_column")
+	var controls := labels[1] as Label
+	var screen := menu.get_viewport_rect().size.y
+	var column_height := column.get_combined_minimum_size().y
+	if controls.visible:
+		assert_lte(column_height + 48.0, screen, "si se muestran, el menú cabe")
+	else:
+		var text_height := controls.get_combined_minimum_size().y + 16.0
+		assert_gt(column_height + text_height + 48.0, screen, "si se ocultan, no cabían")
 
 
 ## La tecla que salta la intro (Esc) sigue «recién pulsada» en el fotograma en que se crea la

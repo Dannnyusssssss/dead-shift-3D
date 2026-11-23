@@ -78,6 +78,9 @@ const LEFT_SHOULDER_BIAS: float = 0.4
 const LEFT_WRIST_BIAS: float = -0.25
 ## Amplitud del reposo y el paso con «Reducir movimiento».
 const REDUCED_MOTION: float = 0.2
+## Recorrido de las acciones (golpear, disparar, recargar, curarse, lanzar) con «Reducir
+## movimiento», respecto a la pose de base.
+const REDUCED_ACTION: float = 0.4
 ## Mano izquierda fuera de la vista cuando no trabaja: cuánto baja y se retrasa el hombro, y
 ## cuánto tarda en entrar o salir (segundos).
 ## Reflejo en X: la mano izquierda sostiene los objetos como la derecha, al otro lado.
@@ -137,14 +140,16 @@ func _process(delta: float) -> void:
 	var loop_seconds: float = ArmAnimations.LOOP_SECONDS[base_name]
 	_base_time += delta / loop_seconds * (clampf(speed / 4.0, 0.8, 1.6) if walking else 1.0)
 	var target := ArmAnimations.sample(base_name, _base_time)
-	if Settings.get_bool("reduce_motion"):
+	var reduced := Settings.get_bool("reduce_motion")
+	if reduced:
 		target = ArmAnimations.damp(target, REDUCED_MOTION)
 	if not _action.is_empty():
 		_action_time += delta / _action_seconds
 		if _action_time >= 1.0 and not ArmAnimations.is_loop(_action):
 			_end_action()
 		else:
-			target = ArmAnimations.sample(_action, _action_time)
+			var action := ArmAnimations.sample(_action, _action_time)
+			target = ArmAnimations.soften(action, target, REDUCED_ACTION) if reduced else action
 	if _blend_left > 0.0:
 		_blend_left = maxf(_blend_left - delta, 0.0)
 		target = ArmAnimations.blend(target, _from_pose, _blend_left / BLEND_SECONDS)

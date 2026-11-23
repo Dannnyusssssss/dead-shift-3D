@@ -25,6 +25,39 @@ func default_quality() -> int:
 	return SettingsSchema.QUALITY_MEDIUM
 
 
+## Márgenes de la zona segura (izquierda, arriba, derecha, abajo) como fracción del ancho o alto
+## de la pantalla. En el navegador los escribe la página (boot.js) y se validan; fuera, ninguno.
+func safe_insets() -> PackedFloat32Array:
+	if not is_web:
+		return PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+	return Validation.parse_safe_insets(_read_safe_area())
+
+
+## Área de la interfaz libre de muescas según la página, dentro de un rectángulo de tamaño «size».
+func safe_rect(size: Vector2) -> Rect2:
+	var insets := safe_insets()
+	var left := size.x * insets[0]
+	var top := size.y * insets[1]
+	return Rect2(
+		left, top, size.x * (1.0 - insets[0] - insets[2]), size.y * (1.0 - insets[1] - insets[3])
+	)
+
+
+## Lee el atributo data-safe-area del documento sin evaluar código: solo propiedades.
+func _read_safe_area() -> String:
+	var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
+	if document == null:
+		return ""
+	var body: Variant = document.get("body")
+	if not body is JavaScriptObject:
+		return ""
+	var dataset: Variant = (body as JavaScriptObject).get("dataset")
+	if not dataset is JavaScriptObject:
+		return ""
+	var value: Variant = (dataset as JavaScriptObject).get("safeArea")
+	return value if value is String else ""
+
+
 ## Lee la cadena de consulta de la URL sin evaluar código: solo una propiedad del objeto location.
 func _read_url_query() -> String:
 	var location: JavaScriptObject = JavaScriptBridge.get_interface("location")

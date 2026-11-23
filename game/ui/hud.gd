@@ -57,6 +57,8 @@ func _ready() -> void:
 	EventBus.game_saved.connect(_on_game_saved)
 	EventBus.camera_alert.connect(_on_camera_alert)
 	EventBus.run_finished.connect(func(_outcome: int) -> void: _finished = true)
+	get_viewport().size_changed.connect(_fit_safe_area)
+	_fit_safe_area()
 	_refresh()
 
 
@@ -354,6 +356,16 @@ func _build() -> void:
 	_healing = HealingPanel.new()
 	add_child(_healing)
 	_place(_healing, Control.PRESET_CENTER_LEFT, Rect2(24.0, -60.0, 330.0, 0.0))
+
+
+## Todo el HUD dentro de la zona segura (fuera de la muesca del celular en horizontal).
+func _fit_safe_area() -> void:
+	var screen := get_viewport_rect().size
+	var safe := Config.safe_rect(screen)
+	offset_left = safe.position.x
+	offset_top = safe.position.y
+	offset_right = safe.end.x - screen.x
+	offset_bottom = safe.end.y - screen.y
 
 
 ## Ancla un control y fija su rectángulo relativo al punto de anclaje.

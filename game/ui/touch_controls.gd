@@ -188,7 +188,8 @@ func _min_button_size() -> float:
 
 ## Área segura (sin muescas ni bordes curvos) en coordenadas de la interfaz, con margen.
 func _safe_rect() -> Rect2:
-	var full := Rect2(Vector2.ZERO, size)
+	# En el navegador la página informa la muesca (el motor no la conoce en web).
+	var full := Config.safe_rect(size)
 	var margin := size * 0.02
 	var safe_px := Rect2(DisplayServer.get_display_safe_area())
 	var window := Vector2(DisplayServer.window_get_size())

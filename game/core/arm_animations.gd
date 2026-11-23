@@ -87,6 +87,14 @@ static func damp(pose: PackedFloat32Array, amount: float) -> PackedFloat32Array:
 	return _mix(rest(), pose, clampf(amount, 0.0, 1.0))
 
 
+## Acerca una acción (golpe, disparo, cura) a la pose de base desde la que sale: «Reducir
+## movimiento» la deja reconocible pero con mucho menos recorrido (amount 1 = tal cual).
+static func soften(
+	action: PackedFloat32Array, base: PackedFloat32Array, amount: float
+) -> PackedFloat32Array:
+	return _mix(base, action, clampf(amount, 0.0, 1.0))
+
+
 ## Golpe según el arma: cuchillo apuñala, extintor empuja, las de fuego golpean con la culata,
 ## el resto barre (bate, tubo).
 static func attack_for(weapon_id: String) -> String:

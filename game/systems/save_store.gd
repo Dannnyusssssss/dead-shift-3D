@@ -1,16 +1,30 @@
 extends Node
-## Único módulo de acceso a datos guardados. Hoy escribe en user:// (en web, el almacenamiento
-## del navegador para este origen); nada sale del dispositivo. Todo lo leído pasa por
-## boundary/validation.gd antes de usarse.
+## Único módulo de acceso a datos guardados. Escribe en user:// (en web, IndexedDB del navegador
+## para este origen); nada sale del dispositivo. Todo lo leído pasa por boundary/validation.gd
+## antes de usarse. En web, user:// es común a todos los juegos hechos con el mismo motor en el
+## mismo dominio: por eso los archivos van en una carpeta propia del juego.
 
-const SETTINGS_PATH: String = "user://settings.json"
-const GAME_PATH: String = "user://save_1.json"
-const BEST_PATH: String = "user://best.json"
+const DATA_DIR: String = "user://dead-shift-3d"
+const SETTINGS_PATH: String = DATA_DIR + "/settings.json"
+const GAME_PATH: String = DATA_DIR + "/save_1.json"
+const BEST_PATH: String = DATA_DIR + "/best.json"
+## Rutas de antes de la carpeta propia. Solo se tocan fuera del navegador (allí user:// es del
+## proyecto): en web, la raíz es común a otros juegos del dominio y nunca se mueve ni se borra.
+const LEGACY_PATHS: Dictionary = {
+	"user://settings.json": SETTINGS_PATH,
+	"user://save_1.json": GAME_PATH,
+	"user://best.json": BEST_PATH,
+}
 ## Versión del formato de la mejor marca (2: una nota por dificultad).
 const BEST_VERSION: int = 2
 
 ## Evita repetir el aviso de almacenamiento no disponible.
 var _storage_warned: bool = false
+
+
+func _ready() -> void:
+	if not OS.has_feature("web"):
+		_move_legacy_files()
 
 
 ## Verdadero si ya existen ajustes guardados (para saber si es el primer arranque).
@@ -81,9 +95,34 @@ func save_best(grade: String, difficulty_id: String) -> bool:
 
 ## Borra todos los datos guardados en este navegador (ajustes, partida y mejor marca).
 func delete_all() -> void:
-	for path: String in [SETTINGS_PATH, GAME_PATH, BEST_PATH]:
+	var paths: Array = [SETTINGS_PATH, GAME_PATH, BEST_PATH]
+	if not OS.has_feature("web"):
+		paths.append_array(LEGACY_PATHS.keys())
+	for path: String in paths:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
+
+
+## Mueve los archivos de las rutas antiguas a la carpeta del juego (solo si la nueva no existe;
+## si ya existe, la antigua sobra y se borra).
+func _move_legacy_files() -> void:
+	for old_path: String in LEGACY_PATHS:
+		if not FileAccess.file_exists(old_path):
+			continue
+		var new_path: String = LEGACY_PATHS[old_path]
+		if FileAccess.file_exists(new_path):
+			DirAccess.remove_absolute(old_path)
+			continue
+		if not _ensure_dir():
+			return
+		if DirAccess.rename_absolute(old_path, new_path) != OK:
+			ErrorLog.report("move_failed", old_path)
+
+
+func _ensure_dir() -> bool:
+	if DirAccess.dir_exists_absolute(DATA_DIR):
+		return true
+	return DirAccess.make_dir_recursive_absolute(DATA_DIR) == OK
 
 
 ## Lee un archivo como texto con tope de tamaño; ante cualquier problema devuelve "".
@@ -102,6 +141,9 @@ func _read_text(path: String) -> String:
 
 ## Escribe texto en un archivo; si falla (modo privado, cuota llena) avisa una sola vez.
 func _write_text(path: String, text: String) -> bool:
+	if not _ensure_dir():
+		_warn_storage(path)
+		return false
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		_warn_storage(path)

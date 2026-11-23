@@ -8,6 +8,9 @@ extends RefCounted
 const SEED_MAX: int = 2147483647
 ## Longitud máxima de la cadena de consulta de la URL que se analiza.
 const QUERY_MAX_LENGTH: int = 512
+## Zona segura que informa la página: largo máximo del texto y margen máximo por lado.
+const SAFE_INSETS_MAX_LENGTH: int = 64
+const SAFE_INSET_MAX: float = 0.25
 ## Formato de los identificadores internos (objetos, zonas, enemigos).
 const ID_PATTERN: String = "^[a-z0-9_]{1,32}$"
 
@@ -116,6 +119,27 @@ static func parse_seed(query: String) -> int:
 			return -1
 		return number
 	return -1
+
+
+## Márgenes de la zona segura de la pantalla (muescas y bordes curvos) que escribe la página:
+## «izquierda,arriba,derecha,abajo» como fracciones del ancho o alto. Cuatro números entre 0 y
+## SAFE_INSET_MAX; si algo no encaja, sin márgenes (nunca se ejecuta ni interpreta otra cosa).
+static func parse_safe_insets(text: String) -> PackedFloat32Array:
+	var none := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+	if text.is_empty() or text.length() > SAFE_INSETS_MAX_LENGTH:
+		return none
+	var parts := text.split(",", true)
+	if parts.size() != 4:
+		return none
+	var result := PackedFloat32Array()
+	for part: String in parts:
+		if not part.is_valid_float():
+			return none
+		var value := part.to_float()
+		if is_nan(value) or value < 0.0 or value > SAFE_INSET_MAX:
+			return none
+		result.append(value)
+	return result
 
 
 ## Comprueba si un texto es un identificador interno válido.

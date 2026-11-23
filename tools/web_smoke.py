@@ -13,6 +13,7 @@ Uso: python tools/web_smoke.py <carpeta_build_web> <carpeta_capturas> [--touch]
 import functools
 import http.server
 import pathlib
+import re
 import sys
 import tempfile
 import threading
@@ -106,6 +107,34 @@ def wait_started(frame, problems, label):
         problems.append("%s el motor no arranco: %s" % (label, text))
 
 
+def check_context_lost(context, problems):
+    """Si el navegador quita los graficos al juego, la pagina lo explica (no pantalla negra).
+    Va en una pagina aparte y sin vigilar la consola: tras perder el contexto el motor avisa."""
+    page = context.new_page()
+    page.goto(LOCAL_PREFIXES[0] + "index.html")
+    try:
+        page.wait_for_selector("#boot-status", state="hidden", timeout=60000)
+    except Exception:  # noqa: BLE001
+        problems.append("contexto: el motor no arranco")
+        return
+    lost = page.evaluate(
+        "() => { const gl = document.getElementById('canvas').getContext('webgl2');"
+        " const ext = gl && gl.getExtension('WEBGL_lose_context');"
+        " if (ext) { ext.loseContext(); } return !!ext; }"
+    )
+    if not lost:
+        print("contexto: el navegador de prueba no permite simular la perdida (no verificado)")
+        return
+    try:
+        page.wait_for_selector("#boot-status", state="visible", timeout=5000)
+        text = page.inner_text("#boot-text")
+        if "Recarga" not in text:
+            problems.append("contexto: mensaje inesperado: " + text)
+    except Exception:  # noqa: BLE001
+        problems.append("contexto: al perder los graficos no aparece ningun mensaje")
+    page.close()
+
+
 def main():
     if len(sys.argv) < 3:
         print("uso: web_smoke.py <build_web> <capturas> [--touch]")
@@ -141,6 +170,9 @@ def main():
                 page.goto(LOCAL_PREFIXES[0] + "index.html")
                 wait_started(page, problems, "directa")
                 page.wait_for_timeout(WAIT_MS)
+                safe_area = page.evaluate("document.body.dataset.safeArea || ''")
+                if not re.fullmatch(r"(0\.\d{4},){3}0\.\d{4}", safe_area):
+                    problems.append("directa zona segura sin medir: '%s'" % safe_area)
                 suffix = "-tactil" if touch else ""
                 page.screenshot(path=str(shots / ("inicio%s.png" % suffix)))
                 # Entra a la partida: el boton Jugar tiene el foco y responde a Intro.
@@ -180,6 +212,8 @@ def main():
                     problems.append("iframe el motor no arranco")
                 framed.wait_for_timeout(WAIT_MS)
                 framed.screenshot(path=str(shots / "iframe.png"))
+                if not touch:
+                    check_context_lost(context, problems)
                 browser.close()
         finally:
             game_server.shutdown()

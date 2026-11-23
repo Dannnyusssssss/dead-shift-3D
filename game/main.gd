@@ -7,11 +7,17 @@ extends Control
 ## adelante, para el audio.
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
+## Margen (unidades de la interfaz) que debe quedar libre en el menú; si no, se oculta el texto de
+## controles (en un celular en horizontal no cabe junto a todos los botones, y allí los
+## controles ya se ven en pantalla). El aviso de edad se muestra siempre.
+const MENU_MARGIN: float = 24.0
 
 var _menu: Control = null
 ## Botones del menú principal (se esconden mientras se elige la dificultad).
 var _main_box: VBoxContainer = null
 var _difficulty_box: VBoxContainer = null
+## Columna del menú principal (para saber si todo cabe en pantalla).
+var _menu_column: VBoxContainer = null
 ## Aviso de contenido y controles: se esconden al elegir la dificultad para que quepa «Volver».
 var _info_labels: Array[Label] = []
 var _game: Game = null
@@ -26,7 +32,9 @@ var _delete_armed: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(OrientationNotice.new())
 	_build_menu()
+	get_viewport().size_changed.connect(_fit_short_screen)
 	_refresh_menu()
 
 
@@ -102,12 +110,31 @@ func _play_intro() -> void:
 	add_child(intro)
 
 
+## Verdadero si el menú (alto sin el texto de controles + alto de ese texto) cabe en la pantalla.
+static func shows_controls_text(menu_height: float, text_height: float, screen: float) -> bool:
+	return menu_height + text_height + MENU_MARGIN * 2.0 <= screen
+
+
+func _fit_short_screen() -> void:
+	if _info_labels.size() < 2 or _menu_column == null:
+		return
+	var controls := _info_labels[1]
+	if _difficulty_box.visible:
+		controls.visible = false
+		return
+	controls.visible = false
+	var without := _menu_column.get_combined_minimum_size().y
+	var text := controls.get_combined_minimum_size().y + 16.0
+	controls.visible = shows_controls_text(without, text, get_viewport_rect().size.y)
+
+
 ## Cambia entre el menú principal y la elección de dificultad.
 func _show_difficulties(choosing: bool) -> void:
 	_main_box.visible = not choosing
 	_difficulty_box.visible = choosing
 	for label: Label in _info_labels:
 		label.visible = not choosing
+	_fit_short_screen()
 	if choosing:
 		var first: Control = _difficulty_box.get_child(1)
 		first.grab_focus()
@@ -206,6 +233,7 @@ func _build_menu() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	center.add_child(box)
+	_menu_column = box
 	var title := Label.new()
 	title.text = Meta.GAME_NAME
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -225,9 +253,35 @@ func _build_menu() -> void:
 	_build_difficulties(box)
 	_status = _text("", 20)
 	box.add_child(_status)
+	_build_footer(_main_box)
 	_options = OptionsMenu.new()
 	_menu.add_child(_options)
 	_options.closed.connect(func() -> void: _refresh_menu())
+
+
+## Pie del menú: créditos (con las licencias), privacidad y términos.
+func _build_footer(parent: Control) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var credits := CreditsView.new()
+	var page := TextPageView.new()
+	_menu.add_child(credits)
+	_menu.add_child(page)
+	var entries: Array[Array] = [
+		["credits_button", credits.open],
+		["start_privacy", page.open.bind("privacy_title", TextPageView.PRIVACY_KEYS)],
+		["start_terms", page.open.bind("terms_title", TextPageView.TERMS_KEYS)],
+	]
+	for entry: Array in entries:
+		var button := TapButton.new()
+		button.text = tr(entry[0] as String)
+		button.add_theme_font_size_override("font_size", 20)
+		button.pressed.connect(entry[1] as Callable)
+		row.add_child(button)
+	credits.closed.connect(func() -> void: (row.get_child(0) as Control).grab_focus())
+	page.closed.connect(func() -> void: (row.get_child(1) as Control).grab_focus())
 
 
 ## Elección de dificultad: título, un botón por dificultad con su descripción corta y «Volver».

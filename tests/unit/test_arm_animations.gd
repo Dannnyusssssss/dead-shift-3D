@@ -47,6 +47,21 @@ func test_blend_and_damp() -> void:
 	assert_true(_same(ArmAnimations.damp(swing, 1.0), swing))
 
 
+func test_soften_keeps_actions_short_but_recognizable() -> void:
+	var base := ArmAnimations.sample("idle", 0.0)
+	var swing := ArmAnimations.sample("swing", 0.5)
+	assert_true(_same(ArmAnimations.soften(swing, base, 1.0), swing), "sin reducir, tal cual")
+	assert_true(_same(ArmAnimations.soften(swing, base, 0.0), base), "del todo, la pose base")
+	var soft := ArmAnimations.soften(swing, base, 0.4)
+	var full_reach := 0.0
+	var soft_reach := 0.0
+	for index: int in swing.size():
+		full_reach += absf(swing[index] - base[index])
+		soft_reach += absf(soft[index] - base[index])
+	assert_gt(full_reach, 0.0)
+	assert_almost_eq(soft_reach, full_reach * 0.4, 0.001, "recorre el 40 %")
+
+
 ## Cada arma del juego tiene golpe, y las de fuego su disparo y recarga; cada cura su gesto.
 func test_choices_cover_the_catalog() -> void:
 	var anims := ArmAnimations.names()

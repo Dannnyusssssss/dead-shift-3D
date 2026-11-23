@@ -6,3 +6,5 @@ body { font-family: system-ui, sans-serif; touch-action: none; -webkit-user-sele
 .boot-status[hidden] { display: none; }
 .boot-message { font-size: 18px; line-height: 1.4; max-width: 32em; margin: 0; }
 progress { width: min(320px, 80vw); height: 12px; }
+/* Sonda invisible para medir la zona segura (muescas) y pasársela al juego. */
+.safe-probe { position: fixed; inset: 0; visibility: hidden; pointer-events: none; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
