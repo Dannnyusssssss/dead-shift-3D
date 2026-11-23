@@ -116,9 +116,6 @@ jobs:
           fi
           grep -q "Content-Security-Policy" index.html || { echo "::error::falta la CSP"; exit 1; }
 
-      - name: Portada
-        run: cp web/cover.png build/web/cover.png
-
       - name: Preparar Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 

@@ -1,5 +1,7 @@
 # Dead Shift 3D
 
+![Portada de Dead Shift 3D](docs/cover.png)
+
 Juego de supervivencia en primera persona para navegador, en PC y en celular. Un guardia nocturno queda atrapado en un centro comercial lleno de zombis y debe subir hasta la azotea para que lo rescaten.
 
 **Edad orientativa: 16+.** Contiene violencia fuerte, sangre y terror. Es una orientación propia, no una clasificación oficial.

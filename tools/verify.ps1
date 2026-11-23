@@ -180,8 +180,6 @@ function Step-Export {
     # Archivos propios de la pagina contenedora (sin scripts en linea).
     Copy-Item -LiteralPath (Join-Path $Root 'web\boot.js') -Destination $BuildWeb
     Copy-Item -LiteralPath (Join-Path $Root 'web\boot.css') -Destination $BuildWeb
-    $cover = Join-Path $Root 'web\cover.png'
-    if (Test-Path -LiteralPath $cover) { Copy-Item -LiteralPath $cover -Destination $BuildWeb }
     # Aviso de licencias (juego, recursos de terceros y motor con sus componentes) junto al juego.
     $notices = Join-Path $BuildWeb 'LICENCIAS.txt'
     $n = Invoke-Tool $script:Godot @('--headless', '--path', $Root, '-s', 'res://tools/notices.gd', '--', $notices)
