@@ -29,12 +29,52 @@ func get_bindings() -> Dictionary:
 	return value if value is Dictionary else {}
 
 
-## Reasigna la tecla de una acción. Devuelve falso si la tecla no se permite o ya está en uso.
+## Teclas actuales de una acción reasignable: la reasignada o, si no hay, las de fábrica.
+func action_keys(action: String) -> Array[int]:
+	var result: Array[int] = []
+	var bindings := get_bindings()
+	if bindings.has(action):
+		var keycode: int = bindings[action]
+		result.append(keycode)
+		return result
+	var defaults: Array = SettingsSchema.DEFAULT_BINDINGS.get(action, [])
+	for keycode: Variant in defaults:
+		var key_value: int = keycode
+		result.append(key_value)
+	return result
+
+
+## Otra acción reasignable que ya usa la tecla ("" si ninguna).
+func binding_owner(keycode: int, except_action: String) -> String:
+	for other: String in SettingsSchema.REBINDABLE:
+		if other != except_action and action_keys(other).has(keycode):
+			return other
+	return ""
+
+
+## Reasigna la tecla de una acción. Si otra acción reasignable ya la usa, se intercambian: la
+## otra recibe la tecla principal que tenía esta. Devuelve falso si la tecla no se permite (o
+## no se pudo guardar el cambio entero) y entonces no cambia nada.
 func set_binding(action: String, keycode: int) -> bool:
-	var bindings := get_bindings().duplicate()
+	if not SettingsSchema.REBINDABLE.has(action):
+		return false
+	var previous := get_bindings().duplicate()
+	var bindings := previous.duplicate()
+	var owner := binding_owner(keycode, action)
+	if not owner.is_empty():
+		var own_keys := action_keys(action)
+		if own_keys.is_empty():
+			return false
+		bindings[owner] = own_keys[0]
 	bindings[action] = keycode
 	set_value("bindings", bindings)
-	return get_bindings().get(action, -1) == keycode
+	var stored := get_bindings()
+	var applied: bool = stored.get(action, -1) == keycode
+	if applied and not owner.is_empty():
+		applied = stored.get(owner, -1) == bindings[owner]
+	if not applied:
+		set_value("bindings", previous)
+	return applied
 
 
 ## Vuelve a las teclas de fábrica.

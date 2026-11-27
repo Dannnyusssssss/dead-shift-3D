@@ -53,6 +53,8 @@ var _toggle_buttons: Dictionary = {}
 var _binding_buttons: Dictionary = {}
 var _quality_button: TapButton = null
 var _status: Label = null
+## Aviso de la reasignación de teclas, junto a la lista de teclas.
+var _bindings_status: Label = null
 var _first_focus: Control = null
 
 
@@ -109,6 +111,7 @@ func open() -> void:
 	visible = true
 	waiting_action = ""
 	_status.text = ""
+	_bindings_status.text = ""
 	InputRouter.menu_open = true
 	InputRouter.release_capture()
 	_refresh()
@@ -136,15 +139,31 @@ func _input(event: InputEvent) -> void:
 	var action := waiting_action
 	waiting_action = ""
 	if keycode == KEY_ESCAPE:
-		_status.text = ""
+		_bindings_status.text = ""
 		_refresh()
 		return
 	if not SettingsSchema.is_allowed_key(keycode):
-		_status.text = tr("options_key_reserved")
-	elif Settings.set_binding(action, keycode):
-		_status.text = ""
+		_bindings_status.text = tr("options_key_reserved")
+		_refresh()
+		return
+	var owner := Settings.binding_owner(keycode, action)
+	var old_label := InputRouter.key_label(action)
+	if not Settings.set_binding(action, keycode):
+		_bindings_status.text = tr("options_key_in_use")
+	elif owner.is_empty():
+		_bindings_status.text = (
+			tr("options_key_assigned") % [OS.get_keycode_string(keycode), tr("action_" + action)]
+		)
 	else:
-		_status.text = tr("options_key_in_use")
+		_bindings_status.text = (
+			tr("options_key_swapped")
+			% [
+				OS.get_keycode_string(keycode),
+				tr("action_" + action),
+				tr("action_" + owner),
+				old_label,
+			]
+		)
 	_refresh()
 
 
@@ -185,6 +204,12 @@ func _add_bindings(parent: Control) -> void:
 	for action: String in SettingsSchema.REBINDABLE:
 		var row := _row(parent, tr("action_" + action))
 		_binding_buttons[action] = _button(row, "", _on_rebind.bind(action))
+	# El aviso va justo debajo de las teclas para que se vea sin desplazarse hasta el final.
+	_bindings_status = Label.new()
+	_bindings_status.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_bindings_status.add_theme_font_size_override("font_size", 20)
+	_bindings_status.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+	parent.add_child(_bindings_status)
 
 
 func _refresh() -> void:
@@ -223,10 +248,10 @@ func _on_toggle(key: String) -> void:
 
 func _on_rebind(action: String) -> void:
 	if InputRouter.touch_mode:
-		_status.text = tr("options_bindings_keyboard_only")
+		_bindings_status.text = tr("options_bindings_keyboard_only")
 		return
 	waiting_action = action
-	_status.text = tr("options_press_key_hint")
+	_bindings_status.text = tr("options_press_key_hint")
 	_refresh()
 
 
@@ -239,6 +264,7 @@ func _on_reset() -> void:
 		var key: String = spec[0]
 		Settings.set_value(key, SettingsSchema.BOOLS[key])
 	Settings.reset_bindings()
+	_bindings_status.text = ""
 	_status.text = tr("options_reset_done")
 
 
