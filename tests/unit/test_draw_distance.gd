@@ -49,6 +49,8 @@ func test_room_lights_fade_sooner_at_lower_quality() -> void:
 func test_every_quality_table_covers_every_level() -> void:
 	var levels := SettingsSchema.QUALITY_HIGH + 1
 	assert_eq(Rules.QUALITY_RENDER_SCALE.size(), levels)
+	assert_eq(Rules.QUALITY_MAX_CANVAS_PIXELS.size(), levels)
+	assert_eq(Rules.SOFTWARE_RENDER_SCALE.size(), levels)
 	assert_eq(Rules.QUALITY_MSAA.size(), levels)
 	assert_eq(Rules.QUALITY_VIEW_DISTANCE.size(), levels)
 	assert_eq(Rules.QUALITY_DEPTH_FOG.size(), levels)
@@ -60,3 +62,22 @@ func test_every_quality_table_covers_every_level() -> void:
 	for quality: int in levels:
 		var view: float = Rules.QUALITY_VIEW_DISTANCE[quality]
 		assert_gt(view, Rules.DRAW_DISTANCE_LARGE[quality], "lo grande se ve antes del corte")
+
+
+## La escena se dibuja siempre al 100 % (ampliarla costaba más que dibujarla entera) salvo Mínima
+## con dibujo por software; lo que baja con la calidad es el tope de píxeles del lienzo.
+func test_scene_is_full_size_and_canvas_cap_drops_with_quality() -> void:
+	for quality: int in SettingsSchema.QUALITY_HIGH + 1:
+		assert_eq(
+			Settings.render_scale_for(quality, false), 1.0, "con gráfica, al 100 %%: %d" % quality
+		)
+	var minimum_soft := Settings.render_scale_for(SettingsSchema.QUALITY_MINIMUM, true)
+	var low_soft := Settings.render_scale_for(SettingsSchema.QUALITY_LOW, true)
+	assert_lt(minimum_soft, low_soft, "por software, más baja la calidad, menos escena")
+	assert_lt(low_soft, 1.0)
+	assert_eq(Settings.render_scale_for(SettingsSchema.QUALITY_HIGH, true), 1.0)
+	var caps := Rules.QUALITY_MAX_CANVAS_PIXELS
+	assert_gt(caps[SettingsSchema.QUALITY_MINIMUM], 0)
+	assert_gt(caps[SettingsSchema.QUALITY_LOW], caps[SettingsSchema.QUALITY_MINIMUM])
+	assert_gt(caps[SettingsSchema.QUALITY_MEDIUM], caps[SettingsSchema.QUALITY_LOW])
+	assert_eq(caps[SettingsSchema.QUALITY_HIGH], 0, "Alta: sin tope")

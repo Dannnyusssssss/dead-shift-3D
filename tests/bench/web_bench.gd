@@ -37,6 +37,8 @@ const EXTRA_VARIANTS: Array[String] = [
 	"baja+sin_cristal",
 ]
 const SETTLE_FRAMES: int = 20
+## Fotogramas de espera mientras la página guarda una captura.
+const CAPTURE_FRAMES: int = 60
 const MEASURE_FRAMES: int = 40
 
 var _game: Game = null
@@ -98,6 +100,11 @@ func _run() -> void:
 				await get_tree().process_frame
 			await _measure(str(spot[0]), variant, arrival)
 			arrival = 0.0
+			if spot == SPOTS[0]:
+				# Pide una captura de la página (la hace tools/web_bench.py) y le da tiempo.
+				_log("captura %s_%s" % [spot[0], variant.replace("+", "_")])
+				for _frame: int in CAPTURE_FRAMES:
+					await get_tree().process_frame
 			_reset()
 	_log("fin")
 

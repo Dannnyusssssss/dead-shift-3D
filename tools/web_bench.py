@@ -6,14 +6,19 @@ linea "fin". Por defecto usa el render por software (SwiftShader), que se parece
 equipo sin grafica dedicada; con --gpu usa la grafica de esta maquina. No pasa ni falla:
 sirve para comparar antes y despues.
 
-Con --sin-preparar el juego se salta la preparacion de materiales (para comparar).
+Con --sin-preparar el juego se salta la preparacion de materiales (para comparar). Con
+--scale N la pagina tiene densidad de pixeles N (2 con 1920x1080 simula una pantalla 4K) y con
+--channel chrome o msedge usa el navegador instalado en vez del Chromium de pruebas.
 
 Uso: python tools/web_bench.py <carpeta_build_bench> [--gpu] [--sin-preparar] [--size ANCHOxALTO]
+     [--scale N] [--channel chrome|msedge]
 """
 
 import functools
 import http.server
+import os
 import pathlib
+import re
 import shutil
 import sys
 import threading
@@ -51,9 +56,21 @@ def main():
     if "--size" in sys.argv:
         size = sys.argv[sys.argv.index("--size") + 1]
         width, height = (int(part) for part in size.lower().split("x"))
+    scale = 1.0
+    if "--scale" in sys.argv:
+        scale = float(sys.argv[sys.argv.index("--scale") + 1])
+    channel = None
+    if "--channel" in sys.argv:
+        channel = sys.argv[sys.argv.index("--channel") + 1]
+        if channel not in ("chrome", "msedge"):
+            print("canal no admitido: %s" % channel)
+            return 2
     args = [] if use_gpu else ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
     lines = []
+    pending = []
     done = threading.Event()
+    shots = pathlib.Path(os.environ.get("TEMP", str(build.parent))) / "deadshift3d-capturas" / "web"
+    shots.mkdir(parents=True, exist_ok=True)
 
     def on_console(msg):
         text = msg.text
@@ -63,24 +80,35 @@ def main():
             lines.append(line)
             if line == "fin":
                 done.set()
+            elif line.startswith("captura "):
+                pending.append(re.sub(r"[^a-z0-9_]", "", line[len("captura "):]))
         elif msg.type == "error":
             print("consola: " + text, flush=True)
 
     server = serve(build)
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=not use_gpu, args=args)
-            context = browser.new_context(viewport={"width": width, "height": height})
+            browser = pw.chromium.launch(headless=not use_gpu, args=args, channel=channel)
+            context = browser.new_context(
+                viewport={"width": width, "height": height}, device_scale_factor=scale
+            )
             page = context.new_page()
             page.on("console", on_console)
             page.on("pageerror", lambda err: print("error de pagina: %s" % err, flush=True))
             renderer = "software (SwiftShader)" if not use_gpu else "grafica de esta maquina"
-            print("render: %s, ventana %dx%d" % (renderer, width, height), flush=True)
+            print(
+                "render: %s, navegador %s, ventana %dx%d a densidad %.2f"
+                % (renderer, channel or "chromium", width, height, scale),
+                flush=True,
+            )
             query = "?sin_preparar" if "--sin-preparar" in sys.argv[2:] else ""
             page.goto("http://127.0.0.1:%d/index.html%s" % (PORT, query))
             started = time.time()
             while not done.is_set() and time.time() - started < TIMEOUT_S:
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(200)
+                while pending:
+                    name = pending.pop(0)
+                    page.screenshot(path=str(shots / ("%s_x%.0f.png" % (name, scale))))
             browser.close()
     finally:
         server.shutdown()

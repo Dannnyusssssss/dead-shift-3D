@@ -94,6 +94,38 @@
   }
   document.body.dataset.softwareRender = detectSoftwareRender() ? '1' : '0';
 
+  // Tope de pixeles reales del lienzo segun la calidad: el juego deja en data-max-pixels cuantos
+  // quiere como maximo (0 o nada = sin tope) y aqui se limita la densidad de pixeles que lee el
+  // motor al dimensionar el lienzo; el navegador lo amplia a la pantalla. Si el navegador no deja
+  // cambiarla, el juego sigue sin tope.
+  var MIN_CANVAS_PIXELS = 100000;
+  var MAX_CANVAS_PIXELS = 50000000;
+  function limitPixelRatio() {
+    var descriptor = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+      || Object.getOwnPropertyDescriptor(Window.prototype, 'devicePixelRatio');
+    if (!descriptor || typeof descriptor.get !== 'function') {
+      return;
+    }
+    var realRatio = descriptor.get;
+    try {
+      Object.defineProperty(window, 'devicePixelRatio', {
+        configurable: true,
+        get: function () {
+          var real = Number(realRatio.call(window)) || 1;
+          var wanted = Number(document.body.dataset.maxPixels);
+          if (!isFinite(wanted) || wanted < MIN_CANVAS_PIXELS || wanted > MAX_CANVAS_PIXELS) {
+            return real;
+          }
+          var area = Math.max(window.innerWidth * window.innerHeight, 1);
+          return Math.max(Math.min(real, Math.sqrt(wanted / area)), 0.25);
+        },
+      });
+    } catch (error) {
+      // Sin tope: el juego funciona igual que antes.
+    }
+  }
+  limitPixelRatio();
+
   var engine = new Engine(config);
   engine.startGame({
     onProgress: function (current, total) {

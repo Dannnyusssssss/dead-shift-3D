@@ -130,5 +130,13 @@ func apply_quality() -> void:
 	var level := clampi(get_int("quality"), 0, Rules.QUALITY_RENDER_SCALE.size() - 1)
 	var viewport := get_viewport()
 	viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	viewport.scaling_3d_scale = Rules.QUALITY_RENDER_SCALE[level]
+	viewport.scaling_3d_scale = render_scale_for(level, Config.is_software_render())
 	viewport.msaa_3d = Rules.QUALITY_MSAA[level] as Viewport.MSAA
+	Config.set_max_canvas_pixels(Rules.QUALITY_MAX_CANVAS_PIXELS[level])
+
+
+## Escala de la escena 3D para una calidad: con gráfica, siempre 1; con dibujo por software, la
+## reducida de cada calidad.
+static func render_scale_for(level: int, software: bool) -> float:
+	var table := Rules.SOFTWARE_RENDER_SCALE if software else Rules.QUALITY_RENDER_SCALE
+	return table[clampi(level, 0, table.size() - 1)]

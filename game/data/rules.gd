@@ -112,11 +112,17 @@ const FLOOR_SWITCH_MARGIN: float = 1.5
 ## Pisos por encima y por debajo del jugador cuyos enemigos y geometría siguen activos.
 const ACTIVE_FLOOR_RANGE: int = 1
 
-## Niveles de calidad (índice = SettingsSchema.QUALITY_*: Mínima, Baja, Media y Alta): escala
-## de resolución interna 3D y antialiasing (Viewport.MSAA_*). La interfaz siempre se dibuja a
-## resolución completa. Medido en el navegador: lo que más cuesta en un equipo sin gráfica
-## dedicada son los píxeles iluminados por las luces de sala y las llamadas de dibujo.
-const QUALITY_RENDER_SCALE: Array[float] = [0.5, 0.6, 0.8, 1.0]
+## Niveles de calidad (índice = SettingsSchema.QUALITY_*: Mínima, Baja, Media y Alta). Medido
+## en el navegador con gráfica: dibujar la escena por debajo del 100 % y ampliarla cuesta más que
+## dibujarla entera (en 4K, Alta al 100 % iba más rápida que Mínima al 50 %). Por eso la escena
+## va siempre al 100 % y lo que baja con la calidad son los píxeles reales del lienzo de la
+## página (tope en píxeles; 0 = sin tope): el navegador lo amplía a la pantalla casi gratis.
+const QUALITY_RENDER_SCALE: Array[float] = [1.0, 1.0, 1.0, 1.0]
+const QUALITY_MAX_CANVAS_PIXELS: Array[int] = [1024 * 576, 1600 * 900, 1920 * 1080, 0]
+## Con dibujo por software (sin gráfica) es al revés: reducir la escena sí compensa (medido:
+## Baja al 100 % tardaba 3 veces más que al 60 %), así que allí cada calidad usa esta escala.
+const SOFTWARE_RENDER_SCALE: Array[float] = [0.5, 0.6, 0.8, 1.0]
+## Antialiasing (Viewport.MSAA_*) por calidad.
 const QUALITY_MSAA: Array[int] = [0, 0, 0, 1]
 ## Distancia de visión (m) por calidad: lo que queda más lejos no se dibuja. En Mínima y Baja
 ## una niebla de profundidad oscurece hasta el color de fondo antes del límite, para que el

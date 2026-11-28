@@ -54,8 +54,28 @@ func is_software_render() -> bool:
 	return Validation.parse_flag(_read_body_data("softwareRender"))
 
 
+## Tope de píxeles reales del lienzo de la página (0 = sin tope). Lo aplica la página (boot.js)
+## al calcular el tamaño del lienzo; fuera del navegador no hace nada.
+func set_max_canvas_pixels(pixels: int) -> void:
+	if is_web:
+		_write_body_data("maxPixels", str(maxi(pixels, 0)))
+
+
 func _read_safe_area() -> String:
 	return _read_body_data("safeArea")
+
+
+## Escribe un atributo data- del cuerpo del documento sin evaluar código: solo una propiedad.
+func _write_body_data(key: String, value: String) -> void:
+	var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
+	if document == null:
+		return
+	var body: Variant = document.get("body")
+	if not body is JavaScriptObject:
+		return
+	var dataset: Variant = (body as JavaScriptObject).get("dataset")
+	if dataset is JavaScriptObject:
+		(dataset as JavaScriptObject).set(key, value)
 
 
 ## Lee un atributo data- del cuerpo del documento sin evaluar código: solo propiedades.
