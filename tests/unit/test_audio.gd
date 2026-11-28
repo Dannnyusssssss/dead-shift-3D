@@ -85,3 +85,39 @@ func test_buses_come_from_layout_file() -> void:
 		assert_eq(String(AudioServer.get_bus_send(index)), "Master", bus_name)
 	var source := FileAccess.get_file_as_string("res://game/systems/audio_director.gd")
 	assert_false(source.contains("add_bus("), "los canales no se crean por código")
+
+
+## Con el juego en pausa se detiene lo que suena y se reanuda al volver; un sonido de la
+## interfaz pedido durante la pausa sí suena.
+func test_pause_stops_playing_sounds_and_resume_restores_them() -> void:
+	var music: AudioStreamPlayer = AudioDirector._music
+	var effect: AudioStreamPlayer3D = AudioDirector._players_3d[0]
+	var stream := AudioStreamGenerator.new()
+	music.stream = stream
+	effect.stream = stream
+	music.play()
+	effect.play()
+	# El sonido 3D arranca en el siguiente paso de física.
+	await wait_physics_frames(2)
+	assert_true(effect.playing)
+	EventBus.paused_changed.emit(true)
+	assert_true(music.stream_paused, "la música se detiene")
+	assert_true(effect.stream_paused, "los efectos se detienen")
+	var ui_player: AudioStreamPlayer = AudioDirector._players_2d[AudioDirector._next_2d]
+	ui_player.stream_paused = true
+	AudioDirector._paused_2d.append(ui_player)
+	var was_silent: bool = AudioDirector._silent
+	AudioDirector._silent = false
+	AudioDirector.play("pickup")
+	AudioDirector._silent = was_silent
+	assert_false(ui_player.stream_paused, "un sonido nuevo durante la pausa suena")
+	EventBus.paused_changed.emit(false)
+	assert_false(music.stream_paused, "la música vuelve")
+	assert_false(effect.stream_paused, "los efectos vuelven")
+	assert_eq(AudioDirector._paused_2d.size(), 0)
+	assert_eq(AudioDirector._paused_3d.size(), 0)
+	music.stop()
+	effect.stop()
+	ui_player.stop()
+	music.stream = null
+	effect.stream = null

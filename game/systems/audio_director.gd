@@ -100,6 +100,9 @@ var _geiger: AudioStreamPlayer = null
 var _scene: AudioStreamPlayer = null
 ## Reproductores de los sonidos sueltos del ambiente (en el canal Ambience).
 var _event_players: Array[AudioStreamPlayer3D] = []
+## Reproductores detenidos por la pausa; se reanudan al quitarla.
+var _paused_2d: Array[AudioStreamPlayer] = []
+var _paused_3d: Array[AudioStreamPlayer3D] = []
 var _next_event: int = 0
 var _event_timer: float = 0.0
 var _events_on: bool = true
@@ -155,6 +158,7 @@ func _ready() -> void:
 	EventBus.surface_hit.connect(_on_surface_hit)
 	EventBus.debris.connect(func(origin: Vector3) -> void: play_at("hit_plank", origin))
 	EventBus.floor_changed.connect(_on_floor_changed)
+	EventBus.paused_changed.connect(_on_paused_changed)
 	EventBus.boss_proximity.connect(_on_boss_proximity)
 	EventBus.rescue_changed.connect(_refresh_music)
 	EventBus.crafting_changed.connect(func(_active: bool) -> void: play("bag"))
@@ -191,6 +195,7 @@ func play(sound_id: String, volume_db: float = 0.0) -> bool:
 		return true
 	var player := _players_2d[_next_2d]
 	_next_2d = (_next_2d + 1) % _players_2d.size()
+	_unpause_2d(player)
 	player.stream = stream
 	player.volume_db = _group_db(sound_id) + volume_db
 	player.play()
@@ -206,6 +211,7 @@ func play_at(sound_id: String, origin: Vector3, volume_db: float = 0.0) -> bool:
 		return true
 	var player := _players_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % _players_3d.size()
+	_unpause_3d(player)
 	player.stream = stream
 	player.volume_db = _group_db(sound_id) + volume_db
 	player.global_position = origin
@@ -299,6 +305,7 @@ func play_loop(sound_id: String, volume_db: float = 0.0) -> void:
 	if stream == null or _silent:
 		return
 	_stop_fade(_scene)
+	_unpause_2d(_scene)
 	_scene.stream = stream
 	_scene.volume_db = _group_db(sound_id) + volume_db
 	_scene.play()
@@ -307,6 +314,43 @@ func play_loop(sound_id: String, volume_db: float = 0.0) -> void:
 ## Apaga el bucle de la escena en los segundos dados.
 func stop_loop(seconds: float = 0.5) -> void:
 	_fade_out(_scene, seconds)
+
+
+## Con el juego en pausa se detiene todo lo que suena (música, ambiente y efectos) y se
+## reanuda al volver. Los sonidos que se pidan durante la pausa (la interfaz) sí suenan.
+func _on_paused_changed(paused: bool) -> void:
+	if paused:
+		var flat: Array[AudioStreamPlayer] = [_ambience, _music, _geiger, _scene]
+		flat.append_array(_players_2d)
+		for player: AudioStreamPlayer in flat:
+			if player.playing and not player.stream_paused:
+				player.stream_paused = true
+				_paused_2d.append(player)
+		var spatial: Array[AudioStreamPlayer3D] = []
+		spatial.append_array(_players_3d)
+		spatial.append_array(_event_players)
+		for player: AudioStreamPlayer3D in spatial:
+			if player.playing and not player.stream_paused:
+				player.stream_paused = true
+				_paused_3d.append(player)
+		return
+	for player: AudioStreamPlayer in _paused_2d:
+		player.stream_paused = false
+	for player: AudioStreamPlayer3D in _paused_3d:
+		player.stream_paused = false
+	_paused_2d.clear()
+	_paused_3d.clear()
+
+
+## Un reproductor que se reutiliza durante la pausa deja de contar como pausado.
+func _unpause_2d(player: AudioStreamPlayer) -> void:
+	player.stream_paused = false
+	_paused_2d.erase(player)
+
+
+func _unpause_3d(player: AudioStreamPlayer3D) -> void:
+	player.stream_paused = false
+	_paused_3d.erase(player)
 
 
 ## Sonidos sueltos del ambiente: de vez en cuando, uno al azar del piso, lejos y en una
