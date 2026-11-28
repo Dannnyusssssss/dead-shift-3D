@@ -46,7 +46,7 @@ func test_toggles_and_quality_cycle() -> void:
 	assert_true(Settings.get_bool("reduce_flashes"))
 	var quality := Settings.get_int("quality")
 	menu._on_quality()
-	assert_eq(Settings.get_int("quality"), (quality + 1) % 3)
+	assert_eq(Settings.get_int("quality"), (quality + 1) % (SettingsSchema.QUALITY_HIGH + 1))
 
 
 func test_rebinding_reaches_input_map_and_reset_restores() -> void:

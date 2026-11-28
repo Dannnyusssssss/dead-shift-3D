@@ -15,6 +15,14 @@ const PLAYER_SCENE: PackedScene = preload("res://game/actors/player/player.tscn"
 const ENEMY_SCENE: PackedScene = preload("res://game/actors/enemies/enemy.tscn")
 const BOSS_SCENE: PackedScene = preload("res://game/actors/enemies/boss.tscn")
 
+## Color del fondo y de la niebla suave (Media y Alta), y su densidad.
+const BACKGROUND_COLOR: Color = Color(0.02, 0.02, 0.03)
+const FOG_COLOR: Color = Color(0.05, 0.05, 0.07)
+const FOG_DENSITY: float = 0.02
+## Inicio y cierre de la niebla de profundidad (fracción de la distancia de visión).
+const DEPTH_FOG_BEGIN: float = 0.35
+const DEPTH_FOG_END: float = 0.95
+
 ## Piso y descansillo o zona segura donde aparece el jugador ("" = inicio de partida nueva).
 var start_floor: String = ""
 var arrival_exit: String = ""
@@ -300,18 +308,14 @@ func _build_environment() -> void:
 	var first: FloorData = GameState.CATALOG.find_floor(GameState.CATALOG.start_floor)
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.02, 0.02, 0.03)
+	environment.background_color = BACKGROUND_COLOR
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = first.ambient_color
 	environment.ambient_light_energy = first.ambient_energy
-	environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
-	environment.fog_light_color = Color(0.05, 0.05, 0.07)
-	environment.fog_density = 0.02
+	environment.fog_enabled = true
 	# Tono de película: las zonas claras no se queman y las oscuras conservan detalle.
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = EXPOSURE
-	# Halo suave de los paneles y carteles que brillan (desde calidad Media).
-	environment.glow_enabled = Settings.get_int("quality") >= 1
 	environment.glow_intensity = 0.5
 	environment.glow_bloom = 0.0
 	environment.glow_hdr_threshold = 1.0
@@ -319,14 +323,33 @@ func _build_environment() -> void:
 	world.environment = environment
 	add_child(world)
 	_environment = environment
+	_apply_quality_look()
 	EventBus.settings_changed.connect(_on_settings_changed)
 
 
 func _on_settings_changed(key: String) -> void:
 	if key == "quality":
-		_environment.fog_enabled = Rules.QUALITY_FOG[Settings.get_int("quality")]
-		_environment.glow_enabled = Settings.get_int("quality") >= 1
+		_apply_quality_look()
 		DrawDistance.refresh(get_tree())
+
+
+## Niebla y halo según la calidad. En Mínima y Baja la niebla es de profundidad y llega al
+## color del fondo justo antes de la distancia de visión, así el corte de lo lejano no se ve.
+## En Media y Alta, la niebla suave de siempre y el halo de los paneles y carteles que brillan.
+func _apply_quality_look() -> void:
+	var quality := clampi(Settings.get_int("quality"), 0, Rules.QUALITY_DEPTH_FOG.size() - 1)
+	if Rules.QUALITY_DEPTH_FOG[quality]:
+		var view := Rules.QUALITY_VIEW_DISTANCE[quality]
+		_environment.fog_mode = Environment.FOG_MODE_DEPTH
+		_environment.fog_light_color = BACKGROUND_COLOR
+		_environment.fog_density = 1.0
+		_environment.fog_depth_begin = view * DEPTH_FOG_BEGIN
+		_environment.fog_depth_end = view * DEPTH_FOG_END
+	else:
+		_environment.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+		_environment.fog_light_color = FOG_COLOR
+		_environment.fog_density = FOG_DENSITY
+	_environment.glow_enabled = quality >= SettingsSchema.QUALITY_MEDIUM
 
 
 func _bake_navigation() -> void:

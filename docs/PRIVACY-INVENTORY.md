@@ -19,6 +19,7 @@ Si el navegador no permite guardar (por ejemplo, en una ventana privada), el jue
 
 ## Datos que lee de la página
 - **Zona segura de la pantalla:** la página del juego mide los márgenes de la muesca del celular y el juego los lee (cuatro números validados) para no tapar la interfaz. No se guarda ni sale del dispositivo.
+- **Dibujo sin tarjeta gráfica:** la página consulta el nombre de la tarjeta gráfica que informa el navegador solo para saber si dibuja por software, y al juego le pasa únicamente un sí o un no. Con un sí, el juego empieza en calidad Mínima y explica cómo activar la aceleración por hardware. El nombre no se guarda ni sale del dispositivo; solo la calidad elegida queda en los ajustes.
 
 ## Parámetros de la dirección
 - `seed`: número entero opcional que fija el azar de la partida (por ejemplo, el reparto del botín). No identifica a nadie.

@@ -11,6 +11,8 @@ const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## controles (en un celular en horizontal no cabe junto a todos los botones, y allí los
 ## controles ya se ven en pantalla). El aviso de edad se muestra siempre.
 const MENU_MARGIN: float = 24.0
+## Sesión de medición del export del banco de rendimiento.
+const BENCH_SCRIPT_PATH: String = "res://tests/bench/web_bench.gd"
 
 var _menu: Control = null
 ## Botones del menú principal (se esconden mientras se elige la dificultad).
@@ -32,10 +34,21 @@ var _delete_armed: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if OS.has_feature("bench"):
+		_start_bench()
+		return
 	add_child(OrientationNotice.new())
 	_build_menu()
 	get_viewport().size_changed.connect(_fit_short_screen)
 	_refresh_menu()
+
+
+## Solo en el export del banco de rendimiento (etiqueta «bench», que el export publicado no
+## tiene y que además excluye la carpeta de pruebas): sin menú, arranca la sesión de medición.
+func _start_bench() -> void:
+	var script := load(BENCH_SCRIPT_PATH) as GDScript
+	if script != null and script.can_instantiate():
+		add_child(script.new() as Node)
 
 
 ## Partida guardada válida, o vacío si no hay o no se puede leer.
@@ -239,6 +252,10 @@ func _build_menu() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 64)
 	box.add_child(title)
+	if Config.is_software_render():
+		var warning := _text(tr("start_software_render"), 20)
+		warning.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+		box.add_child(warning)
 	_info_labels = [_text(tr("start_content_notice"), 22), _text(tr("start_controls"), 18)]
 	for label: Label in _info_labels:
 		box.add_child(label)

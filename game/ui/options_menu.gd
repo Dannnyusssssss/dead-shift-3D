@@ -7,7 +7,9 @@ extends Control
 
 signal closed
 
-const QUALITY_KEYS: Array[String] = ["quality_low", "quality_medium", "quality_high"]
+const QUALITY_KEYS: Array[String] = [
+	"quality_minimum", "quality_low", "quality_medium", "quality_high"
+]
 ## Ajustes numéricos: clave, texto, paso, y si se muestra como porcentaje.
 const NUMBERS: Array = [
 	["fov", "option_fov", 5.0, false],
@@ -26,6 +28,7 @@ const TOGGLES: Array = [
 	["invert_y", "option_invert_y"],
 	["head_bob", "option_head_bob"],
 	["show_performance", "pause_performance"],
+	["auto_quality", "option_auto_quality"],
 	["aim_assist", "option_aim_assist"],
 	["reduce_motion", "option_reduce_motion"],
 	["reduce_flashes", "option_reduce_flashes"],
@@ -35,7 +38,7 @@ const TOGGLES: Array = [
 ]
 ## Secciones: título y qué filas lleva (claves de ajustes o «bindings» o «quality»).
 const SECTIONS: Array = [
-	["options_image", ["quality", "fov", "show_performance", "head_bob"]],
+	["options_image", ["quality", "auto_quality", "fov", "show_performance", "head_bob"]],
 	["options_sound", ["volume_master", "volume_music", "volume_sfx", "volume_ambience"]],
 	["options_controls", ["mouse_sensitivity", "invert_y", "bindings"]],
 	["options_touch", ["touch_sensitivity", "touch_button_scale", "touch_opacity", "aim_assist"]],
@@ -215,7 +218,9 @@ func _add_bindings(parent: Control) -> void:
 func _refresh() -> void:
 	if _quality_button == null:
 		return
-	_quality_button.text = tr(QUALITY_KEYS[clampi(Settings.get_int("quality"), 0, 2)])
+	_quality_button.text = tr(
+		QUALITY_KEYS[clampi(Settings.get_int("quality"), 0, QUALITY_KEYS.size() - 1)]
+	)
 	for spec: Array in NUMBERS:
 		var key: String = spec[0]
 		var label: Label = _value_labels[key]
@@ -235,7 +240,7 @@ func _refresh() -> void:
 
 
 func _on_quality() -> void:
-	Settings.set_value("quality", (Settings.get_int("quality") + 1) % 3)
+	Settings.set_value("quality", (Settings.get_int("quality") + 1) % QUALITY_KEYS.size())
 
 
 func _on_step(key: String, step: float) -> void:

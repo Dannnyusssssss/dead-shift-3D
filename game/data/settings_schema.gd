@@ -4,12 +4,14 @@ extends RefCounted
 ## pueden reasignar. Lo usan Settings (valores iniciales) y boundary/validation.gd (lectura de
 ## datos guardados).
 
-## Versión del formato de los ajustes (independiente de la de la partida).
-const VERSION: int = 1
+## Versión del formato de los ajustes (independiente de la de la partida). Versión 2: se añade
+## la calidad Mínima delante de Baja (la calidad guardada en la versión 1 sube un puesto).
+const VERSION: int = 2
 
-const QUALITY_LOW: int = 0
-const QUALITY_MEDIUM: int = 1
-const QUALITY_HIGH: int = 2
+const QUALITY_MINIMUM: int = 0
+const QUALITY_LOW: int = 1
+const QUALITY_MEDIUM: int = 2
+const QUALITY_HIGH: int = 3
 
 ## Campos numéricos: [mínimo, máximo, por defecto].
 const FLOATS: Dictionary = {
@@ -27,12 +29,13 @@ const FLOATS: Dictionary = {
 
 ## Campos enteros: [mínimo, máximo, por defecto].
 const INTS: Dictionary = {
-	"quality": [QUALITY_LOW, QUALITY_HIGH, QUALITY_MEDIUM],
+	"quality": [QUALITY_MINIMUM, QUALITY_HIGH, QUALITY_MEDIUM],
 }
 
 ## Campos booleanos: valor por defecto.
 const BOOLS: Dictionary = {
 	"reduce_motion": false,
+	"auto_quality": true,
 	"reduce_flashes": false,
 	"reduce_gore": false,
 	"head_bob": true,

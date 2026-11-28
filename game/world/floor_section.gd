@@ -433,6 +433,7 @@ func _add_lights(room: RoomData, builder: Kit.Builder) -> void:
 		light.light_color = LIGHT_COLOR
 		light.shadow_enabled = false
 		add_child(light)
+		DrawDistance.mark_light(light)
 		_lights.append(light)
 		_light_energy.append(room.light_energy)
 

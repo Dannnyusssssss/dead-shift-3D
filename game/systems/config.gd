@@ -18,8 +18,11 @@ func _ready() -> void:
 		url_seed = Validation.parse_seed(_read_url_query())
 
 
-## Calidad inicial según el dispositivo: Baja en táctil, Media en PC.
+## Calidad inicial según el dispositivo: Mínima si el navegador dibuja sin la tarjeta gráfica,
+## Baja en táctil y Media en PC.
 func default_quality() -> int:
+	if is_software_render():
+		return SettingsSchema.QUALITY_MINIMUM
 	if is_touch:
 		return SettingsSchema.QUALITY_LOW
 	return SettingsSchema.QUALITY_MEDIUM
@@ -43,8 +46,20 @@ func safe_rect(size: Vector2) -> Rect2:
 	)
 
 
-## Lee el atributo data-safe-area del documento sin evaluar código: solo propiedades.
+## Verdadero si el navegador dibuja por software (sin la tarjeta gráfica). Lo decide la página
+## (boot.js) y deja solo un «1» o un «0»; el juego no conoce el nombre de la gráfica.
+func is_software_render() -> bool:
+	if not is_web:
+		return false
+	return Validation.parse_flag(_read_body_data("softwareRender"))
+
+
 func _read_safe_area() -> String:
+	return _read_body_data("safeArea")
+
+
+## Lee un atributo data- del cuerpo del documento sin evaluar código: solo propiedades.
+func _read_body_data(key: String) -> String:
 	var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
 	if document == null:
 		return ""
@@ -54,7 +69,7 @@ func _read_safe_area() -> String:
 	var dataset: Variant = (body as JavaScriptObject).get("dataset")
 	if not dataset is JavaScriptObject:
 		return ""
-	var value: Variant = (dataset as JavaScriptObject).get("safeArea")
+	var value: Variant = (dataset as JavaScriptObject).get(key)
 	return value if value is String else ""
 
 

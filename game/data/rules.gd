@@ -112,13 +112,21 @@ const FLOOR_SWITCH_MARGIN: float = 1.5
 ## Pisos por encima y por debajo del jugador cuyos enemigos y geometría siguen activos.
 const ACTIVE_FLOOR_RANGE: int = 1
 
-## Niveles de calidad (índice = SettingsSchema.QUALITY_*): escala de resolución interna 3D,
-## antialiasing (Viewport.MSAA_*) y niebla. La interfaz siempre se dibuja a resolución completa.
-const QUALITY_RENDER_SCALE: Array[float] = [0.6, 0.8, 1.0]
-const QUALITY_MSAA: Array[int] = [0, 0, 1]
-const QUALITY_FOG: Array[bool] = [false, true, true]
+## Niveles de calidad (índice = SettingsSchema.QUALITY_*: Mínima, Baja, Media y Alta): escala
+## de resolución interna 3D y antialiasing (Viewport.MSAA_*). La interfaz siempre se dibuja a
+## resolución completa. Medido en el navegador: lo que más cuesta en un equipo sin gráfica
+## dedicada son los píxeles iluminados por las luces de sala y las llamadas de dibujo.
+const QUALITY_RENDER_SCALE: Array[float] = [0.5, 0.6, 0.8, 1.0]
+const QUALITY_MSAA: Array[int] = [0, 0, 0, 1]
+## Distancia de visión (m) por calidad: lo que queda más lejos no se dibuja. En Mínima y Baja
+## una niebla de profundidad oscurece hasta el color de fondo antes del límite, para que el
+## corte no se vea; en Media y Alta queda la niebla suave de siempre.
+const QUALITY_VIEW_DISTANCE: Array[float] = [30.0, 45.0, 120.0, 120.0]
+const QUALITY_DEPTH_FOG: Array[bool] = [true, true, false, false]
+## Distancia (m) a la que se apagan con un fundido las luces de las salas (0 = nunca).
+const LIGHT_FADE_DISTANCE: Array[float] = [10.0, 16.0, 28.0, 0.0]
 ## Distancia (m) a partir de la que no se dibujan las piezas de cada tamaño, por calidad
 ## (0 = sin límite). Pequeñas: objetos, cajas, monitores, estantes y rótulos pequeños; grandes:
 ## rejas, cristales y rótulos de tienda. Los enemigos y la estructura se dibujan siempre.
-const DRAW_DISTANCE_SMALL: Array[float] = [16.0, 24.0, 0.0]
-const DRAW_DISTANCE_LARGE: Array[float] = [28.0, 40.0, 0.0]
+const DRAW_DISTANCE_SMALL: Array[float] = [12.0, 16.0, 24.0, 0.0]
+const DRAW_DISTANCE_LARGE: Array[float] = [20.0, 28.0, 40.0, 0.0]

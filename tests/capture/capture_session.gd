@@ -13,8 +13,9 @@ extends Node
 ## jefe, con =brazos cada arma en la mano, con =jefe el lanzamiento de la nube, con =intro la
 ## intro, con =final las escenas finales, con =despertar el despertar del guardia al empezar,
 ## con =parpadeo los mismos sitios girando poco a poco en
-## las tres calidades, con =camaras el visor de cámaras y con =linterna el coste de la linterna
-## y el fotograma más largo al encenderla (para revisar una parte sin recorrer todo).
+## las tres calidades, con =camaras el visor de cámaras, con =linterna el coste de la linterna
+## y el fotograma más largo al encenderla y con =calidades los puntos fijos en Mínima, Baja y
+## Media (para revisar una parte sin recorrer todo).
 
 const GAME_SCRIPT: GDScript = preload("res://game/game.gd")
 ## Nombre, posición en el edificio, giro y cabeceo (grados) de cada punto.
@@ -40,7 +41,9 @@ const POINTS: Array = [
 	["19_n1_oficinas", Vector3(24.6, 5.0, 0.0), -90.0, -10.0],
 	["20_pb_deposito", Vector3(24.6, 0.0, 0.0), -90.0, -10.0],
 ]
-const QUALITIES: Array[int] = [SettingsSchema.QUALITY_LOW, SettingsSchema.QUALITY_MEDIUM]
+const QUALITIES: Array[int] = [
+	SettingsSchema.QUALITY_MINIMUM, SettingsSchema.QUALITY_LOW, SettingsSchema.QUALITY_MEDIUM
+]
 const SETTLE_FRAMES: int = 30
 const MEASURE_FRAMES: int = 120
 ## Tomas de la portada: nombre, posición, giro y cabeceo (grados), y distancia del primer enemigo.
@@ -73,6 +76,9 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	# Con ventana, la partida prepara los materiales antes de empezar (pantalla negra).
+	while _game != null and _game.warming_up:
+		await get_tree().process_frame
 	var only := OS.get_environment("DEADSHIFT_CAPTURE_ONLY")
 	var parts: Array[String] = [
 		"enemigos",
@@ -92,9 +98,12 @@ func _run() -> void:
 		"despertar",
 		"linterna",
 		"portada",
+		"calidades",
 	]
 	if only in parts:
-		if only == "final":
+		if only == "calidades":
+			await _capture_qualities()
+		elif only == "final":
 			await _capture_outros()
 		elif only == "despertar":
 			await _capture_wake_up()
@@ -143,26 +152,7 @@ func _run() -> void:
 		print("[captura] %s en %s" % [only, _out_dir])
 		get_tree().quit(0)
 		return
-	var original_quality := Settings.get_int("quality")
-	_report.append("punto | calidad | FPS | frame ms | draw calls | primitivas")
-	for quality: int in QUALITIES:
-		Settings.set_value("quality", quality)
-		for point: Array in POINTS:
-			var label: String = point[0]
-			var position: Vector3 = point[1]
-			var yaw: float = point[2]
-			var pitch: float = point[3]
-			var player := _game.level.player
-			player.set_blocked("capture", true)
-			for node: Node in get_tree().get_nodes_in_group("enemy"):
-				node.set_physics_process(false)
-			player.global_position = position
-			player.rotation.y = deg_to_rad(yaw)
-			player.head.rotation.x = deg_to_rad(pitch)
-			for _frame: int in SETTLE_FRAMES:
-				await get_tree().process_frame
-			await _measure(label, quality)
-	Settings.set_value("quality", original_quality)
+	await _capture_qualities()
 	await _capture_broken_glass()
 	await _capture_impacts()
 	await _capture_cameras()
@@ -186,6 +176,32 @@ func _run() -> void:
 	for line: String in _report:
 		print("[captura] " + line)
 	get_tree().quit(0)
+
+
+## Cada punto fijo en cada calidad de QUALITIES (con la medición de cada uno).
+func _capture_qualities() -> void:
+	var original_quality := Settings.get_int("quality")
+	_report.append("punto | calidad | FPS | frame ms | draw calls | primitivas")
+	for quality: int in QUALITIES:
+		Settings.set_value("quality", quality)
+		for point: Array in POINTS:
+			var label: String = point[0]
+			var position: Vector3 = point[1]
+			var yaw: float = point[2]
+			var pitch: float = point[3]
+			var player := _game.level.player
+			player.set_blocked("capture", true)
+			for node: Node in get_tree().get_nodes_in_group("enemy"):
+				node.set_physics_process(false)
+			player.global_position = position
+			player.rotation.y = deg_to_rad(yaw)
+			player.head.rotation.x = deg_to_rad(pitch)
+			for _frame: int in SETTLE_FRAMES:
+				await get_tree().process_frame
+			await _measure(label, quality)
+	Settings.set_value("quality", original_quality)
+	for line: String in _report:
+		print("[captura] " + line)
 
 
 func _measure(label: String, quality: int) -> void:

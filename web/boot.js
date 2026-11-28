@@ -66,6 +66,34 @@
   window.addEventListener('resize', updateSafeArea);
   window.addEventListener('orientationchange', updateSafeArea);
 
+  // Dibujo por software (el navegador no usa la tarjeta grafica): el juego elige la calidad
+  // Minima y avisa de como activar la aceleracion por hardware. En data-software-render solo
+  // queda un 1 o un 0: el nombre de la grafica no se guarda ni sale de la pagina.
+  function detectSoftwareRender() {
+    try {
+      var gl = document.createElement('canvas').getContext('webgl2');
+      if (!gl) {
+        return false;
+      }
+      var name = String(gl.getParameter(gl.RENDERER) || '');
+      // Chrome da un nombre generico; el real se pide aparte. Firefox ya da el real.
+      if (/^webkit webgl$/i.test(name)) {
+        var info = gl.getExtension('WEBGL_debug_renderer_info');
+        if (info) {
+          name = String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL) || '');
+        }
+      }
+      var lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) {
+        lose.loseContext();
+      }
+      return /swiftshader|llvmpipe|softpipe|basic render|software/i.test(name);
+    } catch (error) {
+      return false;
+    }
+  }
+  document.body.dataset.softwareRender = detectSoftwareRender() ? '1' : '0';
+
   var engine = new Engine(config);
   engine.startGame({
     onProgress: function (current, total) {

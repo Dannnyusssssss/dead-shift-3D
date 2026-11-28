@@ -32,6 +32,8 @@ var level: Building = null
 var elapsed: float = 0.0
 var finished: bool = false
 var won: bool = false
+## Verdadero mientras se preparan los materiales antes de jugar (pantalla negra).
+var warming_up: bool = false
 
 var _hud: Hud = null
 var _inventory: InventoryPanel = null
@@ -49,6 +51,8 @@ var _started: bool = false
 var _wake_black: ColorRect = null
 var _wake_caption: Label = null
 var _pause_menu: PauseMenu = null
+## Baja la calidad sola si el juego va lento (ajuste «Calidad automática»).
+var _governor: QualityGovernor = QualityGovernor.new()
 
 
 func _ready() -> void:
@@ -98,6 +102,9 @@ func _ready() -> void:
 	EventBus.rescue_lost.connect(_maybe_start_waves)
 	EventBus.rescue_changed.connect(_maybe_start_waves)
 	EventBus.floor_changed.connect(_on_floor_changed)
+	EventBus.floor_changed.connect(func(_floor_id: String) -> void: _governor.reset())
+	EventBus.paused_changed.connect(func(_paused: bool) -> void: _governor.reset())
+	EventBus.settings_changed.connect(_on_quality_setting)
 	EventBus.surrender_requested.connect(_on_surrender)
 	EventBus.enemy_died.connect(_on_enemy_died)
 	EventBus.save_requested.connect(_on_save_requested)
@@ -105,7 +112,29 @@ func _ready() -> void:
 	InputRouter.gameplay_active = true
 	EventBus.floor_changed.emit(level.floor_data.id)
 	_started = true
-	if wake_up_on_start and start_data.is_empty() and DisplayServer.get_name() != "headless":
+	var wake := (
+		wake_up_on_start and start_data.is_empty() and DisplayServer.get_name() != "headless"
+	)
+	if ShaderWarmup.wanted():
+		_warm_up(ui, wake)
+	elif wake:
+		_begin_wake_up(ui)
+
+
+## Prepara los materiales con la pantalla tapada y después, si toca, empieza el despertar.
+func _warm_up(ui: CanvasLayer, then_wake: bool) -> void:
+	warming_up = true
+	level.player.set_blocked("warmup", true)
+	var warmup := ShaderWarmup.new()
+	add_child(warmup)
+	await warmup.run(level)
+	warmup.queue_free()
+	if not is_inside_tree():
+		return
+	level.player.set_blocked("warmup", false)
+	warming_up = false
+	_governor.reset()
+	if then_wake:
 		_begin_wake_up(ui)
 
 
@@ -229,11 +258,28 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if finished or GameState.paused:
+	if finished or GameState.paused or warming_up:
 		return
 	elapsed += delta
 	_tick_rescue(delta)
 	_tick_cameras(delta)
+	_tick_quality(delta)
+
+
+## Si va lento de forma sostenida, baja un nivel de calidad y lo explica (nunca la sube).
+func _tick_quality(delta: float) -> void:
+	if not Settings.get_bool("auto_quality") or not _governor.tick(delta):
+		return
+	var quality := Settings.get_int("quality")
+	if quality <= SettingsSchema.QUALITY_MINIMUM:
+		return
+	Settings.set_value("quality", quality - 1)
+	EventBus.user_message.emit("msg_quality_lowered")
+
+
+func _on_quality_setting(key: String) -> void:
+	if key == "quality" or key == "auto_quality":
+		_governor.reset()
 
 
 ## Avanza el reloj del rescate y reacciona a sus momentos.

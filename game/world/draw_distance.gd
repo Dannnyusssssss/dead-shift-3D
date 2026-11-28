@@ -6,6 +6,10 @@ extends RefCounted
 
 const SMALL: StringName = &"draw_distance_small"
 const LARGE: StringName = &"draw_distance_large"
+## Luces de las salas: se apagan con un fundido a partir de la distancia de su calidad.
+const LIGHT: StringName = &"draw_distance_light"
+## Metros en los que se desvanece una luz lejana antes de dejar de calcularse.
+const LIGHT_FADE_LENGTH: float = 4.0
 
 
 ## Distancia para un tamaño y una calidad (0 = sin límite).
@@ -20,13 +24,48 @@ static func mark(node: Node, kind: StringName) -> void:
 	_apply(node, range_for(kind, Settings.get_int("quality")))
 
 
-## Vuelve a aplicar la distancia a todas las piezas marcadas (al cambiar la calidad).
+## Distancia a la que se apagan las luces de las salas en una calidad (0 = nunca).
+static func light_fade_for(quality: int) -> float:
+	var table := Rules.LIGHT_FADE_DISTANCE
+	return table[clampi(quality, 0, table.size() - 1)]
+
+
+## Marca una luz de sala y le aplica el fundido por distancia de la calidad actual.
+static func mark_light(light: Light3D) -> void:
+	light.add_to_group(LIGHT)
+	_apply_light(light, light_fade_for(Settings.get_int("quality")))
+
+
+## Vuelve a aplicar la distancia a todas las piezas y luces marcadas (al cambiar la calidad).
 static func refresh(tree: SceneTree) -> void:
 	var quality := Settings.get_int("quality")
 	for kind: StringName in [SMALL, LARGE]:
 		var distance := range_for(kind, quality)
 		for node: Node in tree.get_nodes_in_group(kind):
 			_apply(node, distance)
+	var fade := light_fade_for(quality)
+	for node: Node in tree.get_nodes_in_group(LIGHT):
+		var light := node as Light3D
+		if light != null:
+			_apply_light(light, fade)
+
+
+## Quita todos los límites de distancia y los fundidos de luz (la preparación de materiales
+## antes de jugar); refresh() los vuelve a poner.
+static func apply_unlimited(tree: SceneTree) -> void:
+	for kind: StringName in [SMALL, LARGE]:
+		for node: Node in tree.get_nodes_in_group(kind):
+			_apply(node, 0.0)
+	for node: Node in tree.get_nodes_in_group(LIGHT):
+		var light := node as Light3D
+		if light != null:
+			_apply_light(light, 0.0)
+
+
+static func _apply_light(light: Light3D, distance: float) -> void:
+	light.distance_fade_enabled = distance > 0.0
+	light.distance_fade_begin = distance
+	light.distance_fade_length = LIGHT_FADE_LENGTH
 
 
 static func _apply(node: Node, distance: float) -> void:

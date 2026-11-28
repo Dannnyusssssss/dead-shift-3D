@@ -39,10 +39,27 @@ func test_settings_fractional_int_and_unknown_keys() -> void:
 
 
 func test_settings_valid_values_survive() -> void:
-	var result := _settings('{"version":1,"fov":90,"reduce_gore":true,"quality":2}')
+	var result := _settings('{"version":2,"fov":90,"reduce_gore":true,"quality":0}')
 	assert_eq(result["fov"], 90.0)
 	assert_eq(result["reduce_gore"], true)
-	assert_eq(result["quality"], 2)
+	assert_eq(result["quality"], SettingsSchema.QUALITY_MINIMUM)
+
+
+## Los ajustes de la versión 1 no tenían la calidad Mínima: su Baja, Media y Alta (0, 1, 2)
+## pasan a ser 1, 2 y 3, y lo inválido vuelve a Media.
+func test_settings_version_1_quality_moves_up_one_level() -> void:
+	assert_eq(_settings('{"version":1,"quality":0}')["quality"], SettingsSchema.QUALITY_LOW)
+	assert_eq(_settings('{"version":1,"quality":1}')["quality"], SettingsSchema.QUALITY_MEDIUM)
+	assert_eq(_settings('{"version":1,"quality":2}')["quality"], SettingsSchema.QUALITY_HIGH)
+	assert_eq(_settings('{"version":1,"quality":-4}')["quality"], SettingsSchema.QUALITY_LOW)
+	assert_eq(_settings('{"version":1,"quality":"x"}')["quality"], SettingsSchema.QUALITY_MEDIUM)
+	assert_eq(_settings('{"version":3,"quality":0}')["quality"], SettingsSchema.QUALITY_MEDIUM)
+
+
+func test_page_flag_is_true_only_for_exact_one() -> void:
+	assert_true(Validation.parse_flag("1"))
+	for text: String in ["", "0", "true", "1 ", "11", "sí", "<script>"]:
+		assert_false(Validation.parse_flag(text), text)
 
 
 func test_seed_valid() -> void:

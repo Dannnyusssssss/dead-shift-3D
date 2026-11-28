@@ -9,22 +9,23 @@ const KIND_DUST: int = 1
 const KIND_SPARKS: int = 2
 const KIND_DEBRIS: int = 3
 
-## Partículas vivas a la vez y manchas en el suelo y las paredes, por calidad (Baja, Media, Alta).
-const MAX_PARTICLES: Array[int] = [24, 48, 96]
-const MAX_STAINS: Array[int] = [16, 40, 80]
+## Partículas vivas a la vez y manchas en el suelo y las paredes, por calidad (Mínima, Baja,
+## Media, Alta).
+const MAX_PARTICLES: Array[int] = [12, 24, 48, 96]
+const MAX_STAINS: Array[int] = [8, 16, 40, 80]
 ## Partículas por impacto (bala, golpe, muerte, escombros) antes del tope.
 const BURST_BULLET: int = 6
 const BURST_MELEE: int = 9
 const BURST_DEATH: int = 14
 const BURST_DEBRIS: int = 10
 
-var quality: int = 1
+var quality: int = 2
 var reduce_gore: bool = false
 var _next_stain: int = 0
 var _live_particles: int = 0
 
 
-func _init(quality_level: int = 1, gore_reduced: bool = false) -> void:
+func _init(quality_level: int = 2, gore_reduced: bool = false) -> void:
 	quality = clampi(quality_level, 0, MAX_STAINS.size() - 1)
 	reduce_gore = gore_reduced
 

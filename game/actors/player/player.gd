@@ -84,6 +84,7 @@ func _ready() -> void:
 		GameState.start_new_run()
 	interact_ray.target_position = Vector3(0.0, 0.0, -Rules.PLAYER_INTERACT_RANGE)
 	_apply_fov()
+	_apply_view_distance()
 	EventBus.settings_changed.connect(_on_settings_changed)
 
 
@@ -356,6 +357,15 @@ func _apply_fov() -> void:
 	camera.fov = Settings.get_float("fov")
 
 
+## Distancia de visión de la calidad: lo que queda más lejos no se dibuja (la niebla de
+## profundidad de Mínima y Baja lo oscurece antes, ver Building).
+func _apply_view_distance() -> void:
+	var table := Rules.QUALITY_VIEW_DISTANCE
+	camera.far = table[clampi(Settings.get_int("quality"), 0, table.size() - 1)]
+
+
 func _on_settings_changed(key: String) -> void:
+	if key == "quality":
+		_apply_view_distance()
 	if key == "fov":
 		_apply_fov()

@@ -36,6 +36,10 @@ static func parse_settings(text: String) -> Dictionary:
 		var high: int = spec[1]
 		var fallback: int = spec[2]
 		result[key] = read_int(source, key, low, high, fallback)
+	var raw_version: float = source.get("version", 1.0)
+	if int(raw_version) == 1:
+		# Versión 1: Baja, Media y Alta eran 0, 1 y 2; ahora la Mínima va delante.
+		result["quality"] = read_int(source, "quality", 0, 2, 1) + 1
 	for key: String in SettingsSchema.BOOLS:
 		var fallback: bool = SettingsSchema.BOOLS[key]
 		result[key] = read_bool(source, key, fallback)
@@ -124,6 +128,11 @@ static func parse_seed(query: String) -> int:
 ## Márgenes de la zona segura de la pantalla (muescas y bordes curvos) que escribe la página:
 ## «izquierda,arriba,derecha,abajo» como fracciones del ancho o alto. Cuatro números entre 0 y
 ## SAFE_INSET_MAX; si algo no encaja, sin márgenes (nunca se ejecuta ni interpreta otra cosa).
+## Marca de sí o no que escribe la página: solo «1» exacto es verdadero; todo lo demás, falso.
+static func parse_flag(text: String) -> bool:
+	return text == "1"
+
+
 static func parse_safe_insets(text: String) -> PackedFloat32Array:
 	var none := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 	if text.is_empty() or text.length() > SAFE_INSETS_MAX_LENGTH:

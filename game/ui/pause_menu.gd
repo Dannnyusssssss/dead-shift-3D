@@ -3,7 +3,9 @@ extends Control
 ## Menú de pausa. Aparece al pulsar «pausa» o cuando el navegador suelta el puntero
 ## (Esc, cambio de pestaña) y explica cómo volver. Funciona con ratón, teclado y toque.
 
-const QUALITY_KEYS: Array[String] = ["quality_low", "quality_medium", "quality_high"]
+const QUALITY_KEYS: Array[String] = [
+	"quality_minimum", "quality_low", "quality_medium", "quality_high"
+]
 
 var _continue: TapButton = null
 var _quality: TapButton = null

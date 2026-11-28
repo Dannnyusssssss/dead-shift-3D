@@ -5,11 +5,15 @@ extends GutTest
 
 
 func test_caps_grow_with_quality() -> void:
-	var low := GoreBudget.new(0)
-	var high := GoreBudget.new(2)
+	var minimum := GoreBudget.new(SettingsSchema.QUALITY_MINIMUM)
+	var low := GoreBudget.new(SettingsSchema.QUALITY_LOW)
+	var high := GoreBudget.new(SettingsSchema.QUALITY_HIGH)
+	assert_lt(minimum.max_particles(), low.max_particles())
 	assert_lt(low.max_particles(), high.max_particles())
 	assert_lt(low.max_stains(), high.max_stains())
-	assert_eq(GoreBudget.new(9).quality, 2, "la calidad se limita al rango")
+	assert_eq(
+		GoreBudget.new(9).quality, SettingsSchema.QUALITY_HIGH, "la calidad se limita al rango"
+	)
 
 
 func test_particles_never_exceed_the_cap() -> void:

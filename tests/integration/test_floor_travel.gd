@@ -227,5 +227,9 @@ func test_props_have_draw_distance_by_quality() -> void:
 		"objeto suelto"
 	)
 	Settings.set_value("quality", SettingsSchema.QUALITY_LOW)
-	assert_eq(mesh.visibility_range_end, Rules.DRAW_DISTANCE_LARGE[0], "cambia con la calidad")
+	assert_eq(
+		mesh.visibility_range_end,
+		Rules.DRAW_DISTANCE_LARGE[SettingsSchema.QUALITY_LOW],
+		"cambia con la calidad"
+	)
 	Settings.set_value("quality", quality)
